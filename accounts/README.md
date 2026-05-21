@@ -64,3 +64,31 @@ powershell -ExecutionPolicy Bypass -File .\scripts\meeting-hook.ps1 -Mode post -
 - `transcript.txt`
 - `parsed.md`
 - `postmortem.md`
+
+## Repo Automation Shortcuts
+
+### Slash Commands
+Defined in `.github\prompts\`:
+
+- `/prep`
+- `/post`
+- `/meeting-new`
+- `/transcript-parse`
+- `/account-new`
+- `/brief`
+
+### Local Skills
+Defined in `.github\skills\`:
+
+- `azure-architecture-autopilot`
+- `azure-role-selector`
+- `cloud-design-patterns`
+- `create-agentsmd`
+- `create-implementation-plan`
+- `create-llms`
+- `create-readme`
+- `microsoft-agent-framework`
+- `microsoft-code-reference`
+- `microsoft-docs`
+- `msgraph-sdk`
+- `remember`
