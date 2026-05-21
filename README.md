@@ -9,12 +9,14 @@ Pre-sales account management repository for Security Solution Engineering engage
 │   ├── discovery.md         # Discovery call question framework
 │   ├── demo-runbook.md      # Demo execution template
 │   ├── scenario-brief.md    # Scenario write-up template
-│   └── meeting-notes.md     # Meeting notes template
+│   ├── meeting-notes.md     # Meeting notes template
+│   └── questions.md         # Customer questions tracker template
 │
 ├── accounts/                # Per-account folders (create one per customer)
 │   └── <account-name>/
 │       ├── README.md        # Account overview, key contacts, deal stage
 │       ├── notes/           # Meeting notes & call summaries
+│       ├── questions/       # Open/answered customer & internal questions
 │       ├── demos/           # Demo scripts & configs tailored to this account
 │       ├── scenarios/       # Customer-specific pain points → solution mappings
 │       ├── architecture/    # Current-state & proposed architecture diagrams
