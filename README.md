@@ -90,12 +90,14 @@ Scripts:
 
 Custom slash commands are now defined in `.github\prompts\`:
 
-- `/prep` -> interactive pre-call package creation
-- `/post` -> interactive postmortem capture
-- `/meeting-new` -> non-interactive package creation
-- `/transcript-parse` -> build `parsed.md` from `transcript.txt`
-- `/account-new` -> scaffold account folder + README
-- `/brief` -> generate/update `accounts\<account>\brief.md`
+| Command | Purpose |
+|---|---|
+| `/prep` | Interactive pre-call package creation |
+| `/post` | Interactive postmortem capture |
+| `/meeting-new` | Non-interactive meeting package creation |
+| `/transcript-parse` | Build `parsed.md` from `transcript.txt` |
+| `/account-new` | Scaffold account folder and README |
+| `/brief` | Generate or update `accounts\<account>\brief.md` |
 
 Example usage:
 
@@ -104,6 +106,27 @@ Example usage:
 /transcript-parse accounts\pheaa\meetings\2026-05-19-server-security-alignment
 /brief pheaa
 ```
+
+## Local Skills
+
+Project-local skills are stored under `.github\skills\` and available to Copilot in this repo:
+
+| Skill | Purpose |
+|---|---|
+| `azure-architecture-autopilot` | Azure architecture design, analysis, and deployment guidance |
+| `azure-role-selector` | Least-privilege Azure role selection guidance |
+| `cloud-design-patterns` | Distributed system and cloud architecture patterns |
+| `create-agentsmd` | Generate `AGENTS.md` guidance for a repo |
+| `create-implementation-plan` | Create implementation plans for features or refactors |
+| `create-llms` | Generate `llms.txt` for repo structure |
+| `create-readme` | Create or improve repository README content |
+| `microsoft-agent-framework` | Build and review Microsoft Agent Framework solutions |
+| `microsoft-code-reference` | Find official Microsoft API references and code samples |
+| `microsoft-docs` | Ground answers in official Microsoft documentation |
+| `msgraph-sdk` | Implement Microsoft Graph SDK integrations |
+| `remember` | Store reusable repo or workflow knowledge for future tasks |
+
+These complement the slash commands: use slash commands for repeatable repo workflows, and use skills when you want Copilot to apply deeper domain guidance while working in the repo.
 
 ## Naming Conventions
 
