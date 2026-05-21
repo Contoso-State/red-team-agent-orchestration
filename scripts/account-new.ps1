@@ -27,9 +27,21 @@ $displayName = if ([string]::IsNullOrWhiteSpace($AccountName)) { $Account } else
 $accountDir = Join-Path $repoRoot ("accounts\" + $accountSlug)
 New-Item -ItemType Directory -Path $accountDir -Force | Out-Null
 
-$subfolders = @("meetings", "notes", "demos", "scenarios", "architecture", "artifacts")
+$subfolders = @("meetings", "notes", "questions", "demos", "scenarios", "architecture", "artifacts")
 foreach ($folder in $subfolders) {
     New-Item -ItemType Directory -Path (Join-Path $accountDir $folder) -Force | Out-Null
+}
+
+$questionsTemplate = Join-Path $repoRoot "_templates\questions.md"
+$questionsPath = Join-Path $accountDir "questions\questions.md"
+if ((Test-Path $questionsTemplate -PathType Leaf) -and (-not (Test-Path $questionsPath -PathType Leaf) -or $Force)) {
+    Copy-Item -Path $questionsTemplate -Destination $questionsPath -Force
+}
+
+$discoveryTemplate = Join-Path $repoRoot "_templates\discovery.md"
+$discoveryPath = Join-Path $accountDir "notes\discovery-framework.md"
+if ((Test-Path $discoveryTemplate -PathType Leaf) -and (-not (Test-Path $discoveryPath -PathType Leaf) -or $Force)) {
+    Copy-Item -Path $discoveryTemplate -Destination $discoveryPath -Force
 }
 
 $templatePath = Join-Path $repoRoot "_templates\account-readme.md"
