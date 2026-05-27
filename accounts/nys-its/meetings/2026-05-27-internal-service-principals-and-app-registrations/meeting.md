@@ -3,16 +3,24 @@
 ## Meeting Info
 - **Date:** 2026-05-27
 - **Account:** nys-its
-- **Type:** Technical Deep-Dive
-- **Attendees:** TBD
+- **Type:** Technical Deep-Dive (Internal)
+- **Attendees:** AG, Mohammed
+- **Context:** Responding to Mohammed's latest questions on service principals and app registrations
 
 ## Decision & Outcome
-- **Single decision needed:** Align on recommended Entra app registration and service principal governance model for ITS shared-services environment
-- **Best-case outcome:** Finalize SP/app reg guidance doc to present to ITS covering naming conventions, credential lifecycle, least-privilege scoping, and workload identity federation
+- **Single decision needed:** Align on answers to Mohammed's SP/app registration questions and determine next steps
+- **Best-case outcome:** Resolve Mohammed's open questions; finalize SP/app reg guidance for ITS
 - **Fallback outcome:** Identify open questions on ITS multi-tenant SP topology and assign owners for follow-up research
 
 ## Current State Delta
-1. First internal session on this topic
+1. Mohammed raised questions on service principals and app registrations
+2. Need to clarify SP governance approach for ITS shared-services model
+
+## Mohammed's Questions
+_Capture Mohammed's specific questions here before/during the call:_
+1. 
+2. 
+3. 
 
 ## Priority Pains
 1. Ungoverned app registrations across agency tenants
