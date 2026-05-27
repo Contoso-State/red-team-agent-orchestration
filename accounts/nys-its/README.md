@@ -13,7 +13,11 @@ NYS Office of Information Technology Services (ITS) is the consolidated IT share
 ## Key Contacts
 | Name | Title | Email | Role in Deal |
 |------|-------|-------|-------------|
-| | | | |
+| George Kemp | Head of Architecture, ITS | | Azure/AWS/GCP infrastructure owner; requesting SP & app reg guidance |
+| Mohammed Abdelhadi | | | Microsoft account team — primary relationship |
+| Mark Brogan | | | Microsoft account team |
+| Sundeep (Sunny) | | | Microsoft — technical; "knows their language" |
+| Heidi | | | Microsoft — Azure perspective |
 
 ## Microsoft Licensing
 - Current: (G3 / G5 / Other — verify Government SKU)
@@ -39,6 +43,6 @@ _Who else is in the deal? (Splunk, CrowdStrike, Palo Alto Cortex, Okta, etc.)_
 ## Engagement History
 | Date | Activity | Notes |
 |------|----------|-------|
-| | | |
+| 2026-05-27 | Internal sync — SP & app registration prep | Mohammed briefed team on George Kemp's request; aligned on attendees for customer session (AG, Sunny, Heidi, Mohammed) |
 
 
