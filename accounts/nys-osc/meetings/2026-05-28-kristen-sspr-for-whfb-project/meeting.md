@@ -143,6 +143,23 @@ Source: https://learn.microsoft.com/en-us/windows/security/identity-protection/h
 - Microsoft's investment in FIDO2/passkeys is in **sign-in and MFA**, not SSPR.
 - Compensate with: strong logging on SSPR events, Conditional Access on the SSPR registration flow, TAP as the backstop for high-risk users.
 
+### Obj 5 (likely from Kristen): "Can't WHfB PIN act as 2FA for SSPR?"
+- **WHfB IS multi-factor authentication** ✅ — Microsoft treats a WHfB sign-in as MFA because the credential itself is multi-factor (TPM-bound key + PIN/biometric).
+- **But the PIN cannot be used as an SSPR verification method** ❌ — SSPR verification is an explicit allowlist (Authenticator, OATH, SMS, voice, email, security questions). PIN isn't on it; no roadmap to add it.
+- **The reframe that helps OSC:** Once WHfB is your primary sign-in, **SSPR usage drops dramatically** — because the password becomes a backup credential users almost never touch:
+
+| Scenario | Pre-WHfB | Post-WHfB |
+|---|---|---|
+| Day-to-day Windows sign-in | Password | PIN/biometric — never types password |
+| Day-to-day M365 sign-in | Password + MFA | SSO from WHfB session |
+| Change password (proactive) | SSPR recovery flow | **Already signed in → change directly** (Ctrl+Alt+Del or aka.ms/sspr) — no SSPR verification needed |
+| Forgot Windows PIN | N/A | **Microsoft PIN Reset Service** (uses MFA, not SSPR) |
+| True lockout (lost device, new device, never enrolled) | SSPR | SSPR (the only residual case) |
+
+- **Estimated SSPR volume post-WHfB: <5% of pre-WHfB volume.** The "limited SSPR methods" concern is largely theoretical for most users once WHfB is in place.
+- **Residual SSPR case = true lockout** = by definition needs an out-of-band method (user can't get into anything). WHfB can't help here because user can't sign in to use it.
+- **Recommendation for bootstrap scenarios** (new hire, replacement laptop, contractor): issue a **Temporary Access Pass (TAP)** as the helpdesk-provisioned bootstrap credential; pair with hardware OATH token at onboarding for ongoing recovery.
+
 ---
 
 ## 📋 Open Questions for Kristen
