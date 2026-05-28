@@ -13,7 +13,7 @@ The NYS Office of the State Comptroller (OSC) is the independently elected fisca
 ## Key Contacts
 | Name | Title | Email | Role in Deal |
 |------|-------|-------|-------------|
-| | | | |
+| Kristen | (WHfB project lead) | | Driving SSPR/WHfB rollout — primary technical contact for identity recovery design |
 
 ## Microsoft Licensing
 - Current: (G3 / G5 / Other — verify Government SKU)
@@ -37,4 +37,5 @@ _Who else is in the deal?_
 | Date | Activity | Notes |
 |------|----------|-------|
 | 2026-05-21 | SSPR auth methods Q&A | OSC asked if Authenticator is the only SSPR method — clarified 6 methods exist; recommended hardware OATH tokens for BYOD-restricted environment |
+| 2026-05-28 | Kristen — SSPR/WHfB meeting | Kristen re-raised SSPR concern. Full prep w/ verified Apr 2026 method matrix, BYOD-restricted stack (voice + email + OATH), WHfB PIN reset clarification. See `meetings/2026-05-28-kristen-sspr-for-whfb-project/` |
 

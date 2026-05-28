@@ -17,7 +17,7 @@ Use one file per topic/meeting, or maintain a running log. Suggested naming: `YY
 
 | # | Date Asked | Question | Owner | Due | Response |
 |---|------------|----------|-------|-----|----------|
-| | | | | | |
+| 1 | 2026-05-28 | **Kristen (WHfB project):** We're implementing SSPR at OSC. We're finding the only auth method OSC employees will be able to use is the Microsoft Authenticator app. We cannot require employees to install Authenticator on their personal device. Is Microsoft working on other authentication methods that can be used for SSPR? We're not sure how beneficial SSPR will be to OSC employees since we cannot require the use of the authenticator app. | AG | Meeting w/ Kristen (today) | **Premise is incorrect — six+ SSPR methods exist today.** Recommended OSC pattern: **hardware OATH tokens + voice-to-desk-phone + email OTP** — zero personal-device dependency. Full prep in [meetings/2026-05-28-kristen-sspr-for-whfb-project/](../meetings/2026-05-28-kristen-sspr-for-whfb-project/). WHfB PIN reset uses separate Microsoft PIN Reset Service, not SSPR. |
 
 ## Technical Deep-Dive Questions
 
