@@ -38,7 +38,7 @@ _Who else is in the deal? (Splunk, CrowdStrike, Palo Alto Cortex, Okta, etc.)_
 
 ## Related Accounts
 - `ny-state/` — NYS umbrella account
-- (Add OSC and other agencies as they are scoped)
+- `nys-osc/` — NYS Office of the State Comptroller (OSC)
 
 ## Engagement History
 | Date | Activity | Notes |
