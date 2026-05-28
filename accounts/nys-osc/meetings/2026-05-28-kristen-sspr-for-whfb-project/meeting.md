@@ -160,6 +160,40 @@ Source: https://learn.microsoft.com/en-us/windows/security/identity-protection/h
 - **Residual SSPR case = true lockout** = by definition needs an out-of-band method (user can't get into anything). WHfB can't help here because user can't sign in to use it.
 - **Recommendation for bootstrap scenarios** (new hire, replacement laptop, contractor): issue a **Temporary Access Pass (TAP)** as the helpdesk-provisioned bootstrap credential; pair with hardware OATH token at onboarding for ongoing recovery.
 
+### Obj 6: "Employees can't use phones AT ALL — not even desk phones. What now?"
+
+This is a stricter constraint than the original BYOD-only restriction. Eliminates voice call AND SMS AND any phone-based method. The SSPR-capable methods that survive:
+
+| Method | SSPR? | Phone needed? | Verdict for no-phone OSC |
+|---|---|---|---|
+| **Hardware OATH tokens (Preview)** | ✅ | ❌ | **🟢 THE primary SSPR method** — non-negotiable in this environment |
+| **Software OATH tokens** (on work-managed laptop) | ✅ | ❌ | 🟢 Backup |
+| **Email OTP** (alternate/personal email) | ✅ | ❌ | 🟢 Works if employees have registered personal email |
+| Passkey (FIDO2) | ❌ | ❌ | Sign-in/MFA only — NOT SSPR |
+| Certificate-based (smart card / PIV) | ❌ | ❌ | Sign-in/MFA only — NOT SSPR |
+| Temporary Access Pass | ❌ | ❌ | Helpdesk recovery TO sign-in, not SSPR verification method |
+| Verified ID | ❌ | ❌ | Account Recovery flow only (separate from SSPR) |
+| QR code | ❌ | ❌ | Frontline sign-in, not SSPR |
+
+**In a no-phone environment, hardware OATH tokens are not optional — they are THE answer for SSPR.**
+
+**Full no-phone identity stack for OSC:**
+
+| Use case | Method |
+|---|---|
+| Daily Windows sign-in | **WHfB PIN/biometric** (TPM-bound, phishing-resistant) |
+| MFA step-up for sensitive ops | **WHfB** or **FIDO2 security key** or **CBA (smart card)** |
+| Forgot Windows PIN | **Microsoft PIN Reset Service** → auth via FIDO2 key, hardware OATH, or password |
+| Forgot Entra password (true lockout) | **SSPR** → hardware OATH token (primary) + email OTP (secondary, if personal email registered) |
+| Total credential loss / new hire / new device | Helpdesk-issued **TAP** → bootstrap WHfB + new hardware OATH token |
+
+**Procurement implications:**
+- **Hardware OATH tokens** for all employees who need SSPR access (~$15–30/employee — Thales OTP 110 most documented)
+- **FIDO2 security keys** for all employees (YubiKey 5 NFC / FEITIAN ePass — primary phishing-resistant sign-in + PIN reset auth) — ~$50/employee
+- **Smart cards (PIV)** if OSC has existing government PKI — leverage CBA (free Entra feature, GA)
+
+**Note on screenshot reference:** The Entra Admin Center "Authentication methods" policy page lists ALL sign-in/MFA methods (Passkey, Authenticator, SMS, TAP, Hardware OATH, Software OATH, Voice, Email, CBA, Verified ID, QR code). The **SSPR-capable subset is narrower** and configured separately under **Password reset → Authentication methods**. Don't confuse the two policy pages.
+
 ---
 
 ## 📋 Open Questions for Kristen
