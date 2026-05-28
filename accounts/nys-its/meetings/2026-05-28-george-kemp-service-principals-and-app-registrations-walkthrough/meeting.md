@@ -167,6 +167,70 @@ Architecture owns Azure subscriptions. Identity owns Entra ID. Dev teams need bo
 
 ---
 
+## 🎁 LIVE CASE STUDY — WCB / Dale Friscic Email (use this during the meeting)
+
+**Source:** Email forwarded from George Kemp, originally from **Dale Friscic (WCB — Workers' Compensation Board)**
+
+> *"George, We believe WCB's cloud instance of Azure DevOps has had it's OAuth fully deprecated over the past few weeks. We'd like to inquire about the possibility of getting a Managed Identity-backed App Registration on the AZ Commercial Cloud. We have adequate workarounds in place for our current purposes but believe it would be best to head this direction for the long-haul."*
+
+### Translation of Dale's ask
+
+| Dale's words | What that actually means |
+|---|---|
+| "OAuth fully deprecated" | ✅ True — Microsoft deprecated the legacy Azure DevOps OAuth 2.0 app model; replacement is Entra ID auth |
+| "Managed Identity-backed App Registration" | ⚠️ Conflated term — not a single Entra object. But the intent is clear: **secret-less auth to Azure DevOps using an Entra identity** |
+
+**Reference:** [No new Azure DevOps OAuth apps (Microsoft DevBlogs)](https://devblogs.microsoft.com/devops/no-new-azure-devops-oauth-apps/) · [Authenticate with service principals & managed identities](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity)
+
+### The actual answer — runs Dale's scenario through OUR decision tree (use the whiteboard)
+
+| Where does WCB's workload run? | Recommended pattern |
+|---|---|
+| **In Azure** (VM, Function, App Service, Pipeline, AKS) | ✅ **Managed Identity** added to Azure DevOps org — calls APIs with MI token, zero credentials |
+| **Outside Azure** (on-prem, GitHub Actions, anywhere else) | ✅ **App Registration + Workload Identity Federation** — federated cred, zero secrets |
+| **Legacy / cannot OIDC** | ⚠️ App Registration + **certificate** (NOT secret) in Key Vault, auto-rotated |
+
+### Why this email is a gift for the meeting
+
+It's the **exact problem George's role is supposed to solve** — and it's already landing in his inbox. Use it as the live case study when walking the decision tree. Makes the abstract concrete.
+
+**Talk track:**
+> *"George — perfect timing. Dale at WCB sent you this exact scenario. Let's walk it through the decision tree we just covered: what's WCB's workload, where does it run, and which of the 3 patterns applies?"*
+
+### Questions to scope with George/Dale before answering Dale
+1. **Where does the workload that calls Azure DevOps run today?** (Azure resource → MI. External → WIF.)
+2. **What's the workload doing on Azure DevOps?** REST API, pipeline triggers, repo access, work item updates?
+3. **Which Azure DevOps org?** (Needs the SP/MI added as a member.)
+4. **Confirmed Azure Commercial (not Gov)?** — Dale specifies Commercial ✅
+5. **Who owns SP/App Reg creation at WCB?** — they may hit the same Identity-team-bottleneck George is trying to solve
+
+### Draft response for George to send Dale
+
+> *Dale,*
+>
+> *Good instinct on the direction. The Azure DevOps OAuth 2.0 app model is indeed deprecated — Microsoft is moving everyone to Entra ID-based auth. The "managed identity-backed" pattern is the right call.*
+>
+> *A few quick questions to scope the right answer:*
+>
+> *1. Where does the workload that calls Azure DevOps run today? (Azure VM/Function/Pipeline, on-prem, GitHub Actions, etc.)*
+> *2. What's it doing on Azure DevOps — REST API calls, pipeline triggers, repo access?*
+> *3. Which Azure DevOps org needs the access?*
+>
+> *Based on those answers, we'll land on one of three patterns:*
+> *  • Managed Identity (workload runs in Azure — preferred, zero credentials)*
+> *  • App Registration + Workload Identity Federation (workload runs outside Azure — also zero credentials)*
+> *  • App Registration + Certificate in Key Vault (legacy fallback)*
+>
+> *Happy to loop in our Microsoft account team — Andrew Goodson and Sundeep are deep on this. Want to set up a 30-min working session?*
+>
+> *George*
+
+### Strategic implication for ITS
+
+This is **proof of demand**. If Dale (WCB) is asking, others will too. Reinforces the recommendation that ITS Architecture get **Application Administrator (PIM-eligible)** + a **WIF + Bicep template** library — so these requests become self-service, not bottlenecks.
+
+---
+
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
