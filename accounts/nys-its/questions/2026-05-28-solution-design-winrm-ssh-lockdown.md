@@ -20,6 +20,167 @@ Admin → Entra ID (MFA + PIM) → Bastion → AVD Session Host (Ops Mgmt Server
 
 ---
 
+## 0. Architecture Sketch
+
+### 0.1 End-to-end management flow
+
+```mermaid
+flowchart LR
+    classDef admin fill:#e1f5ff,stroke:#0078d4,color:#000
+    classDef entra fill:#fff4e1,stroke:#ff8c00,color:#000
+    classDef ops fill:#e8f5e9,stroke:#2e7d32,color:#000
+    classDef target fill:#fce4ec,stroke:#c2185b,color:#000
+    classDef monitor fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    classDef onprem fill:#eeeeee,stroke:#616161,color:#000
+
+    Admin([Admin User]):::admin
+    Entra[Entra ID<br/>MFA + Conditional Access + PIM]:::entra
+    Bastion[Azure Bastion Premium<br/>session recording]:::ops
+    AVD[AVD Session Host Pool<br/>ASG-Ops-Mgmt<br/>Tier 0 PAW]:::ops
+    AutoTools[Automation Tool Servers<br/>ASG-Automation<br/>gMSA accounts]:::ops
+    DC[Domain Controllers<br/>ASG-Tier0-DC]:::target
+    WinSrv[Windows Member Servers<br/>ASG-Tier1-Members]:::target
+    LinSrv[Linux Servers<br/>ASG-Tier1-Linux]:::target
+    GitOnPrem[On-prem Git Server<br/>ESS sudoers distribution]:::onprem
+    Sentinel[Microsoft Sentinel<br/>+ Defender for Identity<br/>+ Defender for Servers P2]:::monitor
+
+    Admin -->|1. MFA| Entra
+    Entra -->|2. PIM activation| Bastion
+    Bastion -->|3. RDP over TLS| AVD
+    AVD -->|4. WinRM HTTPS 5986<br/>PIM-elevated| DC
+    AVD -->|4. WinRM HTTPS 5986| WinSrv
+    AVD -->|4. SSH 22<br/>Entra-issued cert| LinSrv
+    AutoTools -->|WinRM HTTPS 5986<br/>gMSA auth| WinSrv
+    GitOnPrem -->|SSH 22<br/>cert auth| LinSrv
+
+    DC -.->|logs| Sentinel
+    WinSrv -.->|logs| Sentinel
+    LinSrv -.->|logs| Sentinel
+    AVD -.->|logs + session recordings| Sentinel
+    AutoTools -.->|logs| Sentinel
+```
+
+### 0.2 Network segmentation — ASG/NSG view
+
+```mermaid
+flowchart TB
+    classDef block fill:#ffebee,stroke:#c62828,color:#000
+    classDef allow fill:#e8f5e9,stroke:#2e7d32,color:#000
+    classDef subnet fill:#e3f2fd,stroke:#1565c0,color:#000
+
+    subgraph Internet[Internet]
+        Attacker([External Threat]):::block
+    end
+
+    subgraph HubVNet[Hub VNet]
+        BastionSubnet[AzureBastionSubnet]:::subnet
+    end
+
+    subgraph MgmtVNet[Management VNet]
+        OpsSubnet[snet-ops-mgmt<br/>AVD hosts<br/>ASG-Ops-Mgmt-AVD]:::subnet
+        AutoSubnet[snet-automation<br/>Tool servers<br/>ASG-Automation-Tools]:::subnet
+    end
+
+    subgraph WorkloadVNet[Workload VNet]
+        Tier0Subnet[snet-tier0<br/>Domain Controllers<br/>ASG-Tier0-DC]:::subnet
+        Tier1Subnet[snet-tier1<br/>Member servers<br/>ASG-Tier1-Members]:::subnet
+        LinuxSubnet[snet-linux<br/>RHEL fleet<br/>ASG-Tier1-Linux]:::subnet
+    end
+
+    Attacker -.->|"Deny 5985/5986/22<br/>(NSG rule 210/220)"| Tier0Subnet
+    Attacker -.->|denied| Tier1Subnet
+    Attacker -.->|denied| LinuxSubnet
+
+    BastionSubnet -->|"Allow 3389<br/>(rule 150)"| OpsSubnet
+    OpsSubnet ==>|"Allow 5986<br/>(rules 100,110)"| Tier0Subnet
+    OpsSubnet ==>|"Allow 5986<br/>(rules 100,110)"| Tier1Subnet
+    OpsSubnet ==>|"Allow 22<br/>(rule 130)"| LinuxSubnet
+    AutoSubnet ==>|"Allow 5986<br/>(rule 120)"| Tier1Subnet
+
+    OnPremGit[On-prem Git Server<br/>fixed IP] ==>|"Allow 22<br/>(rule 140)"| LinuxSubnet
+```
+
+### 0.3 Identity & credential flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant Entra as Entra ID + PIM
+    participant Bastion as Azure Bastion
+    participant AVD as AVD Ops Host
+    participant DC as Domain Controller (Tier 0)
+    participant Sentinel as Sentinel + DfI
+
+    Admin->>Entra: Sign-in (MFA)
+    Admin->>Entra: Activate PIM role "DC Admin" (justification, 4hr)
+    Entra->>Entra: Approval workflow (if Tier 0)
+    Entra-->>Admin: PIM-elevated token
+    Admin->>Bastion: Open RDP via Bastion
+    Bastion->>AVD: Authenticated RDP (Entra)
+    Note over Bastion,AVD: Session recording begins
+    Admin->>AVD: Open PowerShell ISE
+    AVD->>DC: Enter-PSSession -UseSSL (WinRM HTTPS 5986)
+    Note over AVD,DC: ASG: Ops-Mgmt → Tier0-DC<br/>Auth: Kerberos w/ PIM-activated creds<br/>Protected Users + Auth Silo enforced
+    DC-->>AVD: Remote PS session established
+    DC->>Sentinel: Event 4624 (LogonType 3, WinRM source IP)
+    DC->>Sentinel: Event 4104 (script block log)
+    Sentinel->>Sentinel: Correlate with PIM activation
+    Note over Sentinel: Alert if no matching PIM activation
+```
+
+### 0.4 ESS Linux scenarios — applied design
+
+```mermaid
+flowchart LR
+    classDef ess fill:#fff3e0,stroke:#e65100,color:#000
+    classDef target fill:#fce4ec,stroke:#c2185b,color:#000
+    classDef azure fill:#e3f2fd,stroke:#1565c0,color:#000
+
+    subgraph E1[E1: Sudoers distribution]
+        Git[On-prem Git Server]:::ess
+        Git -->|"SSH 22 cert auth<br/>NSG: source IP only<br/>FIM on /etc/sudoers"| Linux1[Azure RHEL fleet]:::target
+    end
+
+    subgraph E2[E2: PeopleSoft DR sync]
+        ERP[On-prem ERP/SQR source]:::ess
+        ERP -->|"Option A: SFTP cert auth<br/>NSG: source subnet only"| Linux2[DR servers]:::target
+        ERP -.->|"Option B (strategic):<br/>Azure Blob SFTP endpoint"| Blob[Azure Blob Storage<br/>SFTP enabled + MI]:::azure
+        Blob -.->|"NFS 3.0 / blobfuse"| Linux2
+    end
+
+    subgraph E3[E3: RHEL build/config]
+        BuildSrv[Build Orchestrator]:::ess
+        BuildSrv -->|"Short-term:<br/>SSH from ASG-Ops-Mgmt only"| Linux3[New RHEL servers]:::target
+        BuildSrv -.->|"Strategic:<br/>cloud-init at provision"| Linux3
+        Image[Azure Image Builder<br/>Golden RHEL image]:::azure -.->|"Servers boot pre-hardened"| Linux3
+        Arc[Azure Arc<br/>Machine Config]:::azure -.->|"Continuous drift enforcement"| Linux3
+    end
+```
+
+### 0.5 Defense-in-depth layers (what protects what)
+
+```mermaid
+flowchart TB
+    classDef l1 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    classDef l2 fill:#fff3e0,stroke:#e65100,color:#000
+    classDef l3 fill:#fce4ec,stroke:#c2185b,color:#000
+    classDef l4 fill:#f3e5f5,stroke:#6a1b9a,color:#000
+    classDef l5 fill:#e3f2fd,stroke:#1565c0,color:#000
+
+    Target[Target Server<br/>DC / Member / Linux]
+
+    L5[Layer 5: Detection<br/>Sentinel + Defender for Identity + DfS P2 + FIM]:::l5 --> Target
+    L4[Layer 4: Application<br/>WinRM HTTPS only · CredSSP disabled · IPv4Filter · TrustedHosts]:::l4 --> Target
+    L3[Layer 3: Identity<br/>gMSA · PIM/JIT · Protected Users · Auth Policy Silo · Entra Login Linux]:::l3 --> Target
+    L2[Layer 2: Host<br/>Defender for Servers P2 · MDE EDR · Disk encryption · Update Manager]:::l2 --> Target
+    L1[Layer 1: Network<br/>NSG + ASG · no public IPs · Bastion-only entry · subnet isolation]:::l1 --> Target
+```
+
+**Reading the layers:** any single layer can fail without compromising the system. The original ITS proposal stops at Layer 1; the full design covers Layers 1–5.
+
+---
+
 ## 1. Network Layer — NSG + ASG Design
 
 ### 1.1 Use Application Security Groups, not IPs
