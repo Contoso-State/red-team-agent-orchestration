@@ -27,8 +27,9 @@ Use one file per topic/meeting, or maintain a running log. Suggested naming: `YY
 _Architecture, integration, licensing, sizing, etc._
 
 - **WinRM / SSH management scenarios** — Windows Server team + ESS team raised 8 scenarios requiring inbound WinRM/SSH on Azure VMs. Full breakdown with candidate Azure-native solutions in [2026-05-28-winrm-ssh-management-scenarios.md](2026-05-28-winrm-ssh-management-scenarios.md). Pending meeting with ITS + ISO.
-- Core stack proposed: **Azure Arc + Azure Bastion + Machine Configuration + Defender for Servers P2**
-- Open data needed from ITS: tool inventory (what doesn't support ARM/Arc), server counts by OS/location, ISO policy on inbound mgmt ports
+- **Working solution design** — pragmatic ITS-aligned approach (keep WinRM/SSH, lock down with ASG/NSG + AVD ops server + Bastion + identity hardening) in [2026-05-28-solution-design-winrm-ssh-lockdown.md](2026-05-28-solution-design-winrm-ssh-lockdown.md)
+- Core stack proposed: **AVD (ops mgmt server) + Bastion + ASG/NSG + gMSA + PIM/JIT + Defender for Identity/Servers P2 + Sentinel**, with **Azure Arc** as additive long-term play
+- Open data needed from ITS: tool inventory (what doesn't support ARM/Arc), server counts by OS/location, ISO policy on inbound mgmt ports, existing AD tier/PIM model
 
 ## Business / Procurement Questions
 
