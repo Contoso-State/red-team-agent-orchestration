@@ -44,5 +44,6 @@ _Who else is in the deal? (Splunk, CrowdStrike, Palo Alto Cortex, Okta, etc.)_
 | Date | Activity | Notes |
 |------|----------|-------|
 | 2026-05-27 | Internal sync — SP & app registration prep | Mohammed briefed team on George Kemp's request; aligned on attendees for customer session (AG, Sunny, Heidi, Mohammed) |
+| 2026-05-28 | ITS submitted WinRM/SSH mgmt scenarios | Windows Server team (5 WinRM reasons) + ESS team (3 SSH scenarios). Meeting with ITS + ISO to be scheduled. See `questions/2026-05-28-winrm-ssh-management-scenarios.md` |
 
 
