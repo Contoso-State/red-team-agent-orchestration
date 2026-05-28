@@ -45,5 +45,6 @@ _Who else is in the deal? (Splunk, CrowdStrike, Palo Alto Cortex, Okta, etc.)_
 |------|----------|-------|
 | 2026-05-27 | Internal sync — SP & app registration prep | Mohammed briefed team on George Kemp's request; aligned on attendees for customer session (AG, Sunny, Heidi, Mohammed) |
 | 2026-05-28 | ITS submitted WinRM/SSH mgmt scenarios | Windows Server team (5 WinRM reasons) + ESS team (3 SSH scenarios). Meeting with ITS + ISO to be scheduled. See `questions/2026-05-28-winrm-ssh-management-scenarios.md` |
+| 2026-05-28 | XDR behavior rules / legacy policy alerts Q&A | Forwarded from OSC session. Clarified new UBA-driven behavior rules generate alerts automatically; no manual creation required. See `questions/2026-05-28-xdr-behavior-rules-and-legacy-policy-alerts.md` |
 
 
