@@ -11,15 +11,16 @@
 2. MDI (Microsoft Defender for Identity) not working
 
 ## Notes
-- MDI is not functioning properly — **Services Advanced Auditing is not enabled**
-- Advanced Auditing must be enabled for MDI to collect the necessary events from Domain Controllers
-- This is a prerequisite configuration step that was missed or not applied
+- MDI is not functioning properly — two issues identified:
+  1. **Services Advanced Auditing is not enabled** — required for MDI to collect events from Domain Controllers
+  2. **Possible service account issue** — the MDI service account (Directory Service Account / gMSA) may be misconfigured or lacking required permissions
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
 | | Enable Services Advanced Auditing on Domain Controllers for MDI | |
-| | Verify MDI sensor health after auditing is enabled | |
+| | Investigate and resolve MDI service account (DSA/gMSA) configuration | |
+| | Verify MDI sensor health after both issues are resolved | |
 
 ## Next Steps
 
