@@ -15,6 +15,9 @@
   1. **Services Advanced Auditing is not enabled** — required for MDI to collect events from Domain Controllers
   2. **Service account issue confirmed** — `Test-MDIDSA -Identity "mdiSvc01"` returned **false**, indicating the DSA `mdiSvc01` is not properly configured or lacks required permissions
 
+## Troubleshooting Steps
+- CSA recommended running `Get-Service *ATP*` on the Domain Controller to check if the MDI sensor service (AATPSensor) is running
+
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
