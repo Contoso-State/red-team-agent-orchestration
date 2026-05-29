@@ -17,10 +17,13 @@
 
 ## Troubleshooting Steps
 - CSA recommended running `Get-Service *ATP*` on the Domain Controller to check if the MDI sensor service (AATPSensor) is running
+- **Result: AATPSensor service is stopped** — sensor is not running on the DC
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
+| | Start AATPSensor service on DC — `Start-Service AATPSensor` | |
+| | Investigate why AATPSensor stopped (check event logs) | |
 | | Enable Services Advanced Auditing on Domain Controllers for MDI | |
 | | Investigate and resolve MDI DSA `mdiSvc01` — `Test-MDIDSA` returned false | |
 | | Verify MDI sensor health after both issues are resolved | |
