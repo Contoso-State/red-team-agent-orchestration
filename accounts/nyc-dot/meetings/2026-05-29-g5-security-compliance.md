@@ -13,13 +13,13 @@
 ## Notes
 - MDI is not functioning properly — two issues identified:
   1. **Services Advanced Auditing is not enabled** — required for MDI to collect events from Domain Controllers
-  2. **Possible service account issue** — the MDI service account (Directory Service Account / gMSA) may be misconfigured or lacking required permissions
+  2. **Service account issue confirmed** — `Test-MDIDSA -Identity "mdiSvc01"` returned **false**, indicating the DSA `mdiSvc01` is not properly configured or lacks required permissions
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
 | | Enable Services Advanced Auditing on Domain Controllers for MDI | |
-| | Investigate and resolve MDI service account (DSA/gMSA) configuration | |
+| | Investigate and resolve MDI DSA `mdiSvc01` — `Test-MDIDSA` returned false | |
 | | Verify MDI sensor health after both issues are resolved | |
 
 ## Next Steps
