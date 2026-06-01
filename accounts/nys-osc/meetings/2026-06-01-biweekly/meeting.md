@@ -123,7 +123,7 @@ Admin → Entra ID (MFA + PIM) → Azure Bastion → AVD Ops Server → Target S
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
-| | | |
+| AG + OSC/ITS | **Better communication channel for Defender product changes** — Establish a process so OSC/ITS is aware of Microsoft Defender product changes (e.g. legacy policy deprecations, new behavior rules, feature retirements) before they impact operations. Explore options: Message Center monitoring, Service Health alerts, dedicated MS contact for change advisories, or periodic product roadmap briefings. | TBD |
 
 ## Next Steps
 - Next bi-weekly: 2026-06-15
