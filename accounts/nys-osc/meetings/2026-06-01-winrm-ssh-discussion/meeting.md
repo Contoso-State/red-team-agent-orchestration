@@ -218,33 +218,89 @@ Manual configuration would be tedious and error-prone.
 
 ## Live Notes
 
-### Solution Presented to OSC: On-Prem Jump Server + Arc + JIT
+### Solution Evolution During Meeting
 
-Proposed simplified architecture to OSC:
+**Original proposal:** AVD ops server in Azure + Bastion + JIT
+**Simplified to:** On-prem jump server + Arc + JIT
+**Sundeep's feedback:** JIT won't work on Arc-enabled on-prem servers — JIT uses NSGs which are Azure-only
+**PIM alternative explored:** PIM group writeback to AD has 30-40 min sync delay — not viable for just-in-time
+**ExpressRoute concern:** Azure-based jump server creates single point of failure — if ER goes down, can't manage on-prem infra during outages
+**NPS Extension explored:** Works but adds another server role to maintain — older pattern
+
+### ✅ Final Solution: Dedicated PAW + On-Prem Jump Server
 
 ```
-Admin → Entra MFA + PIM → JIT request (Defender for Servers P2) → On-prem jump server (Arc-enabled) → WinRM/SSH to targets
+Dedicated Win11 PAW (WHfB 2FA) → RDP to on-prem jump server → WinRM/SSH to target servers
+         ↑                                    ↑                              ↑
+   Phishing-resistant              AD group controls who            Firewall ACLs restrict
+   MFA at the device               can RDP in                      WinRM/SSH to jump server IP only
 ```
 
-- Use an **existing on-prem server** as the management jump point (no AVD needed)
-- **Azure Arc** connects it to Azure management plane
-- **Defender for Servers P2 JIT** controls access — port closed by default, time-bound opening per admin request
-- WinRM/SSH stays fully functional from the jump server to all targets (DCs, members, Linux)
-- All existing ITS tools and workflows continue working — just routed through the hardened path
+**Why this won:**
+- No cloud dependency for management plane (ExpressRoute resilience)
+- No sync delay (WHfB is local TPM auth)
+- No additional infrastructure (no NPS, no AVD, no Bastion)
+- Phishing-resistant 2FA built into the workstation
+- Microsoft's own recommended pattern for Tier 0 admin (PAW)
+- All existing ITS tools and WinRM/SSH workflows continue working from the jump server
 
-**JIT on Arc-enabled servers:** Uses Windows Firewall / iptables rules on the machine itself (not Azure NSGs). Requires Arc agent current + Defender P2 assigned + host firewall enabled.
+### Architecture Detail
 
-**Key requirement:** This must be the **single path** to managed servers — admins cannot bypass the jump server and WinRM/SSH directly from workstations. On-prem firewall ACLs enforce this.
+**Layer 1 — Privileged Access Workstation (PAW)**
+- Dedicated Windows 11 workstation — admin use only
+- WHfB enrolled — PIN/biometric login = 2FA (TPM-bound key + knowledge/biometric factor)
+- No email, no browsing, no personal use
+- Hardened: Defender for Endpoint, attack surface reduction rules, AppLocker/WDAC
+- Only device authorized to RDP to the jump server (firewall ACL on source subnet)
 
-### Follow-Up: Validation Questions for Sundeep (Azure Infra Engineer)
+**Layer 2 — On-Prem Jump Server (Hardened)**
+- Windows Server, domain-joined, on the management network
+- AD security group controls who can RDP in ("Jump Server Admins" group)
+- Arc-enabled for Azure visibility (monitoring, Defender for Servers P2, inventory)
+- No internet access except Arc agent connectivity
+- WinRM/SSH outbound to target server subnets only
+- Full Windows Event logging → forwarded to Sentinel via AMA
 
-Need to validate the solution with Sundeep before finalizing:
+**Layer 3 — Target Servers (DCs, Members, Linux)**
+- Firewall ACLs: WinRM (5986) and SSH (22) allowed ONLY from jump server IP
+- All other sources blocked — no direct WinRM/SSH from workstations
+- Existing ITS tools run from the jump server — no workflow changes
 
-1. **Does JIT VM Access work on Arc-enabled on-prem servers?** Any gotchas or limitations vs Azure VM JIT?
-2. **Arc agent + Defender P2 — sufficient for JIT, or additional prerequisites?** (agent versions, firewall service requirements, connectivity back to Azure?)
-3. **Can JIT scope port opening to a specific source IP** (requesting admin's IP) on Arc-enabled servers, same as Azure VMs?
-4. **Tier 0 trust level concerns?** This box will have WinRM access to DCs — does Defender P2 + Arc give enough monitoring/hardening?
-5. **Network segmentation enforcement** — recommend on-prem firewall ACLs restricting WinRM/SSH from jump server only, or is there an Azure-native way through Arc?
+**Layer 4 — Monitoring & Audit**
+- Defender for Servers P2 on jump server + targets
+- Defender for Identity on DCs — detects credential theft, lateral movement
+- AMA → Log Analytics / Sentinel for centralized logging
+- Windows Event Forwarding for RDP session audit
+
+### Network Segmentation Rules
+
+| Source | Destination | Port | Allow/Deny |
+|---|---|---|---|
+| PAW subnet | Jump server | RDP (3389) | ✅ Allow |
+| Any other subnet | Jump server | RDP (3389) | ❌ Deny |
+| Jump server | DCs (Tier 0) | WinRM HTTPS (5986) | ✅ Allow |
+| Jump server | Member servers (Tier 1) | WinRM HTTPS (5986) | ✅ Allow |
+| Jump server | Linux servers | SSH (22) | ✅ Allow |
+| Any other source | Target servers | WinRM/SSH | ❌ Deny |
+| Jump server | Internet | HTTPS (443) | ✅ Allow (Arc agent only) |
+
+### Why This Works Without PIM/JIT/NPS
+
+| Security control | How it's achieved |
+|---|---|
+| **Multi-factor authentication** | WHfB on the PAW — TPM + PIN/biometric. Done at the device, no cloud call needed. |
+| **Authorization** | AD security group membership — only members of "Jump Server Admins" can RDP in |
+| **Network segmentation** | Firewall ACLs — jump server is the only source allowed to WinRM/SSH to targets |
+| **Audit trail** | Defender for Servers P2 + AMA + Sentinel — every RDP, every WinRM/SSH session logged |
+| **Phishing resistance** | WHfB is phishing-resistant by definition — no password to steal over the wire |
+| **Device trust** | Only the dedicated PAW can reach the jump server — stolen credentials from a regular workstation are useless |
+
+### Follow-Up: Validation Questions for Sundeep (Updated)
+
+1. ~~Does JIT VM Access work on Arc-enabled on-prem servers?~~ **Answered: No — JIT uses NSGs, on-prem only.**
+2. Does Sundeep see any gaps in the PAW + jump server + firewall ACL model?
+3. Arc on the jump server — any concerns with Arc agent on a Tier 0 management asset?
+4. Defender for Servers P2 on the jump server — sufficient monitoring, or does ITS need additional tooling?
 
 
 ---
