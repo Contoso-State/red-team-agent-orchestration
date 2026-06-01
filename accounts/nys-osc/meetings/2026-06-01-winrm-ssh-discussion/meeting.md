@@ -218,6 +218,34 @@ Manual configuration would be tedious and error-prone.
 
 ## Live Notes
 
+### Solution Presented to OSC: On-Prem Jump Server + Arc + JIT
+
+Proposed simplified architecture to OSC:
+
+```
+Admin → Entra MFA + PIM → JIT request (Defender for Servers P2) → On-prem jump server (Arc-enabled) → WinRM/SSH to targets
+```
+
+- Use an **existing on-prem server** as the management jump point (no AVD needed)
+- **Azure Arc** connects it to Azure management plane
+- **Defender for Servers P2 JIT** controls access — port closed by default, time-bound opening per admin request
+- WinRM/SSH stays fully functional from the jump server to all targets (DCs, members, Linux)
+- All existing ITS tools and workflows continue working — just routed through the hardened path
+
+**JIT on Arc-enabled servers:** Uses Windows Firewall / iptables rules on the machine itself (not Azure NSGs). Requires Arc agent current + Defender P2 assigned + host firewall enabled.
+
+**Key requirement:** This must be the **single path** to managed servers — admins cannot bypass the jump server and WinRM/SSH directly from workstations. On-prem firewall ACLs enforce this.
+
+### Follow-Up: Validation Questions for Sundeep (Azure Infra Engineer)
+
+Need to validate the solution with Sundeep before finalizing:
+
+1. **Does JIT VM Access work on Arc-enabled on-prem servers?** Any gotchas or limitations vs Azure VM JIT?
+2. **Arc agent + Defender P2 — sufficient for JIT, or additional prerequisites?** (agent versions, firewall service requirements, connectivity back to Azure?)
+3. **Can JIT scope port opening to a specific source IP** (requesting admin's IP) on Arc-enabled servers, same as Azure VMs?
+4. **Tier 0 trust level concerns?** This box will have WinRM access to DCs — does Defender P2 + Arc give enough monitoring/hardening?
+5. **Network segmentation enforcement** — recommend on-prem firewall ACLs restricting WinRM/SSH from jump server only, or is there an Azure-native way through Arc?
+
 
 ---
 
