@@ -1,7 +1,7 @@
 # OSC — Automatic Attack Disruption False Positive (imunoz@osc.ny.gov)
 
 **Date:** 2026-06-01
-**Status:** Active — customer escalated, frustrated
+**Status:** Resolved — account restored, customer wants prevention plan
 **Affected user:** imunoz@osc.ny.gov
 **MS Support contact:** Bryan Rigano (Sr Support Engineer - Security & Compliance)
 
@@ -47,28 +47,64 @@ If Scenario A: Defender XDR likely saw the account disable (from Radius Aad Sync
 
 ## Remediation Options
 
-### Immediate — Release the user
+### ✅ Resolved — Account Restored
 
-1. **Action Center** → find the "Contain User" action for imunoz → **Release** / **Undo**
-2. Re-enable the account if the Radius sync was the only disable (check if Attack Disruption also disabled it independently)
+imunoz account has been re-enabled. Focus is now on **preventing recurrence**.
 
-### Short-term — Prevent recurrence
+### Prevention Strategy — How to Ensure This Doesn't Happen Again
 
-| Option | How | Risk |
-|--------|-----|------|
-| **Exclude imunoz from Attack Disruption** | Settings → Microsoft Defender XDR → Automated response → Identities → Add user exclusion → imunoz | Only protects this one user — doesn't fix the pattern |
-| **Exclude the Radius Aad Syncer service principal** | May not be possible via the user exclusion UI — exclusions are for user accounts being contained, not for initiating service principals. **Needs validation.** | N/A if not supported |
-| **Mark alerts as false positive** | In each alert → Manage alert → Mark as False Positive → select reason | Helps train the ML model for future correlation |
-| **Submit false positive feedback** | In the incident → provide feedback that this was a false positive → Microsoft uses this to improve detection models | Long-term fix |
+#### 1. Exclude the Radius Aad Syncer service account from Attack Disruption (Recommended)
 
-### Long-term — Prevent pattern-wide false positives
+**Path:** Defender portal → Settings → Microsoft Defender XDR → Automated response → Identities → Add user exclusion
 
-| Option | How |
-|--------|-----|
-| **Tag the Radius Aad Syncer service principal** | In Defender for Cloud Apps or Entra → tag as "sanctioned" / "service account" so its actions are weighted differently in correlation |
-| **Configure automation interference check** | Microsoft docs specifically note: *"If you have automation in place to activate or block a user, check if the automation can interfere with disruption."* — OSC's Radius sync is exactly this pattern. Need to ensure Defender recognizes Radius as a trusted automation. |
-| **Request product feedback** | File feedback through Defender portal that service principal-initiated account disables from known tenant apps should not be weighted as attack signals |
-| **Opt out of Attack Disruption (last resort)** | Open MS support case with subject "Attack disruption opt-out" — Microsoft will disable automated actions but alerts still fire. **Not recommended.** |
+- If Attack Disruption contained imunoz (the target user), **exclude high-value service accounts or users that are frequently managed by automation** to prevent future false correlation.
+- **Important:** The exclusion UI is for **user accounts being contained**, not for the initiating service principal. So you'd exclude users that Radius routinely disables if they keep getting falsely flagged.
+- This is the most targeted fix — protects automated-workflow users without weakening Attack Disruption for real threats.
+
+#### 2. Mark the incident as false positive + submit feedback (Do this NOW)
+
+**Path:** Defender portal → Incidents → find the imunoz BEC incident → Manage incident → Mark as False Positive
+
+- This is **critical** — it feeds Microsoft's ML model so similar Radius Aad Syncer patterns are weighted lower in future correlations.
+- Also submit feedback on each individual alert (inbox manipulation, anonymous IP, BEC) marking them as false positive with notes explaining Radius Aad Syncer is a legitimate identity sync tool.
+- **If OSC hasn't done this yet, they should do it immediately** — without this feedback, the same pattern WILL recur.
+
+#### 3. Tag Radius Aad Syncer as a sanctioned/trusted app
+
+**Path:** Defender for Cloud Apps → Cloud app catalog → find Radius Aad Syncer → mark as Sanctioned
+
+- Or in Entra ID → Enterprise Applications → Radius Aad Syncer → ensure it's properly tagged/documented as a trusted automation tool.
+- This helps Defender's correlation engine recognize its actions as legitimate automation rather than potential attacker behavior.
+
+#### 4. Review the specific alert signals
+
+Before concluding everything was false, OSC should validate:
+
+| Alert | Question for OSC |
+|-------|-----------------|
+| Suspicious inbox manipulation rule (×2) | Did imunoz actually have new inbox rules created? Were they legitimate (out-of-office, forwarding for handoff)? |
+| Anonymous IP address (×2) | Did imunoz sign in from a VPN, Tor, or anonymizer? Or was this a stale session / token replay? |
+| BEC financial fraud | Was this purely correlated from the other signals, or was there actual financial email activity? |
+
+**If all of these were also false:** the entire incident was a correlation error — submit feedback on every alert.
+**If some were real:** imunoz may have been partially compromised, and the Radius disable was coincidental. Different remediation needed.
+
+#### 5. Automation-aware configuration (Microsoft's own guidance)
+
+From the [Attack Disruption prerequisites docs](https://learn.microsoft.com/en-us/defender-xdr/configure-attack-disruption):
+
+> *"If you have automation in place to activate or block a user, check if the automation can interfere with disruption. For example, if there is an automation in place to regularly check and enforce that all active employees have enabled accounts, this could unintentionally activate accounts that were deactivated by attack disruption while an attack is detected."*
+
+**This works both ways** — OSC's Radius automation disabling accounts can also trigger false Attack Disruption signals. OSC should:
+- Document all service principals that perform user enable/disable operations
+- Ensure those SPs are tagged, sanctioned, and excluded from triggering correlation
+- Consider timing: if Radius syncs happen at predictable intervals, Attack Disruption may learn to ignore them after sufficient false positive feedback
+
+#### 6. Do NOT opt out of Attack Disruption entirely
+
+- Attack Disruption is one of the highest-value features in Defender XDR for stopping active BEC and ransomware attacks
+- Opting out removes ALL automated containment — real attacks would proceed unchecked
+- **Exclusions and feedback are the right approach — not disabling the feature**
 
 ---
 
@@ -88,21 +124,17 @@ If Scenario A: Defender XDR likely saw the account disable (from Radius Aad Sync
 
 ## Recommended Response to OSC
 
-> **We understand the frustration — your own identity sync tool (Radius Aad Syncer) triggered a false positive in Defender XDR's Automatic Attack Disruption.** Here's what we recommend:
+> **The incident is resolved, but here's how we prevent this from happening again:**
 >
-> **Immediate:**
-> 1. Release imunoz from containment via the Action Center
-> 2. Mark all related alerts as false positive to train the model
+> **Step 1 (do now):** Go to the Defender portal, find the imunoz BEC incident, and **mark it as a false positive** with notes that Radius Aad Syncer is your legitimate identity sync tool. Do the same for each individual alert. **This is the single most important step** — it trains Microsoft's AI to not flag your Radius sync as an attack.
 >
-> **Prevent recurrence:**
-> 3. Submit false positive feedback on the incident so Microsoft improves detection for service-principal-initiated account changes
-> 4. Investigate whether the inbox manipulation / anonymous IP alerts for imunoz were also false — if yes, mark those too
+> **Step 2:** Tag the Radius Aad Syncer service principal as a **sanctioned app** in Defender for Cloud Apps so its actions are recognized as trusted automation.
 >
-> **Longer-term (discuss in bi-weekly):**
-> 5. Review whether the Radius Aad Syncer service principal can be tagged/recognized as a trusted automation to reduce future false correlation
-> 6. This ties directly into our action item on **better communication of Defender product changes** — OSC needs visibility into how these AI-driven features behave with their existing automation
+> **Step 3:** Validate whether the inbox manipulation and anonymous IP alerts for imunoz were also false — if yes, mark those too. If they were real, we have a different conversation.
 >
-> **We do NOT recommend opting out of Attack Disruption entirely** — the feature provides real protection against BEC and ransomware. Tuning it is the right approach.
+> **Step 4 (bi-weekly topic):** Document all service principals in your tenant that perform user enable/disable operations. We'll review exclusion options together to ensure your identity automation doesn't trigger Attack Disruption again.
+>
+> **We do NOT recommend opting out of Attack Disruption** — it's one of the most effective features for stopping real BEC and ransomware. The right fix is tuning, not disabling.
 
 ---
 
@@ -110,8 +142,9 @@ If Scenario A: Defender XDR likely saw the account disable (from Radius Aad Sync
 
 | Owner | Action | Due |
 |-------|--------|-----|
-| OSC | Release imunoz from containment in Action Center | Immediately |
-| OSC | Confirm: were the inbox manipulation / anonymous IP alerts also unexpected? | This week |
-| AG | Help OSC mark alerts as false positive and submit incident feedback | This week |
-| AG | Investigate whether Radius Aad Syncer SP can be tagged to prevent future false positives | Next bi-weekly |
-| AG + OSC | Review Attack Disruption exclusion options and decide on strategy | Next bi-weekly |
+| OSC | **Mark the imunoz incident + all alerts as false positive** in Defender portal — include note about Radius Aad Syncer | Immediately |
+| OSC | Confirm: were the inbox manipulation / anonymous IP alerts also false? | This week |
+| OSC | Tag Radius Aad Syncer as sanctioned app in Defender for Cloud Apps | This week |
+| AG | Help OSC review Attack Disruption exclusion options for automation service accounts | Next bi-weekly |
+| AG + OSC | Document all SPs that perform user enable/disable — ensure they're tagged + excluded from triggering correlation | Next bi-weekly |
+| AG | **Follow up with Chris Kirk** on Attack Disruption false positive resolution and prevention plan | TBD |
