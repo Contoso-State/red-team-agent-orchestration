@@ -8,26 +8,42 @@
 - **Cadence:** Every 2 weeks
 
 ## Decision & Outcome
-- **Single decision needed:** Align OSC on the ITS WinRM/SSH lockdown solution design and confirm OSC-specific requirements
-- **Best-case outcome:** OSC endorses the ITS solution design (Arc + Bastion + ASG/NSG) and confirms they have no additional WinRM/SSH use cases beyond what ITS raised
-- **Fallback outcome:** OSC identifies additional use cases that need to be folded into the solution design before the ITS + ISO meeting
+- **Single decision needed:** Close out SSPR/WHfB open items and capture any new OSC concerns; then transition to WinRM/SSH lockdown alignment
+- **Best-case outcome:** SSPR action items confirmed done, no new blockers; OSC aligned on WinRM/SSH solution design
+- **Fallback outcome:** Surface new OSC concerns that need dedicated follow-up; WinRM discussion moved to next bi-weekly
 
 ---
 
 ## Agenda
 
-1. **Status check — SSPR / WHfB rollout** (5 min)
-   - Follow up on open items from 5/28 Kristen meeting
-   - Desk phone / Teams Phone coverage confirmation
-   - Hardware OATH pilot group identified?
-   - M365 environment confirmed (commercial vs GCC)?
+### Part 1 — OSC Concerns & SSPR/WHfB Follow-Up
 
-2. **WinRM / SSH lockdown — ITS shared solution design** (20 min)
-   - ITS Windows Server + ESS teams raised 8 scenarios requiring WinRM/SSH
-   - Microsoft proposed solution: **don't disable WinRM/SSH — lock down the network path**
-   - Walk through architecture with OSC to confirm alignment
+1. **Open concerns from OSC** (10 min)
+   - Any new issues, blockers, or asks since last meeting?
+   - Anything escalated internally at OSC since 5/28?
 
-3. **Open questions / new topics** (5 min)
+2. **SSPR / WHfB follow-up** (10 min)
+   - Kristen's 5/28 action items — status check:
+     - ❓ Desk phone / Teams Phone PSTN reachability confirmed?
+     - ❓ Hardware OATH pilot group (~50 users) + budget owner identified?
+     - ❓ M365 environment confirmed (commercial vs GCC)?
+   - AG deliverables status:
+     - ❓ Hardware OATH provisioning runbook
+     - ❓ WHfB non-destructive PIN reset architecture diagram
+     - ❓ SSPR tenant policy config doc
+     - ❓ Technical workshop scheduling (target: 6/11)
+
+3. **New questions / parking lot** (5 min)
+
+### Part 2 — WinRM / SSH Lockdown (Transition Topic)
+
+4. **WinRM / SSH lockdown — ITS shared solution design** (20 min)
+   - Context: ITS Windows Server + ESS teams raised 8 scenarios requiring WinRM/SSH
+   - Microsoft recommendation: **don't disable WinRM/SSH — lock down the network path**
+   - Walk through solution architecture with OSC
+   - Confirm OSC alignment with ITS approach
+
+5. **Wrap-up / action items** (5 min)
 
 ---
 
