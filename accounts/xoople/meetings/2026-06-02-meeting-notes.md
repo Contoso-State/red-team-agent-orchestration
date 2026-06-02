@@ -46,11 +46,13 @@
 - **My role:** Covering all security topics across the workshop (Thu + Fri security stream)
 - **Goal:** Get customer to whiteboard their architecture from a security perspective — Azure, M365, E5 suite
 - **Major focus area: Kubernetes security** — requirements, Azure Policy, Defender for Cloud (Defender for Containers), etc. Expect this to be a primary topic of discussion
+- **Prep needed:** Hands-on Kubernetes security hardening session with Azure Policies (AKS baseline initiative, Gatekeeper/OPA, pod security, network policies)
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
 | | Research CrowdStrike + MDE coexistence on macOS (kernel extensions, network filters, exclusions) | |
+| | Prepare hands-on Kubernetes security hardening lab with Azure Policy (AKS baseline initiative, Defender for Containers) | Pre-Jun 10 |
 
 ## Next Steps
 - Follow up with CrowdStrike/MDE on Mac coexistence guidance
