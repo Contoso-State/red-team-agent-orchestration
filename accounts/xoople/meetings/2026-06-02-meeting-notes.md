@@ -38,7 +38,7 @@
 | **Thu, Jun 11** | Cloud & Data | Cloud Platform Scaling · Governance Evolution · Identity & Access Management | Data & AI Platform at Scale · Outcome Day 2 |
 | **Thu, Jun 11** | Sec | SSDLC | Azure perimeter security (EASM + Internal posture + AI red team agents) |
 | **Fri, Jun 12** | Cloud & Data | Operational Model + Observability | (Roll-over activity time) · Final outcomes |
-| **Fri, Jun 12** | Sec | End user security (Defender and GSA) | Data Security · Azure resource level security (Storage / K8s) |
+| **Fri, Jun 12** | Sec | End user security (Defender) | Data Security · Azure resource level security (Storage / K8s) |
 
 ## Notes
 - Customer asked about Frontier program and whether enabling it auto-installs Cowork — it does not; requires admin setup + Copilot licenses
