@@ -80,5 +80,26 @@
 | | Prepare hands-on Kubernetes security hardening lab with Azure Policy (AKS baseline initiative, Defender for Containers) | Pre-Jun 10 |
 | | Plan Sentinel connector migration to CCF / Logs Ingestion API (legacy HTTP Data Collector deprecated 14 Sep 2026) | Before 14 Sep 2026 |
 
+## Summary
+This call was an agenda-planning session for the upcoming Xoople **on-site workshop (Jun 10–12)**. I'll be running the entire **security stream** (Thu + Fri), with the goal of getting the customer to **whiteboard their security architecture across Azure, M365, and the E5 suite**.
+
+**Key topics scoped for the workshop:**
+- **Kubernetes security** (major focus) — AKS hardening, Azure Policy / AKS baseline initiative, Defender for Containers, hands-on lab planned
+- **Identity & access** — MFA, Conditional Access, RBAC, PIM
+- **Endpoint** — Defender for Endpoint on mobile with Intune-joined devices; CrowdStrike + MDE coexistence on macOS (research needed)
+- **Perimeter** — EASM + internal posture + AI red team agents
+- **PKI / certificates** — covered the GlobalSign vs AFD-managed cert question (BYOC only matters for OV/EV, enterprise PKI mandate, or wildcard/multi-SAN; end-user UX is identical)
+
+**Customer-raised items addressed live:**
+- Frontier ≠ auto-install of Cowork (admin setup + Copilot licenses required)
+- GlobalSign vs AFD-managed certs for Front Door — trade-off explained, end-user experience identical
+
+**Action items (3):**
+1. Research CrowdStrike + MDE coexistence on macOS
+2. Prepare hands-on Kubernetes security hardening lab (pre Jun 10)
+3. Plan Sentinel connector migration to CCF / Logs Ingestion API before the 14 Sep 2026 deprecation of the legacy HTTP Data Collector API (per Azure portal notice)
+
 ## Next Steps
 - Follow up with CrowdStrike/MDE on Mac coexistence guidance
+- Build out hands-on K8s + Azure Policy lab before Jun 10
+- Confirm pre-workshop 2-hour session date (Jun 4-5 TBC)
