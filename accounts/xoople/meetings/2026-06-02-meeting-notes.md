@@ -43,6 +43,8 @@
 ## Notes
 - Customer asked about Frontier program and whether enabling it auto-installs Cowork — it does not; requires admin setup + Copilot licenses
 - Need to have a good understanding of CrowdStrike coexistence with MDE on Mac — how they run together, any conflicts or configuration requirements
+- **My role:** Covering all security topics across the workshop (Thu + Fri security stream)
+- **Goal:** Get customer to whiteboard their architecture from a security perspective — Azure, M365, E5 suite
 
 ## Action Items
 | Owner | Action | Due Date |
