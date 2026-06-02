@@ -59,6 +59,12 @@
       - Partner integrations require a **pinned / known CA**
       - Want **custom validity period or renewal control**
     - **Recommendation:** GlobalSign is the right choice if Xoople already standardizes on it for enterprise PKI, needs OV/EV signals, or wants one CA across Front Door + non-Azure endpoints. Otherwise AFD-managed is simpler and free.
+  - **End user experience (AFD-managed vs GlobalSign):** Essentially identical to end users.
+    - Both show the browser padlock and HTTPS works with no warnings.
+    - Modern browsers (Chrome, Edge, Firefox, Safari) no longer visually distinguish DV vs OV/EV in the address bar — the green bar / company-name treatment was removed back in 2019.
+    - Only difference visible to users: if they click the padlock → View certificate, OV/EV certs show the organization name (e.g., "Xoople, Inc."); DV certs only show the domain.
+    - TLS handshake performance is the same.
+    - **Real value of GlobalSign OV/EV today** is for: compliance/audit requirements, partner B2B trust reviews, and phishing resistance for users who inspect cert details — not for visible UX gains.
 
 ## Action Items
 | Owner | Action | Due Date |
