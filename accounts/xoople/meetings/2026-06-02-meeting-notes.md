@@ -45,6 +45,7 @@
 - Need to have a good understanding of CrowdStrike coexistence with MDE on Mac — how they run together, any conflicts or configuration requirements
 - **My role:** Covering all security topics across the workshop (Thu + Fri security stream)
 - **Goal:** Get customer to whiteboard their architecture from a security perspective — Azure, M365, E5 suite
+- **Major focus area: Kubernetes security** — requirements, Azure Policy, Defender for Cloud (Defender for Containers), etc. Expect this to be a primary topic of discussion
 
 ## Action Items
 | Owner | Action | Due Date |
