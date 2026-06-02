@@ -49,6 +49,7 @@
 - **Prep needed:** Hands-on Kubernetes security hardening session with Azure Policies (AKS baseline initiative, Gatekeeper/OPA, pod security, network policies)
 - **Identity & access topics to cover:** MFA, Conditional Access best practices, RBAC, PIM (just-in-time, approvals, access reviews), least privilege guidance
 - **Mobile / endpoint:** Defender for Endpoint on mobile (iOS/Android) with Intune-joined device setup — enrollment, compliance policies, app protection, MTD integration with Conditional Access
+- **PKI / certificates:** Discuss certificate management strategy. Open question from customer: are **GlobalSign certificates better for Azure Front Door** (vs. AFD-managed certs or other CAs)?
 
 ## Action Items
 | Owner | Action | Due Date |
