@@ -65,12 +65,20 @@
     - Only difference visible to users: if they click the padlock → View certificate, OV/EV certs show the organization name (e.g., "Xoople, Inc."); DV certs only show the domain.
     - TLS handshake performance is the same.
     - **Real value of GlobalSign OV/EV today** is for: compliance/audit requirements, partner B2B trust reviews, and phishing resistance for users who inspect cert details — not for visible UX gains.
+- **Sentinel — Codeless Connector Framework (CCF) migration (Azure portal notification):**
+  - **Deadline: 14 September 2026** — the legacy HTTP Data Collector API will no longer be supported.
+  - Data sources, custom integrations, or third-party connectors using the legacy API should transition to **DCR-based ingestion** and connectors built on the **Codeless Connector Framework (CCF)**.
+  - After the date, legacy connectors will still function but **will no longer receive customer support**.
+  - **Recommended action:** Migrate to CCF-based connectors or **Azure Logs Ingestion API** for custom integrations by 14 Sep 2026.
+  - **Why it matters for Xoople:** CCF gives built-in DCR controls for schema, transformations, and cost — better scalability, easier management, access to latest Sentinel innovations.
+  - Subscription called out in notice: `8faacb8d-c300-4ca4-8a76-456264a3ee98`
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
 | | Research CrowdStrike + MDE coexistence on macOS (kernel extensions, network filters, exclusions) | |
 | | Prepare hands-on Kubernetes security hardening lab with Azure Policy (AKS baseline initiative, Defender for Containers) | Pre-Jun 10 |
+| | Plan Sentinel connector migration to CCF / Logs Ingestion API (legacy HTTP Data Collector deprecated 14 Sep 2026) | Before 14 Sep 2026 |
 
 ## Next Steps
 - Follow up with CrowdStrike/MDE on Mac coexistence guidance
