@@ -48,6 +48,7 @@
 - **Major focus area: Kubernetes security** — requirements, Azure Policy, Defender for Cloud (Defender for Containers), etc. Expect this to be a primary topic of discussion
 - **Prep needed:** Hands-on Kubernetes security hardening session with Azure Policies (AKS baseline initiative, Gatekeeper/OPA, pod security, network policies)
 - **Identity & access topics to cover:** MFA, Conditional Access best practices, RBAC, PIM (just-in-time, approvals, access reviews), least privilege guidance
+- **Mobile / endpoint:** Defender for Endpoint on mobile (iOS/Android) with Intune-joined device setup — enrollment, compliance policies, app protection, MTD integration with Conditional Access
 
 ## Action Items
 | Owner | Action | Due Date |
