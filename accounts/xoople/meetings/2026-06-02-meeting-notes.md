@@ -7,9 +7,9 @@
 - **Type:** (Discovery | Demo | Technical Deep-Dive | Follow-up | Executive Briefing)
 
 ## Agenda
-1.
-2.
-3.
+1. EASM overview
+2. Architecture overview
+3. Whiteboarding session
 
 ## Notes
 - Customer asked about Frontier program and whether enabling it auto-installs Cowork — it does not; requires admin setup + Copilot licenses
