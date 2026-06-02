@@ -47,6 +47,7 @@
 - **Goal:** Get customer to whiteboard their architecture from a security perspective — Azure, M365, E5 suite
 - **Major focus area: Kubernetes security** — requirements, Azure Policy, Defender for Cloud (Defender for Containers), etc. Expect this to be a primary topic of discussion
 - **Prep needed:** Hands-on Kubernetes security hardening session with Azure Policies (AKS baseline initiative, Gatekeeper/OPA, pod security, network policies)
+- **Identity & access topics to cover:** MFA, Conditional Access best practices, RBAC, PIM (just-in-time, approvals, access reviews), least privilege guidance
 
 ## Action Items
 | Owner | Action | Due Date |
