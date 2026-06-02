@@ -12,12 +12,13 @@
 3.
 
 ## Notes
-
+- Customer asked about Frontier program and whether enabling it auto-installs Cowork — it does not; requires admin setup + Copilot licenses
+- Need to have a good understanding of CrowdStrike coexistence with MDE on Mac — how they run together, any conflicts or configuration requirements
 
 ## Action Items
 | Owner | Action | Due Date |
 |-------|--------|----------|
-| | | |
+| | Research CrowdStrike + MDE coexistence on macOS (kernel extensions, network filters, exclusions) | |
 
 ## Next Steps
-
+- Follow up with CrowdStrike/MDE on Mac coexistence guidance
