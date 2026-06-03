@@ -13,7 +13,8 @@
 
 1. Microsoft Defender for Cloud overview & competitive positioning vs. Wiz
 2. Entra ID PIM — privileged access management for CalPERS
-3. Q&A and next steps
+3. Service accounts → Managed Identities migration
+4. Q&A and next steps
 
 ---
 
@@ -287,6 +288,162 @@ PIM directly satisfies critical NIST 800-53 controls (which underpin FedRAMP, St
 
 ---
 
+## Part 3: Service Accounts → Managed Identities Migration
+
+### The Problem with Service Accounts
+
+Traditional service accounts (on-prem AD or Entra ID user accounts used by applications) are one of the **highest-risk identity types** in any enterprise:
+
+| Risk | Impact |
+|------|--------|
+| **Static credentials** | Passwords/secrets stored in config files, scripts, Key Vault — must be rotated manually |
+| **Over-privileged** | Often granted broad permissions "just to make it work" — rarely right-sized |
+| **No MFA** | Service accounts can't perform interactive MFA — bypassing a core Zero Trust control |
+| **Credential sprawl** | Same secret shared across multiple apps, CI/CD pipelines, and team members |
+| **Audit blind spots** | Hard to trace which application actually used the credential vs. a compromised actor |
+| **Rotation failures** | Password expiry causes outages; disabling expiry creates permanent attack surface |
+| **Lateral movement vector** | Compromised service account credentials are a top initial access technique (MITRE T1078) |
+
+### Azure Managed Identities — The Solution
+
+Managed identities **eliminate credentials entirely** for Azure-hosted workloads. Azure automatically provisions and rotates the identity — no passwords, no certificates, no secrets to manage.
+
+#### Two Types
+
+| Type | Description | Use When |
+|------|-------------|----------|
+| **System-assigned** | Tied 1:1 to an Azure resource; created/deleted with the resource | Single-purpose workloads (one VM, one App Service, one Function) |
+| **User-assigned** | Independent resource; can be assigned to multiple Azure resources | Shared identity across multiple resources, or when identity must survive resource recreation |
+
+#### How It Works
+
+1. Azure creates an identity in Entra ID tied to the resource
+2. Azure manages the credential lifecycle automatically (no human intervention)
+3. The workload requests a token from the Azure Instance Metadata Service (IMDS) — `http://169.254.169.254`
+4. Token is used to authenticate to any Azure service that supports Entra authentication
+5. **No secrets, no certificates, no rotation — ever**
+
+#### Supported Azure Services (Partial List)
+
+**Services that CAN USE managed identities (as the client):**
+
+- Azure VMs / VMSS
+- Azure App Service / Functions
+- Azure Container Apps / AKS pods (workload identity)
+- Azure Logic Apps
+- Azure Data Factory / Synapse
+- Azure Automation Runbooks
+- Azure DevOps Pipelines (via service connections)
+
+**Services that ACCEPT managed identity tokens (as the resource):**
+
+- Azure Key Vault
+- Azure Storage (Blob, Queue, Table, File)
+- Azure SQL / Cosmos DB / PostgreSQL / MySQL
+- Azure Service Bus / Event Hubs / Event Grid
+- Microsoft Graph API
+- Azure Resource Manager
+- Azure Monitor / Log Analytics
+- Any service supporting Entra ID authentication
+
+#### Migration Path: Service Account → Managed Identity
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  BEFORE: Service Account Pattern                        │
+│                                                         │
+│  App → reads secret from config/Key Vault →             │
+│      → authenticates with password/cert →               │
+│      → accesses Azure SQL / Storage / etc.              │
+│                                                         │
+│  ⚠️ Secret stored somewhere                             │
+│  ⚠️ Must rotate manually                                │
+│  ⚠️ No MFA possible                                     │
+│  ⚠️ Shared across environments                          │
+└─────────────────────────────────────────────────────────┘
+
+                        ↓ MIGRATE TO ↓
+
+┌─────────────────────────────────────────────────────────┐
+│  AFTER: Managed Identity Pattern                        │
+│                                                         │
+│  App → requests token from Azure IMDS →                 │
+│      → Azure issues short-lived token automatically →   │
+│      → accesses Azure SQL / Storage / etc.              │
+│                                                         │
+│  ✅ No secrets to manage                                │
+│  ✅ Auto-rotated by Azure                               │
+│  ✅ Scoped RBAC (least privilege)                       │
+│  ✅ Full audit trail in Entra sign-in logs              │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Migration Strategy for CalPERS
+
+#### Phase 1: Inventory & Assess
+
+- Identify all service accounts (Entra ID app registrations, service principals, on-prem AD accounts used by apps)
+- Classify by workload location: **Azure-hosted** (can use managed identity) vs. **on-prem/hybrid** (needs workload identity federation or certificate)
+- Map each service account to its target resource permissions
+
+#### Phase 2: Azure-Hosted Workloads (Quick Wins)
+
+- Enable **system-assigned managed identity** on VMs, App Services, Functions, Container Apps
+- Replace connection strings with identity-based access (e.g., Azure SQL with Entra auth, Storage with RBAC)
+- Remove stored secrets from Key Vault / app config for migrated workloads
+
+#### Phase 3: Multi-Resource & Shared Identities
+
+- Create **user-assigned managed identities** for workloads spanning multiple resources
+- Implement **AKS workload identity** for containerized applications (replaces pod-managed identity)
+- Configure **Federated Identity Credentials** for CI/CD pipelines (GitHub Actions, Azure DevOps) — passwordless service connections
+
+#### Phase 4: Hybrid / On-Prem Workloads
+
+- Use **Azure Arc** to extend managed identity capabilities to on-prem servers
+- For truly on-prem apps that can't use managed identities: migrate to **Workload Identity Federation** (exchange external IdP tokens for Entra tokens — no secrets)
+- As a last resort: use managed certificates via Key Vault with automatic rotation
+
+### Security & Compliance Benefits
+
+| Benefit | Detail |
+|---------|--------|
+| **Eliminates credential theft risk** | No passwords or secrets exist to steal — MITRE ATT&CK T1078 (Valid Accounts) is neutralized for Azure workloads |
+| **Automatic rotation** | Azure manages the full credential lifecycle — satisfies NIST 800-53 IA-5 (Authenticator Management) |
+| **Least privilege via RBAC** | Assign only the specific Azure roles needed (e.g., "Storage Blob Data Reader" not "Contributor") |
+| **Full audit trail** | All managed identity sign-ins appear in Entra ID sign-in logs — satisfies AU-2/AU-12 |
+| **Conditional Access support** | Managed identity sign-ins can be scoped by Conditional Access policies (location, compliance) |
+| **Zero Trust alignment** | No standing credentials = no implicit trust; every token request is verified and scoped |
+
+### NIST 800-53 Controls Addressed
+
+| Control | Requirement | How Managed Identities Satisfy |
+|---------|-------------|-------------------------------|
+| IA-5 | Authenticator Management | Azure auto-manages credentials; no human-managed passwords |
+| IA-9 | Service Identification & Authentication | Each managed identity is uniquely identified in Entra ID |
+| AC-6 | Least Privilege | RBAC assignments scoped to specific resources and actions |
+| SC-12 | Cryptographic Key Management | Azure handles key material entirely — no customer key management |
+| AU-2 | Audit Events | Sign-in logs capture every token issuance |
+
+### Talk Tracks
+
+> **On eliminating service account risk:** *"Every service account with a stored password is a credential theft opportunity. Managed identities eliminate that entire attack surface — there's no password to steal, no secret to leak, no certificate to expire. Azure handles the credential lifecycle end-to-end."*
+
+> **On compliance:** *"NIST 800-53 IA-5 requires organizations to manage authenticator lifecycle — rotation, protection, revocation. With managed identities, Azure satisfies those requirements automatically. You move from a manual, error-prone rotation process to zero-touch credential management."*
+
+> **On the migration:** *"This isn't a big-bang migration. Start with Azure-hosted workloads — enable managed identity on a VM or App Service, assign the right RBAC role, remove the stored secret. Each workload you migrate is one fewer credential to manage and one fewer attack vector to worry about."*
+
+### Objection Handling
+
+| Objection | Response |
+|-----------|----------|
+| *"We have too many service accounts to migrate at once"* | Prioritize by risk: start with service accounts that have the broadest permissions or access the most sensitive data. Each migration is independent — no big-bang required. |
+| *"Our apps use connection strings with embedded credentials"* | Azure SDKs support `DefaultAzureCredential` which automatically uses managed identity when available — often a one-line code change. For Azure SQL, switch to Entra authentication mode. |
+| *"Some workloads are on-prem"* | Use Azure Arc for on-prem servers, or Workload Identity Federation for external identity providers. Managed identity isn't all-or-nothing — migrate what you can, federate the rest. |
+| *"We just rotate passwords quarterly"* | Quarterly rotation still leaves a 90-day window for credential theft exploitation. Managed identities rotate continuously and automatically — zero window of exposure. |
+
+---
+
 ## Discovery Questions for CalPERS
 
 1. What's your current Microsoft 365 licensing? (E3 vs. E5)
@@ -297,6 +454,10 @@ PIM directly satisfies critical NIST 800-53 controls (which underpin FedRAMP, St
 6. Is Wiz currently deployed? If so, what scope — Azure only or multi-cloud?
 7. What SIEM/SOAR platform is in use today?
 8. What compliance frameworks are you measured against (NIST 800-53, SIMM, other)?
+9. How many service accounts / app registrations are currently in use across Azure and on-prem?
+10. How are service account credentials managed today — manual rotation, Key Vault, or other?
+11. Are any Azure-hosted workloads still using stored connection strings or embedded secrets?
+12. Have you started using managed identities for any workloads? If so, what scope?
 
 ---
 
