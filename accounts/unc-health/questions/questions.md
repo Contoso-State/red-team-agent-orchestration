@@ -11,7 +11,8 @@ Use one file per topic/meeting, or maintain a running log. Suggested naming: `YY
 
 | # | Date Asked | Question | Asked By | Status | Answer / Notes |
 |---|------------|----------|----------|--------|----------------|
-| 1 | | | | Open | |
+| 1 | 2026-05-29 | Can the free E5 SCUs be spread across multiple Security Copilot workspaces, or are they tied to a single workspace? | Corey Lee | Open | |
+| 2 | 2026-05-29 | Confirm in writing for UNC: free E5/E7 SCUs live in the tenant-wide Default Security Copilot Capacity (no Azure subscription attachment); only paid/overage capacity attaches to a subscription. | Corey Lee | Open | |
 
 ## Questions From Customer (Need Our Response)
 
