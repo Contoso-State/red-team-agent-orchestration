@@ -52,8 +52,6 @@
 | Owner | Action | Due Date |
 |-------|--------|----------|
 | Corey Lee | Confirm UNC Health's free Security Copilot SCU entitlement from E5 and get it provisioned on the backend | TBD |
-| Corey Lee | Confirm whether the free E5 SCUs can be spread across multiple Sec Copilot workspaces, or are tied to a single workspace | TBD |
-| Corey Lee | Confirm in writing for UNC: free E5/E7 SCUs live in tenant-wide Default Security Copilot Capacity (no Azure subscription attachment); only paid/overage capacity attaches to a subscription | TBD |
 | TBD | TBD | TBD |
 
 ## Next Steps
