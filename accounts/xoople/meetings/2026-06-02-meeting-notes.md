@@ -36,9 +36,16 @@
 |-----|--------|---------|-----------|
 | **Wed, Jun 10** | All | Executive + Architecture Alignment · Intro Data Platform Reality Check · Working Session: Current State Review & Pain Points | Architecture + WAF Deep Dive · Outcome Day 1 |
 | **Thu, Jun 11** | Cloud & Data | Cloud Platform Scaling · Governance Evolution · Identity & Access Management | Data & AI Platform at Scale · Outcome Day 2 |
-| **Thu, Jun 11** | Sec | SSDLC | Azure perimeter security (EASM + Internal posture + AI red team agents) |
-| **Fri, Jun 12** | Cloud & Data | Operational Model + Observability | (Roll-over activity time) · Final outcomes |
-| **Fri, Jun 12** | Sec | End user security (Defender) | Data Security · Azure resource level security (Storage / K8s) |
+| **Thu, Jun 11** | Sec | SSDLC (inc. GitHub Adv. Sec) | Azure perimeter security (EASM + Internal posture + AI red team agents) |
+| **Fri, Jun 12** | Cloud & Data | Operational Model + Observability | (Leave time for roll-over activity) · Final outcomes |
+| **Fri, Jun 12** | Sec | End user security (Defender for laptops and phones) | Data Security · Azure resource level security (Storage / K8s) |
+
+**Session owners (Cloud & Data stream, from customer agenda):**
+- Wed PM: Jay, Michael, Wael
+- Thu AM: Jay, Michael, Wael
+- Thu PM (Data & AI Platform at Scale): Michael / Wael · Jay & Madhu · Bret, Sara, Madhu
+- Fri AM: Sara / Bret / Jay / Michael
+- **Security stream (Thu + Fri):** Andrew (me)
 
 ## Notes
 - Customer asked about Frontier program and whether enabling it auto-installs Cowork — it does not; requires admin setup + Copilot licenses
