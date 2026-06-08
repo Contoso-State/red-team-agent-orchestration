@@ -6,7 +6,13 @@ This repository contains an agentic red team platform for Azure cloud infrastruc
 
 ## Architecture
 
-The system uses a **hub-and-spoke orchestration model**:
+The system uses a **hub-and-spoke orchestration model**, wired with three native Copilot CLI layers:
+
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to eight domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
+- **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge each agent draws on.
+- **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that denies mutating `az`/`azd` commands, enforcing read-only at the tool boundary.
+
+Engagement flow:
 
 1. The **Orchestrator** receives the engagement scope and coordinates the full assessment
 2. The **Inventory & Scope Agent** performs preflight checks and builds a resource inventory
@@ -19,13 +25,16 @@ The system uses a **hub-and-spoke orchestration model**:
 | Path | Purpose |
 |---|---|
 | `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` for real assessments |
-| `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — the red team. Loaded automatically by Copilot; each delegates to an agent prompt |
-| `agents/*/system-prompt.md` | Detailed agent methodology and tool usage (single source of truth the skills reference) |
+| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 8 specialists are dispatched by it |
+| `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |
+| `.github/extensions/redteam-guardrails/` | Hooks extension — `preToolUse` deny of mutating `az`/`azd` (logic in `guardrails-core.mjs`, tested by `guardrails-core.test.mjs`) |
+| `agents/*/system-prompt.md` | Detailed agent methodology and tool usage (single source of truth the skills/agents reference) |
 | `checks/*/` | Atomic security checks organized by domain |
 | `playbooks/*.md` | Multi-step assessment playbooks |
 | `schemas/*.json` | JSON schemas for structured findings and engagement data |
 | `controls/*.yaml` | Compliance control mappings (CIS, MITRE, Defender) |
 | `knowledge/*.md` | Reference material for Azure attack techniques |
+| `tools/az-cli/*.md` | Per-domain read-only `az` CLI runners, keyed to check IDs |
 | `tools/` | KQL queries, Resource Graph queries, PowerShell scripts |
 
 ## Safety Rules
@@ -41,13 +50,16 @@ The system uses a **hub-and-spoke orchestration model**:
 
 When working in this repo:
 
+- Launch the team with `/agent redteam-orchestrator` — the Orchestrator (Pentest Manager) coordinates and dispatches the specialist sub-agents
 - Use `/recon` to start a new reconnaissance engagement
 - Use `/assess` to run a full security assessment
 - Use `/attack-paths` to analyze privilege escalation and lateral movement chains
 - Use `/report` to generate the final assessment report
 - Or just ask Copilot in plain language (e.g. "pentest my Azure subscription") — the `azure-redteam-orchestrator` skill (Pentest Manager) triggers and coordinates the team
+- The Orchestrator dispatches sub-agents via the `agent` (Task) tool; sub-agents are not model-invocable on their own (`disable-model-invocation: true`)
 - Each skill (`.github/skills/azure-redteam-<name>/SKILL.md`) delegates to its detailed methodology in `agents/<name>/system-prompt.md`
 - Checks are in `checks/<domain>/` — agents execute these, not ad-hoc queries
+- The `redteam-guardrails` hook blocks mutating `az`/`azd` commands; only read-only verbs (list/show/get/query) pass unless `engagement.yaml` sets `mode: controlled-validation`
 - All output goes to `findings/raw/<agent-name>.jsonl` as structured JSON lines
 
 ## Coding Conventions

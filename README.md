@@ -2,7 +2,13 @@
 
 Agentic red team platform for identifying security vulnerabilities in Azure cloud infrastructure. A coordinated team of AI agents — each specialized in a security domain — performs comprehensive penetration testing against Azure environments.
 
-The team ships as **GitHub Copilot skills** (`.github/skills/azure-redteam-*`), so once this repo is checked out, Copilot automatically discovers the Pentest Manager and its specialists. Just ask Copilot to "run an Azure red team assessment" and the `azure-redteam-orchestrator` skill takes over.
+The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
+
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to eight domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
+- **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge. Copilot pulls the relevant skill in based on its `description`, giving every agent its methodology and `az` runner without manual wiring.
+- **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
+
+Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
 
 ## How It Works
 
@@ -43,9 +49,29 @@ graph TD
 | **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
-## How the Team Is Packaged (Copilot Skills)
+## How the Team Is Packaged (Agents + Skills + Hooks)
 
-Each agent is a Copilot skill under `.github/skills/`. Copilot loads them automatically based on each skill's `description`, so you invoke the team in plain language — no manual wiring.
+The team uses three native Copilot CLI layers that map cleanly onto **who acts**, **what they know**, and **what they're allowed to do**.
+
+### 1. Custom agents — the dispatchable team (`.github/agents/`)
+
+The Orchestrator is the only **user-invocable** agent; the eight specialists set `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective agent" real.
+
+| Agent file | Display name | Invoked by |
+|---|---|---|
+| `redteam-orchestrator.agent.md` | Red Team Orchestrator (Pentest Manager) | **User** (`/agent redteam-orchestrator`) |
+| `redteam-inventory.agent.md` | Red Team Inventory & Scope | Orchestrator |
+| `redteam-identity.agent.md` | Red Team Identity | Orchestrator |
+| `redteam-authorization.agent.md` | Red Team Authorization | Orchestrator |
+| `redteam-network.agent.md` | Red Team Network | Orchestrator |
+| `redteam-compute.agent.md` | Red Team Compute | Orchestrator |
+| `redteam-data.agent.md` | Red Team Data | Orchestrator |
+| `redteam-logging.agent.md` | Red Team Logging | Orchestrator |
+| `redteam-reporting.agent.md` | Red Team Reporting | Orchestrator |
+
+### 2. Skills — auto-loaded domain knowledge (`.github/skills/`)
+
+Each agent's deep methodology is a Copilot skill, loaded automatically by `description`.
 
 | Skill | When Copilot uses it |
 |---|---|
@@ -59,7 +85,11 @@ Each agent is a Copilot skill under `.github/skills/`. Copilot loads them automa
 | `azure-redteam-logging` | Detection & monitoring coverage |
 | `azure-redteam-reporting` | Normalize findings, render deliverables |
 
-Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same skills.
+### 3. Extension / hooks — read-only enforcement (`.github/extensions/redteam-guardrails`)
+
+A `preToolUse` hook inspects every shell command and **denies mutating `az`/`azd` operations** (`create`, `update`, `delete`, `set`, role assignments, `vm run-command`, `az rest` with non-GET, etc.) while allowing read-only verbs (`list`, `show`, `get`, `query`). The block is lifted only when `engagement.yaml` sets `mode: controlled-validation`. Decision logic lives in `guardrails-core.mjs` and is unit-tested by `guardrails-core.test.mjs`.
+
+Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same team.
 
 ## Quick Start
 
@@ -70,7 +100,15 @@ cp engagement.example.yaml engagement.yaml
 # Edit engagement.yaml with target subscription, tenant, and permissions
 ```
 
-### 2. Run reconnaissance
+### 2. Start the Pentest Manager
+
+```text
+/agent redteam-orchestrator
+```
+
+This launches the Orchestrator (Pentest Manager), which dispatches the domain sub-agents for you. The slash commands below are shortcuts that drive the same team.
+
+### 3. Run reconnaissance
 
 ```text
 /recon
@@ -82,7 +120,7 @@ The orchestrator will:
 - Build a resource inventory
 - Identify which domain agents to dispatch
 
-### 3. Run full assessment
+### 4. Run full assessment
 
 ```text
 /assess
@@ -90,7 +128,7 @@ The orchestrator will:
 
 Dispatches all domain agents against the inventory. Each agent produces structured findings in `findings/raw/`.
 
-### 4. Analyze attack paths
+### 5. Analyze attack paths
 
 ```text
 /attack-paths
@@ -98,7 +136,7 @@ Dispatches all domain agents against the inventory. Each agent produces structur
 
 Correlates findings across domains to identify multi-step compromise chains.
 
-### 5. Generate report
+### 6. Generate report
 
 ```text
 /report
@@ -121,7 +159,9 @@ Mode is set in `engagement.yaml` and enforced by all agents.
 ```
 ├── engagement.example.yaml      # Engagement scope template
 ├── .github/
-│   ├── skills/                  # Copilot skills — the red team (azure-redteam-*)
+│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 8 specialists)
+│   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
+│   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny)
 │   └── prompts/                 # Slash commands: /recon /assess /attack-paths /report
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
@@ -182,6 +222,7 @@ Severity is determined by five factors — agents propose, the reporting agent n
 - **Scope enforcement**: Every agent validates target resources against `engagement.yaml`
 - **Preflight checks**: Permissions validated before any assessment begins
 - **Read-only default**: The default mode only reads configurations — no mutations
+- **Hook-enforced guardrail**: The `redteam-guardrails` extension blocks mutating `az`/`azd` commands at the tool boundary (a `preToolUse` deny), so read-only is enforced even if an agent is misprompted — not just requested
 - **Evidence redaction**: Secrets are never stored; PII redaction is configurable
 - **Audit trail**: All agent actions and findings are logged with timestamps
 
