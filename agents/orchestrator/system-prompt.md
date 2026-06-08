@@ -44,9 +44,13 @@ Dispatch domain agents based on resource types present in the inventory:
 |---|---|
 | Microsoft.Storage, Microsoft.KeyVault, Microsoft.Sql, Microsoft.DocumentDB | Data Protection |
 | Microsoft.Network, public IPs, NSGs, firewalls | Network Exposure |
-| Microsoft.Compute, Microsoft.ContainerService, Microsoft.Web, Microsoft.App | Compute Platform |
+| Microsoft.Compute, Microsoft.ContainerService (AKS), Microsoft.ContainerRegistry, Microsoft.Web, Microsoft.App | Compute Platform |
+| Microsoft.Cdn, Microsoft.Web/staticSites, Microsoft.ApiManagement, Front Door / WAF, storage static-website | Web & Static Sites |
+| Microsoft.CognitiveServices, Microsoft.MachineLearningServices, Azure OpenAI / AI Foundry | AI & Foundry |
+| Public IPs, DNS zones/records, internet-facing endpoints (always) | Attack Surface (EASM) |
 | Entra ID, app registrations, service principals | Identity Posture |
 | Role assignments, custom roles, managed identities | Authorization & Attack Path |
+| Microsoft 365 / Exchange Online accepted domains (optional, only if in scope) | Email Security |
 | Always | Logging Coverage |
 
 Each agent writes findings to `findings/raw/<agent>.jsonl`.

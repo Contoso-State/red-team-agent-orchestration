@@ -14,7 +14,7 @@
     "title": { "type": "string" },
     "domain": {
       "type": "string",
-      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging"]
+      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "email"]
     },
     "agent": {
       "type": "string",
@@ -24,7 +24,11 @@
         "network-exposure",
         "compute-platform",
         "data-protection",
-        "logging-coverage"
+        "logging-coverage",
+        "ai-foundry",
+        "web-exposure",
+        "attack-surface",
+        "email-security"
       ]
     },
     "mode": {

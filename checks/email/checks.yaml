@@ -1,0 +1,122 @@
+# Email Security Checks (Optional — Microsoft 365 / Exchange Online)
+# Executed by the Email Security Agent. Conforms to schemas/check.schema.json.
+# Requires Microsoft Graph / Exchange Online read permissions. Dispatch only when M365 is in scope.
+
+- check_id: CHK-MAIL-SPF-MISSING-OR-WEAK
+  title: SPF record missing or permissive
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: High
+  description: An accepted domain has no SPF record, or an SPF record ending in +all/?all, allowing third parties to send mail as the domain.
+  detection:
+    method: msgraph
+    tool: "DNS TXT (v=spf1) per accepted domain from Graph /domains"
+    logic: SPF TXT absent, or qualifier is +all/?all, or multiple SPF records exist.
+  attack_vector: Sender spoofing -> phishing/business email compromise from a trusted domain
+  recommendation: Publish a single SPF record enumerating authorized senders and ending in -all (hard fail).
+  controls:
+    mitre: ["T1566.002", "T1656"]
+  required_permissions: ["Reader (Microsoft Graph Domain.Read.All)"]
+
+- check_id: CHK-MAIL-DMARC-MISSING-OR-NONE
+  title: DMARC missing or policy set to none
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: High
+  description: An accepted domain has no DMARC record or uses p=none, so spoofed mail failing SPF/DKIM is not rejected or quarantined and abuse is not reported.
+  detection:
+    method: msgraph
+    tool: "DNS TXT at _dmarc.<domain>"
+    logic: DMARC TXT absent, or p=none, or rua reporting address missing, or pct<100.
+  attack_vector: Spoofed mail delivered to inbox -> phishing/BEC
+  recommendation: Publish DMARC with p=quarantine then p=reject after monitoring, with rua/ruf reporting and pct=100.
+  controls:
+    mitre: ["T1566.002", "T1656"]
+  required_permissions: ["Reader (Microsoft Graph Domain.Read.All)"]
+
+- check_id: CHK-MAIL-DKIM-NOT-ENABLED
+  title: DKIM signing not enabled for accepted domain
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: Medium
+  description: DKIM is not configured/enabled for an accepted domain (or uses a weak 1024-bit key), weakening alignment and DMARC enforcement.
+  detection:
+    method: msgraph
+    tool: "DNS TXT for DKIM selectors / Get-DkimSigningConfig"
+    logic: No DKIM selector record resolves for the domain, or key length is 1024-bit.
+  attack_vector: Missing message authentication weakens anti-spoofing and DMARC alignment
+  recommendation: Enable DKIM signing for every accepted domain with 2048-bit keys; rotate periodically.
+  controls:
+    mitre: ["T1566.002"]
+  required_permissions: ["Reader (Exchange Online View-Only)"]
+
+- check_id: CHK-MAIL-ANTIPHISH-WEAK
+  title: Anti-phishing / spoof protection weak or disabled
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: High
+  description: Defender for Office 365 anti-phishing protection is missing or weak — spoof intelligence off, or mailbox/impersonation protection disabled.
+  detection:
+    method: msgraph
+    tool: "Get-AntiPhishPolicy / Defender for Office 365 policy via Graph"
+    logic: No anti-phishing policy applied, or EnableSpoofIntelligence/EnableMailboxIntelligence/impersonation protection is false.
+  attack_vector: Impersonation and spoof phishing reach users uninspected
+  recommendation: Enable anti-phishing with spoof intelligence, mailbox intelligence and impersonation protection; set actions to quarantine.
+  controls:
+    mitre: ["T1566.002", "T1534"]
+  required_permissions: ["Reader (Exchange Online View-Only / Security Reader)"]
+
+- check_id: CHK-MAIL-SAFE-LINKS-ATTACH-OFF
+  title: Safe Links / Safe Attachments not enforced
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: Medium
+  description: Microsoft Defender for Office 365 Safe Links and/or Safe Attachments are disabled or not applied to all users, leaving malicious URLs and payloads uninspected.
+  detection:
+    method: msgraph
+    tool: "Get-SafeLinksPolicy / Get-SafeAttachmentPolicy"
+    logic: No Safe Links/Safe Attachments policy, or scope does not cover all recipients.
+  attack_vector: Malicious link/attachment delivered -> malware / credential theft
+  recommendation: Enable Safe Links and Safe Attachments for all users (requires Defender for Office 365 licensing).
+  controls:
+    mitre: ["T1566.001", "T1566.002"]
+  required_permissions: ["Reader (Exchange Online View-Only / Security Reader)"]
+
+- check_id: CHK-MAIL-RISKY-TRANSPORT-RULE
+  title: Risky mail-flow / transport rule
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: High
+  description: A transport rule bypasses spam filtering (SCL -1), auto-forwards mail externally, or broadly allow-lists senders/domains/IPs.
+  detection:
+    method: msgraph
+    tool: "Get-TransportRule"
+    logic: A rule sets SCL to -1, redirects/forwards to external recipients, or applies a broad sender/domain/IP allow-list.
+  attack_vector: Filter-bypass for phishing, or external auto-forward for data exfiltration
+  recommendation: Remove blanket SCL -1 and broad allow-lists; block/limit external auto-forwarding; scope exceptions narrowly.
+  controls:
+    mitre: ["T1114.003", "T1564"]
+  required_permissions: ["Reader (Exchange Online View-Only)"]
+
+- check_id: CHK-MAIL-OUTBOUND-FORWARD
+  title: External auto-forwarding not restricted
+  domain: email
+  agent: email-security
+  mode: read-only
+  severity_default: Medium
+  description: The outbound spam policy permits automatic external forwarding, enabling silent mailbox data exfiltration via inbox rules.
+  detection:
+    method: msgraph
+    tool: "Get-HostedOutboundSpamFilterPolicy (AutoForwardingMode)"
+    logic: AutoForwardingMode is Automatic/On rather than Off for the default/outbound policy.
+  attack_vector: Compromised mailbox auto-forwards to attacker -> data exfiltration
+  recommendation: Set outbound auto-forwarding to Off (or controlled), and alert on new forwarding rules.
+  controls:
+    mitre: ["T1114.003"]
+  required_permissions: ["Reader (Exchange Online View-Only)"]

@@ -1,0 +1,88 @@
+# Attack Surface (EASM) Checks
+# Executed by the Attack Surface (EASM) Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-EASM-DANGLING-DNS
+  title: Dangling DNS record (subdomain takeover risk)
+  domain: easm
+  agent: attack-surface
+  mode: read-only
+  severity_default: High
+  description: A DNS record (CNAME/A) points at an Azure target (App Service, storage, Traffic Manager, Front Door, public IP) that no longer exists, allowing an attacker to claim the target and hijack the subdomain.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.Network/dnsZones record sets vs live resource resolution"
+    logic: A CNAME/A target matches an Azure service suffix but no live owned resource serves it (NXDOMAIN or unowned).
+  attack_vector: Subdomain takeover -> phishing, cookie/session theft on a trusted domain
+  recommendation: Remove or repoint stale DNS records; use Azure DNS alias records that auto-cleanup; adopt deprovisioning hygiene.
+  controls:
+    mitre: ["T1584.001"]
+  required_permissions: ["Reader", "DNS Zone Contributor (read)"]
+
+- check_id: CHK-EASM-UNKNOWN-ASSET
+  title: Internet-exposed asset with no known in-scope owner
+  domain: easm
+  agent: attack-surface
+  mode: read-only
+  severity_default: Medium
+  description: A public endpoint or IP resolves into the organization's footprint but does not map to any known in-scope Azure resource, indicating shadow IT or stale infrastructure.
+  detection:
+    method: msgraph
+    tool: "Defender EASM inventory / public footprint correlation"
+    logic: Discovered external asset cannot be correlated to an inventoried in-scope resource owner.
+  attack_vector: Unmonitored shadow asset -> unguarded entry point
+  recommendation: Identify the owner, bring the asset into scope and monitoring, or decommission it.
+  controls:
+    mitre: ["T1595"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-EASM-PUBLIC-MGMT-PORT
+  title: Management or database port reachable from the internet
+  domain: easm
+  agent: attack-surface
+  mode: read-only
+  severity_default: High
+  description: A public IP is associated with an NSG/rule allowing internet access to a management (RDP/SSH/WinRM) or database port, exposing a brute-force / exploitation entry point.
+  detection:
+    method: resource-graph
+    tool: "publicIPAddresses + NSG rules (sourceAddressPrefix Internet/* on 22/3389/5985/1433/3306/5432/6443)"
+    logic: A public IP's effective NSG allows inbound from Internet/Any to a management or database port.
+  attack_vector: Internet-exposed management surface -> brute force / exploit -> initial access
+  recommendation: Restrict to known source ranges, use Bastion/Just-In-Time access, and remove public exposure. Cross-ref network-exposure.
+  controls:
+    cis_azure: ["6.x"]
+    mitre: ["T1190", "T1133"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-EASM-DEFENDER-EASM-OBS
+  title: Unaddressed Microsoft Defender EASM high-priority observation
+  domain: easm
+  agent: attack-surface
+  mode: read-only
+  severity_default: High
+  description: A Microsoft Defender EASM workspace reports high- or medium-priority observations (expired certs, vulnerable services, exposed assets) that remain unaddressed.
+  detection:
+    method: msgraph
+    tool: "Defender EASM observations (az rest GET)"
+    logic: EASM workspace exists and reports open high/medium observations.
+  attack_vector: Known exposed/vulnerable asset -> exploitation
+  recommendation: Triage and remediate Defender EASM observations; assign owners to discovered assets.
+  controls:
+    mitre: ["T1595"]
+  required_permissions: ["Reader", "EASM Reader"]
+
+- check_id: CHK-EASM-PUBLIC-IP-UNUSED
+  title: Orphaned public IP address
+  domain: easm
+  agent: attack-surface
+  mode: read-only
+  severity_default: Low
+  description: A public IP address is allocated but not associated with any resource, or is associated with a stopped resource, enlarging the surface and risking reuse/confusion.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.Network/publicIPAddresses ipConfiguration association"
+    logic: publicIPAddress has no ipConfiguration association (unattached).
+  attack_vector: Stale/orphaned address -> confusion, potential takeover of DNS pointing at it
+  recommendation: Release unattached public IPs; ensure DNS records do not reference them.
+  controls:
+    mitre: ["T1595"]
+  required_permissions: ["Reader"]

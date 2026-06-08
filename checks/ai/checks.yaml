@@ -1,0 +1,122 @@
+# AI & Foundry Checks
+# Executed by the AI & Foundry Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-AI-OPENAI-PUBLIC
+  title: Azure OpenAI account publicly accessible
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: High
+  description: An Azure OpenAI / AI Services account has public network access enabled with no private endpoint or network ACLs, exposing model and data-plane APIs to the internet.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.CognitiveServices/accounts properties.publicNetworkAccess + networkAcls"
+    logic: publicNetworkAccess == 'Enabled' and networkAcls.defaultAction != 'Deny' and no private endpoint connection.
+  attack_vector: Internet-exposed AI endpoint -> credential/key attacks, model abuse
+  recommendation: Set publicNetworkAccess to Disabled and use a private endpoint, or restrict with network ACLs.
+  controls:
+    cis_azure: ["9.x"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-OPENAI-LOCALAUTH
+  title: Azure OpenAI / AI Services key-based (local) auth enabled
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: High
+  description: The account allows local API-key authentication instead of Entra-only auth, so a stolen key grants full data-plane access with no conditional access or MFA.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.CognitiveServices/accounts properties.disableLocalAuth"
+    logic: disableLocalAuth is false or absent.
+  attack_vector: Key theft -> unauthenticated model/data-plane access
+  recommendation: Set disableLocalAuth=true and use Entra ID with managed identities; rotate keys.
+  controls:
+    mitre: ["T1552.001", "T1078.004"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-OPENAI-NO-CONTENT-FILTER
+  title: Azure OpenAI deployment with content filtering / abuse monitoring disabled
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: Medium
+  description: A model deployment has content filtering or abuse monitoring disabled or below the default, removing guardrails against harmful-content generation and abuse.
+  detection:
+    method: mcp-tool
+    tool: "azure-foundry deployment / RAI policy configuration"
+    logic: Deployment raiPolicyName is none/custom-permissive or content filter disabled.
+  attack_vector: Model abuse -> harmful content / jailbreak at scale
+  recommendation: Apply the default (or stricter) responsible-AI content filter policy to every deployment.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-FOUNDRY-CONN-EXPOSED
+  title: AI Foundry project connection to a publicly reachable grounding store
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: High
+  description: An AI Foundry hub/project connection targets an AI Search, Storage, or Cosmos resource that is itself publicly accessible, creating an AI-to-data exfiltration path.
+  detection:
+    method: mcp-tool
+    tool: "azure-foundry connections list + target resource publicNetworkAccess"
+    logic: A connection target resource has public network access enabled (cross-ref data-protection).
+  attack_vector: AI endpoint -> grounding/vector store -> sensitive data exfiltration
+  recommendation: Place grounding stores behind private endpoints; use managed-identity connections; restrict public access.
+  controls:
+    mitre: ["T1530"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-FOUNDRY-CONN-KEYAUTH
+  title: AI Foundry connection uses key/SAS/connection-string auth
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: Medium
+  description: A Foundry connection authenticates with an API key, SAS token, or connection string stored in the shared Key Vault instead of Entra + managed identity.
+  detection:
+    method: mcp-tool
+    tool: "azure-foundry connections authType"
+    logic: Connection authType is ApiKey / SAS / ConnectionString rather than AAD/Identity.
+  attack_vector: Connection secret theft -> access to connected data/service
+  recommendation: Convert connections to managed-identity (AAD) auth; remove stored credentials.
+  controls:
+    mitre: ["T1552.001"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-IDENTITY-OVERPRIV
+  title: AI resource managed identity over-privileged
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: High
+  description: An AI Foundry hub, Azure OpenAI account, or ML workspace managed identity holds Contributor/Owner or broad Key Vault access, making the AI resource a high-value pivot.
+  detection:
+    method: resource-graph
+    tool: "AI resource identity + role assignments"
+    logic: AI resource identity principalId has Contributor/Owner at RG/subscription or Key Vault Secrets User broadly.
+  attack_vector: AI resource compromise -> managed identity privileges (chained)
+  recommendation: Scope the identity to least privilege; remove Contributor/Owner; restrict Key Vault access.
+  controls:
+    mitre: ["T1078.004"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-AI-AML-PUBLIC-WORKSPACE
+  title: Azure ML workspace public with credential-based datastores
+  domain: ai
+  agent: ai-foundry
+  mode: read-only
+  severity_default: High
+  description: An Azure Machine Learning workspace is publicly accessible (no managed VNet/private endpoint) and/or uses account-key/SAS datastore credentials instead of identity-based access.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.MachineLearningServices/workspaces publicNetworkAccess + datastore credentials"
+    logic: publicNetworkAccess == 'Enabled' and no managed network; or datastore uses account key/SAS.
+  attack_vector: Workspace access -> datastore credential theft / training-data exposure
+  recommendation: Enable managed VNet isolation and private endpoints; use identity-based datastore access.
+  controls:
+    mitre: ["T1552.001", "T1530"]
+  required_permissions: ["Reader"]

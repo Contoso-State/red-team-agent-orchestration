@@ -15,11 +15,15 @@ The full methodology lives in `agents/orchestrator/system-prompt.md`. Read it an
 |---|---|---|
 | Preflight | `azure-redteam-inventory` | Validate permissions, enumerate resources |
 | Assess | `azure-redteam-identity` | Entra ID / authentication weaknesses |
-| Assess | `azure-redteam-authorization` | RBAC, privilege escalation, attack paths |
 | Assess | `azure-redteam-network` | Public exposure, NSGs, segmentation |
-| Assess | `azure-redteam-compute` | VM, AKS, containers, serverless |
+| Assess | `azure-redteam-compute` | VM, AKS / Kubernetes, containers, serverless |
 | Assess | `azure-redteam-data` | Storage, Key Vault, databases, encryption |
+| Assess | `azure-redteam-web` | Web edge/delivery: WAF, TLS, static sites, APIM |
+| Assess | `azure-redteam-ai` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
+| Assess | `azure-redteam-easm` | Outside-in exposure, dangling DNS, unknown assets |
 | Assess | `azure-redteam-logging` | Detection & monitoring coverage |
+| Assess (optional) | `azure-redteam-email` | M365 SPF/DKIM/DMARC, Defender for Office 365 (only if M365 in scope) |
+| Assess | `azure-redteam-authorization` | RBAC, privilege escalation, attack paths |
 | Report | `azure-redteam-reporting` | Normalize findings, render reports |
 
 ## How You Manage the Engagement

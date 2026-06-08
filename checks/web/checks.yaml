@@ -1,0 +1,122 @@
+# Web & Static Sites Checks
+# Executed by the Web & Static Sites Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-WEB-FRONTDOOR-NO-WAF
+  title: Front Door / CDN endpoint without a WAF policy in Prevention mode
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: High
+  description: A Front Door or CDN front end has no associated Web Application Firewall policy, or the policy is in Detection (log-only) mode rather than Prevention.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.Cdn/profiles + frontdoorWebApplicationFirewallPolicies association/mode"
+    logic: Front end has no WAF policy, or policy.policySettings.mode == 'Detection'.
+  attack_vector: No edge enforcement -> direct application attack traffic reaches origin
+  recommendation: Associate a WAF policy in Prevention mode with the managed default rule set on every public front end.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-APPGW-NO-WAF
+  title: Application Gateway without WAF or in Detection mode
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: High
+  description: An internet-facing Application Gateway uses the Standard (non-WAF) SKU or runs its WAF in Detection mode, so malicious requests are not blocked.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.Network/applicationGateways sku + webApplicationFirewallConfiguration"
+    logic: sku.tier not WAF_v2, or firewallMode == 'Detection', or WAF disabled.
+  attack_vector: No edge enforcement -> web application exploitation
+  recommendation: Use the WAF_v2 SKU with firewall mode Prevention and an up-to-date OWASP rule set.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-STATIC-WEBSITE-EXPOSED
+  title: Storage static website endpoint reachable directly
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: Medium
+  description: A storage account has static website hosting enabled and its $web endpoint is reachable directly, bypassing any Front Door/CDN WAF in front of it.
+  detection:
+    method: mcp-tool
+    tool: "azure-storage blob service-properties staticWebsite"
+    logic: staticWebsite.enabled == true and public network access permits direct endpoint reach (cross-ref data-protection).
+  attack_vector: Edge/WAF bypass -> direct content and app access
+  recommendation: Front the static site with Front Door + private origin access; restrict direct public endpoint reachability.
+  controls:
+    cis_azure: ["3.x"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-SWA-ROUTE-NO-AUTH
+  title: Static Web App protected route without authentication
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: High
+  description: An Azure Static Web App serves routes that should require authentication but has no role-based route rules, exposing protected functionality anonymously.
+  detection:
+    method: mcp-tool
+    tool: "azure-appservice staticSites config (staticwebapp.config routes/roles)"
+    logic: No allowedRoles on routes intended to be protected; anonymous access to sensitive paths.
+  attack_vector: Unauthenticated access to application functionality
+  recommendation: Define route rules with allowedRoles; require authentication on protected paths.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-APIM-OPEN-GATEWAY
+  title: API Management gateway publicly exposed without restriction
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: High
+  description: An API Management instance is exposed externally with no IP restriction, client certificate, or subscription-key requirement, allowing unauthenticated API access.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.ApiManagement/service publicNetworkAccess + virtualNetworkType + API subscriptionRequired"
+    logic: publicNetworkAccess Enabled and virtualNetworkType in {None, External} and APIs with subscriptionRequired=false or open CORS.
+  attack_vector: Unauthenticated/open API access -> backend abuse
+  recommendation: Require subscription keys or OAuth, restrict source IPs, and consider Internal VNet mode.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-TLS-WEAK
+  title: Web edge allows weak TLS or no HTTPS redirect
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: Medium
+  description: A Front Door, App Gateway, or Static Web App custom domain allows TLS below 1.2 or does not redirect HTTP to HTTPS.
+  detection:
+    method: resource-graph
+    tool: "front end / listener TLS policy + httpsRedirect / minimumTlsVersion"
+    logic: minimumTlsVersion < 1.2, or HTTP listener present with no redirect to HTTPS.
+  attack_vector: Protocol downgrade -> cleartext interception / MITM
+  recommendation: Enforce minimum TLS 1.2+, bind valid certificates, and redirect all HTTP to HTTPS.
+  controls:
+    mitre: ["T1557"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-WEB-ORIGIN-DIRECT-REACH
+  title: Front Door/CDN origin directly reachable (edge bypass)
+  domain: web
+  agent: web-exposure
+  mode: read-only
+  severity_default: Medium
+  description: The origin behind a Front Door/CDN (App Service, storage, public IP) accepts traffic directly without restricting to the edge, letting attackers skip the WAF.
+  detection:
+    method: resource-graph
+    tool: "origin App Service access restrictions / storage network rules vs Front Door FDID"
+    logic: Origin has no access restriction limiting traffic to the Front Door (e.g., missing X-Azure-FDID / service tag / private link).
+  attack_vector: WAF/edge bypass -> direct origin exploitation
+  recommendation: Restrict origin to the Front Door (FDID header, service tag, or Private Link origin).
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]

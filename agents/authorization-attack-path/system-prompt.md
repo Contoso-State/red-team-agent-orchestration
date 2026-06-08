@@ -42,7 +42,9 @@ These are the Azure "escalation verbs" — flag any principal that holds them be
 
 ## Attack-Path Correlation (Phase 4)
 
-After domain agents finish, read **all** of `findings/raw/*.jsonl` and build attack chains. Classic Azure chains to look for:
+After domain agents finish, read **all** of `findings/raw/*.jsonl` — including `web-exposure.jsonl`,
+`ai-foundry.jsonl`, `attack-surface.jsonl`, and (when present) `email-security.jsonl` — and build
+attack chains. Classic Azure chains to look for:
 
 ```
 Public web app (Network finding)
@@ -64,6 +66,27 @@ Contributor on resource group (this agent)
 Low-priv user with roleAssignments/write on a scope (this agent)
   → grants self Owner
   = Privilege escalation to subscription Owner
+```
+
+```
+Dangling DNS / subdomain takeover (Attack Surface/EASM finding)
+  → attacker claims the subdomain on a trusted org domain
+  → no DMARC enforcement / weak SPF (Email finding)
+  = Trusted-domain phishing + cookie/session theft against the org
+```
+
+```
+Internet-facing static site or APIM gateway w/ no WAF or weak TLS (Web finding)
+  → fronts an App Service / Function with a managed identity (Compute finding)
+  → identity holds Storage/Key Vault data role (this agent)
+  = Internet edge weakness → backend identity → data access
+```
+
+```
+Publicly exposed Azure OpenAI / Cognitive Services endpoint w/ key auth (AI finding)
+  → key stored in an over-shared Key Vault or app setting (Data/Compute finding)
+  → principal with secret/get is broadly assigned (this agent)
+  = Model/data-plane abuse + prompt-injection blast radius
 ```
 
 For each chain, emit a finding with `attack_path` populated and severity reflecting the **end state**, not the individual steps.

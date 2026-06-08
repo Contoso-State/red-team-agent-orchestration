@@ -155,3 +155,54 @@
   controls:
     mitre: ["T1552.001"]
   required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-ACR-PUBLIC-ANON
+  title: Container Registry public network access or anonymous pull
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: An Azure Container Registry allows access from all networks and/or permits anonymous (unauthenticated) image pull, exposing images and their contents.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.ContainerRegistry/registries publicNetworkAccess + anonymousPullEnabled"
+    logic: publicNetworkAccess == Enabled with no network rules, or anonymousPullEnabled == true.
+  attack_vector: Anonymous/public registry -> image and secret disclosure, supply-chain tampering
+  recommendation: Restrict public network access (private endpoint / network rules); disable anonymous pull.
+  controls:
+    mitre: ["T1525", "T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-NO-ENTRA-RBAC
+  title: AKS cluster not integrated with Entra ID / Kubernetes RBAC
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: An AKS cluster does not use Entra ID integration with Azure RBAC for Kubernetes, relying on static Kubernetes RBAC or local accounts that are harder to govern and revoke.
+  detection:
+    method: resource-graph
+    tool: "managedClusters aadProfile + enableRBAC + aadProfile.enableAzureRBAC"
+    logic: enableRBAC is false, or aadProfile is absent, or aadProfile.enableAzureRBAC is false.
+  attack_vector: Weak cluster authZ -> over-broad Kubernetes access, hard-to-revoke credentials
+  recommendation: Enable Entra ID integration with Azure RBAC for Kubernetes; enable Kubernetes RBAC; disable local accounts.
+  controls:
+    mitre: ["T1078"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-CONTAINER-PRIVILEGED-INGRESS
+  title: Container workload publicly exposed without ingress controls
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: A Container Apps / Container Instances workload exposes an external ingress to the internet with no IP restrictions or authentication in front of it.
+  detection:
+    method: resource-graph
+    tool: "Microsoft.App/containerApps ingress + Microsoft.ContainerInstance/containerGroups ipAddress"
+    logic: External ingress enabled with no ipSecurityRestrictions / auth, or a container group has a public IP with open ports.
+  attack_vector: Internet-exposed container -> direct application attack / lateral movement
+  recommendation: Restrict ingress to known sources, require authentication, prefer internal ingress + private networking.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]

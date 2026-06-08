@@ -19,11 +19,15 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
    | Condition | Agent | Prompt |
    |---|---|---|
    | Entra ID / app registrations in scope | Identity Posture | `agents/identity-posture/system-prompt.md` |
-   | Role assignments / custom roles | Authorization & Attack Path | `agents/authorization-attack-path/system-prompt.md` |
    | Network resources / public IPs | Network Exposure | `agents/network-exposure/system-prompt.md` |
-   | Compute / AKS / web / functions | Compute Platform | `agents/compute-platform/system-prompt.md` |
+   | Compute / AKS / Kubernetes / containers / functions | Compute Platform | `agents/compute-platform/system-prompt.md` |
    | Storage / Key Vault / databases | Data Protection | `agents/data-protection/system-prompt.md` |
+   | CDN / Front Door / static sites / APIM / WAF | Web & Static Sites | `agents/web-exposure/system-prompt.md` |
+   | Cognitive Services / Azure OpenAI / AI Foundry / ML | AI & Foundry | `agents/ai-foundry/system-prompt.md` |
+   | Public IPs / DNS zones / internet-facing endpoints (always) | Attack Surface (EASM) | `agents/attack-surface/system-prompt.md` |
    | Always | Logging Coverage | `agents/logging-coverage/system-prompt.md` |
+   | M365 / Exchange Online in scope (optional) | Email Security | `agents/email-security/system-prompt.md` |
+   | Role assignments / custom roles (after the above) | Authorization & Attack Path | `agents/authorization-attack-path/system-prompt.md` |
 
 3. **Enforce scope and mode** for every agent. Skip excluded resources. Never exceed the engagement `mode`.
 4. **Validate findings** against `schemas/finding.schema.json` as they are produced.
