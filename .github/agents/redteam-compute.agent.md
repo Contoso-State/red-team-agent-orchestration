@@ -10,6 +10,7 @@ disable-model-invocation: true
 Assess the machines and containers that run code and hold managed identities.
 
 Methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/compute/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-compute/SKILL.md`.
 Az CLI runner: `tools/az-cli/compute.md`.
 
 ## Output

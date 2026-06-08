@@ -11,6 +11,7 @@ Protect the crown jewels: where data lives and how it's secured.
 
 Methodology: `agents/data-protection/system-prompt.md`.
 Checks: `checks/storage/checks.yaml` and `checks/database/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-data/SKILL.md`.
 Az CLI runners: `tools/az-cli/storage.md` and `tools/az-cli/database.md`. Playbook: `playbooks/data-access-review.md`.
 
 ## Output

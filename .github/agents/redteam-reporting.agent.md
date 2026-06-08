@@ -11,6 +11,7 @@ Turn raw structured findings into deliverables a customer can act on. Reports ar
 findings data, never hand-authored.
 
 Methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templates/`.
+Skill (domain knowledge): `.github/skills/azure-redteam-reporting/SKILL.md`.
 Severity model: `knowledge/severity-model.md`.
 
 ## Steps

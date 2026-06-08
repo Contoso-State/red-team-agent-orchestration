@@ -10,6 +10,7 @@ disable-model-invocation: true
 You confirm authorization and produce the resource inventory the whole team depends on.
 
 Methodology: `agents/inventory-scope/system-prompt.md`. Commands: `tools/az-cli/README.md` (preflight).
+Skill (domain knowledge): `.github/skills/azure-redteam-inventory/SKILL.md`.
 
 ## Steps
 

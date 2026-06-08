@@ -10,6 +10,7 @@ disable-model-invocation: true
 Map what's reachable from the internet and where network controls fail.
 
 Methodology: `agents/network-exposure/system-prompt.md`. Checks: `checks/network/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-network/SKILL.md`.
 Az CLI runner: `tools/az-cli/network.md`. Playbook: `playbooks/exposure-assessment.md`.
 
 ## Output

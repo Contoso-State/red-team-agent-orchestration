@@ -10,6 +10,7 @@ disable-model-invocation: true
 Document where detection does not exist. You are not evading detection — you are mapping the gaps.
 
 Methodology: `agents/logging-coverage/system-prompt.md`. Checks: `checks/logging/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-logging/SKILL.md`.
 Az CLI runner: `tools/az-cli/logging.md`. KQL: `tools/kql/detection-coverage.kql`.
 
 ## Output

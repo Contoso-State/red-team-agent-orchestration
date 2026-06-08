@@ -11,6 +11,7 @@ The highest-value sub-agent. Find privilege escalation and lateral movement, the
 findings into attack paths an attacker would actually walk.
 
 Methodology: `agents/authorization-attack-path/system-prompt.md`. Checks: `checks/rbac/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-authorization/SKILL.md`.
 Az CLI runner: `tools/az-cli/rbac.md`. Playbook: `playbooks/privilege-path-analysis.md`.
 
 ## Two Passes

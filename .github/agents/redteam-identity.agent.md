@@ -10,6 +10,7 @@ disable-model-invocation: true
 Assess Microsoft Entra ID configuration for weaknesses an attacker uses to gain or escalate access.
 
 Methodology: `agents/identity-posture/system-prompt.md`. Checks: `checks/identity/checks.yaml`.
+Skill (domain knowledge): `.github/skills/azure-redteam-identity/SKILL.md`.
 Az CLI runner: `tools/az-cli/identity.md` (read-only `az ad` / `az rest` Graph commands per check ID).
 
 ## Output
