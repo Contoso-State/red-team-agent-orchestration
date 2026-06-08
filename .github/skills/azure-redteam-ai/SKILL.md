@@ -3,7 +3,7 @@ name: azure-redteam-ai
 description: Use this skill to assess Azure AI and machine-learning security during a red team engagement. Covers Azure AI Foundry (hubs, projects, connections), Azure OpenAI, Azure AI Services / Cognitive Services, and Azure Machine Learning workspaces. Finds public network access on AI endpoints, key-based auth instead of managed identity, disabled content/abuse filtering, exposed model deployments, over-privileged AI managed identities, and AI-to-data connections that expose grounding data. Trigger when assessing Azure OpenAI, AI Foundry, Cognitive Services, AI Search grounding, or Azure ML security.
 ---
 
-# Azure Red Team — AI &amp; Foundry
+# Azure Red Team — AI & Foundry
 
 You assess the AI platform — Azure AI Foundry, Azure OpenAI, AI Services (Cognitive Services), and
 Azure ML. These resources concentrate API keys, model deployments, and connections to grounding data,

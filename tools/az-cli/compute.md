@@ -63,3 +63,28 @@ az vm identity show --name <vm> -g <rg> -o json   # privileged MI on a public VM
 az acr list --query "[].{name:name,adminUserEnabled:adminUserEnabled,publicNetworkAccess:publicNetworkAccess}" -o json
 # Flag: adminUserEnabled==true.
 ```
+
+## CHK-COMP-ACR-PUBLIC-ANON — Registry public network / anonymous pull
+```bash
+az acr list \
+  --query "[].{name:name,rg:resourceGroup,publicNetworkAccess:publicNetworkAccess,anonymousPull:anonymousPullEnabled,networkRuleSet:networkRuleSet.defaultAction}" -o json
+# Flag: publicNetworkAccess=='Enabled' with networkRuleSet defaultAction 'Allow', or anonymousPullEnabled==true.
+```
+
+## CHK-COMP-AKS-NO-ENTRA-RBAC — AKS not using Entra ID + Azure RBAC for Kubernetes
+```bash
+az aks list \
+  --query "[].{name:name,rg:resourceGroup,enableRBAC:enableRbac,aad:aadProfile,azureRBAC:aadProfile.enableAzureRBAC}" -o json
+# Flag: enableRbac != true, OR aadProfile is null, OR aadProfile.enableAzureRBAC != true.
+```
+
+## CHK-COMP-CONTAINER-PRIVILEGED-INGRESS — Container workload publicly exposed
+```bash
+# Container Apps: external ingress without IP restrictions.
+az containerapp list \
+  --query "[].{name:name,rg:resourceGroup,external:properties.configuration.ingress.external,ipRules:properties.configuration.ingress.ipSecurityRestrictions}" -o json
+# Container Instances: public IP with open ports.
+az container list \
+  --query "[?ipAddress.type=='Public'].{name:name,rg:resourceGroup,ip:ipAddress.ip,ports:ipAddress.ports}" -o json
+# Flag: external ingress with no ipSecurityRestrictions, or a container group with a public IP.
+```

@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
-  <img src="https://img.shields.io/badge/agents-13_specialists-ff2b40" alt="13 specialist agents">
+  <img src="https://img.shields.io/badge/agents-13-ff2b40" alt="13 agents (orchestrator + 12 specialists)">
   <img src="https://img.shields.io/badge/checks-83-2496ed" alt="83 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
 </p>

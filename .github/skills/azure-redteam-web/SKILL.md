@@ -3,7 +3,7 @@ name: azure-redteam-web
 description: Use this skill to assess Azure web edge and static-site security during a red team engagement. Covers Azure Static Web Apps, Storage account static-website hosting, Front Door, CDN, Application Gateway (WAF posture), and API Management public exposure. Finds missing or detection-only WAF, weak/old TLS, HTTP not redirected to HTTPS, unrestricted APIM gateways, exposed static endpoints, and missing custom-domain/HTTPS enforcement. Trigger when assessing Static Web Apps, static website hosting, Front Door, CDN, App Gateway WAF, or APIM exposure.
 ---
 
-# Azure Red Team — Web &amp; Static Sites
+# Azure Red Team — Web & Static Sites
 
 You assess the **web delivery edge** — the public front door for content and APIs. Static Web Apps,
 Storage static websites, Front Door, CDN, Application Gateway, and API Management decide who can reach

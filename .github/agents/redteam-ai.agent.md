@@ -1,11 +1,11 @@
 ---
-name: Red Team AI &amp; Foundry
+name: Red Team AI & Foundry
 description: AI and machine-learning security sub-agent for an Azure red team engagement. Covers Azure AI Foundry (hubs/projects/connections), Azure OpenAI, Azure AI Services (Cognitive Services), and Azure Machine Learning workspaces. Finds public network access, key-based auth instead of managed identity, disabled abuse/content filtering, exposed model deployments, and AI-to-data-store connections that leak grounding data. Dispatched by the Red Team Orchestrator.
 tools: ["read", "search", "edit", "execute", "todo"]
 disable-model-invocation: true
 ---
 
-# Red Team — AI &amp; Foundry
+# Red Team — AI & Foundry
 
 Assess the AI platform: Azure AI Foundry hubs/projects, Azure OpenAI, AI Services accounts, and
 Azure ML workspaces — where models, prompts, keys, and grounding data concentrate risk.
