@@ -1,29 +1,47 @@
 # redteam-guardrails (Copilot CLI extension)
 
 Runtime **hook** that enforces the read-only safety model of the Azure red team. It registers a
-`preToolUse` hook that **denies mutating `az` / `azd` commands** so an engagement can never change
-the target environment by accident.
+session-wide `preToolUse` hook that **denies any Azure command that is not a recognized read/query
+operation** — so an engagement can never change the target environment by accident, no matter which
+agent issues the command.
 
 ## Behavior
 
-- **Default = enforce.** If `engagement.yaml` is missing or `mode` is `read-only-assessment` /
-  `attack-path-analysis`, any state-changing Azure CLI command is denied before it runs.
-- **`mode: controlled-validation`** in `engagement.yaml` lifts the block — the only mode that
-  authorizes state changes, and only because the engagement explicitly opted in.
-- **Read-only commands always pass:** `list`, `show`, `get`, `query`, `az graph query`,
-  `az account show/set`, `az extension add`, `az rest --method GET`, etc.
+- **Allowlist / deny-by-default.** Only recognized read operations are permitted; anything else on
+  `az` / `azd` or Azure PowerShell (`*-Az*`) is treated as a state change and blocked. Unknown or
+  brand-new mutating verbs therefore fail closed.
+- **Read-only commands pass:** `az list/show/get/...`, `az graph query`, `az rest --method GET`,
+  `Get-Az*`, `Find-Az*`, `Search-Az*`, `Test-Az*`, `Export-Az*`, `Invoke-AzRestMethod -Method GET`,
+  plus session/local-context commands (`az account set`, `az login`, `az extension add`,
+  `Set-AzContext`, `Connect-AzAccount`).
 - **Blocked examples:** `az vm create`, `az role assignment create`, `az storage account update`,
-  `az keyvault delete`, `az rest --method POST|PUT|PATCH|DELETE`.
-- On a block the user sees a clear reason and the offending command; a warning is logged to the
-  timeline.
+  `az keyvault purge`, `az vm run-command invoke`, `az rest --method POST|PUT|PATCH|DELETE`,
+  `New-AzVM`, `Remove-AzKeyVault`, `Invoke-AzVMRunCommand`.
+- **Wrapper-aware.** Indirection can't sneak a mutation past it — it also inspects payloads passed to
+  `pwsh -Command`, `powershell -EncodedCommand` (base64 is decoded), `bash -c`, `cmd /c`,
+  `Invoke-Expression`/`iex`, the call operator `&`, and `Start-Process … -ArgumentList`.
+- **Tool-scoped.** Only command-execution tools are inspected. File `read`/`edit`/`create` calls are
+  never treated as commands, so documentation that *mentions* `az ... delete` is never blocked.
+- **`mode: controlled-validation`** does **not** silently allow mutations — it downgrades them to an
+  explicit **human-approval prompt** (`permissionDecision: "ask"`). Read-only modes
+  (`read-only-assessment`, `attack-path-analysis`, or a missing `engagement.yaml`) hard-deny.
+- On a block/ask the user sees a clear reason and the offending command; a warning is logged.
 
 ## How it fits the team
 
 ```
-.github/agents/      → WHAT to assess (orchestrator dispatches the sub-agents)
-.github/skills/      → domain knowledge auto-loaded by Copilot
-.github/extensions/  → THIS: enforces HOW (read-only) at the tool-call boundary
+.github/agents/      → WHO acts (orchestrator dispatches the sub-agents; it has no shell access)
+.github/skills/      → WHAT they know (domain knowledge auto-loaded by Copilot)
+.github/extensions/  → THIS: enforces what they MAY do (read-only) at the tool-call boundary
 ```
+
+## Files
+
+- `extension.mjs` — session wiring (`joinSession`, `onSessionStart`, `onPreToolUse`).
+- `guardrails-core.mjs` — pure decision logic (`evaluate`, `violation`, allowlists, wrapper
+  extraction). Importable and side-effect free.
+- `guardrails-core.test.mjs` — unit tests. Run with
+  `node .github/extensions/redteam-guardrails/guardrails-core.test.mjs`.
 
 ## Lifecycle
 
@@ -32,7 +50,10 @@ The CLI discovers this automatically from `.github/extensions/` at the git root,
 
 ## Customizing
 
-- Tighten to an allow-list, add resource-group scoping, or block specific MCP tools by editing
-  `extension.mjs` (`MUTATING_OPS`, `BENIGN`, and the `onPreToolUse` hook).
-- The mutation verb list is intentionally broad and read from the `az` operation token; adjust for
-  your environment's tolerance.
+Edit `guardrails-core.mjs`:
+
+- `AZ_READ_OP` / `PS_READ_VERBS` — the read allowlists (widen/narrow the permitted operations).
+- `AZ_BENIGN` / `PS_BENIGN` — session/local-context commands exempted from the read check.
+- `extractInner` — wrapper/indirection patterns to unwrap before evaluation.
+
+Re-run the unit tests after any change.

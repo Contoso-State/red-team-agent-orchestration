@@ -55,7 +55,11 @@ The team uses three native Copilot CLI layers that map cleanly onto **who acts**
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the eight specialists set `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective agent" real.
+The Orchestrator is the only **user-invocable** agent; the eight specialists set
+`disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the
+`agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective
+agent" real. The Orchestrator is **dispatch-only** — it has no `execute`/shell capability, so it
+never runs `az` itself; it assigns work to the specialist and presents the findings they return.
 
 | Agent file | Display name | Invoked by |
 |---|---|---|
@@ -87,7 +91,17 @@ Each agent's deep methodology is a Copilot skill, loaded automatically by `descr
 
 ### 3. Extension / hooks — read-only enforcement (`.github/extensions/redteam-guardrails`)
 
-A `preToolUse` hook inspects every shell command and **denies mutating `az`/`azd` operations** (`create`, `update`, `delete`, `set`, role assignments, `vm run-command`, `az rest` with non-GET, etc.) while allowing read-only verbs (`list`, `show`, `get`, `query`). The block is lifted only when `engagement.yaml` sets `mode: controlled-validation`. Decision logic lives in `guardrails-core.mjs` and is unit-tested by `guardrails-core.test.mjs`.
+A session-wide `preToolUse` hook enforces read-only as an **allowlist (deny-by-default)**: only
+recognized read/query operations pass; everything else on `az`/`azd` or Azure PowerShell (`*-Az*`)
+is treated as a state change and blocked, so unknown or new mutating verbs fail closed. It is
+**wrapper-aware** (unwraps `pwsh -Command`, `powershell -EncodedCommand`, `bash -c`, `cmd /c`,
+`iex`, `&`, `Start-Process … -ArgumentList`) and **tool-scoped** (only command-execution tools are
+inspected — docs that merely mention `az ... delete` are never blocked). `mode:
+controlled-validation` doesn't silently allow mutations; it downgrades them to an explicit
+human-approval prompt. Decision logic lives in `guardrails-core.mjs` and is unit-tested by
+`guardrails-core.test.mjs` (68 assertions). Because the hook is session-wide it covers **every**
+agent — and the orchestrator additionally has **no shell access at all** (dispatch-only), so it can
+never run `az` itself.
 
 Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same team.
 
@@ -150,9 +164,9 @@ Normalizes findings, deduplicates, reconciles severity, and generates executive 
 |---|---|---|
 | `read-only-assessment` | Enumerate and analyze configurations only | 🟢 Safe |
 | `attack-path-analysis` | Read-only + build attack path graphs | 🟡 Low |
-| `controlled-validation` | Limited safe validation of specific findings | 🟠 Medium |
+| `controlled-validation` | Read-only + state-changing actions require explicit human approval (the guardrail prompts, never auto-allows) | 🟠 Medium |
 
-Mode is set in `engagement.yaml` and enforced by all agents.
+Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook across all agents.
 
 ## Repository Structure
 
@@ -222,7 +236,8 @@ Severity is determined by five factors — agents propose, the reporting agent n
 - **Scope enforcement**: Every agent validates target resources against `engagement.yaml`
 - **Preflight checks**: Permissions validated before any assessment begins
 - **Read-only default**: The default mode only reads configurations — no mutations
-- **Hook-enforced guardrail**: The `redteam-guardrails` extension blocks mutating `az`/`azd` commands at the tool boundary (a `preToolUse` deny), so read-only is enforced even if an agent is misprompted — not just requested
+- **Hook-enforced guardrail**: The `redteam-guardrails` extension applies a session-wide `preToolUse` deny that allows **only** recognized read/query Azure commands (allowlist / deny-by-default), across both `az`/`azd` and Azure PowerShell — so read-only is enforced even if an agent is misprompted, not just requested
+- **Dispatch-only orchestrator**: The Pentest Manager has no shell access; it assigns work to specialists and presents their findings, so it can never run `az` directly
 - **Evidence redaction**: Secrets are never stored; PII redaction is configurable
 - **Audit trail**: All agent actions and findings are logged with timestamps
 

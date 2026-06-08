@@ -10,7 +10,7 @@ The system uses a **hub-and-spoke orchestration model**, wired with three native
 
 - **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to eight domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge each agent draws on.
-- **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that denies mutating `az`/`azd` commands, enforcing read-only at the tool boundary.
+- **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a session-wide `preToolUse` hook that enforces read-only as an allowlist (deny-by-default) across `az`/`azd` and Azure PowerShell, for every agent.
 
 Engagement flow:
 
@@ -40,11 +40,12 @@ Engagement flow:
 ## Safety Rules
 
 1. **Always validate scope** — never operate on resources outside `engagement.yaml`
-2. **Default to read-only** — never mutate Azure resources unless `controlled-validation` mode is active and the specific action is explicitly permitted
-3. **Never store secrets** — redact any secret values, connection strings, or tokens from findings and evidence
-4. **Structured findings only** — all findings must conform to `schemas/finding.schema.json`
-5. **Preflight before assessment** — always run inventory/scope validation before domain agents
-6. **Evidence provenance** — every finding must include the Azure API or tool that produced the evidence
+2. **Default to read-only** — never mutate Azure resources. The `redteam-guardrails` hook enforces this as an allowlist (only read/query `az`/`azd`/Az PowerShell pass); in `controlled-validation` mode a mutation is not auto-run but surfaced for explicit human approval
+3. **Orchestrator is dispatch-only** — the Pentest Manager has no `execute`/shell tool; it assigns work to specialist sub-agents and presents their findings, and must never run `az` directly
+4. **Never store secrets** — redact any secret values, connection strings, or tokens from findings and evidence
+5. **Structured findings only** — all findings must conform to `schemas/finding.schema.json`
+6. **Preflight before assessment** — always run inventory/scope validation before domain agents
+7. **Evidence provenance** — every finding must include the Azure API or tool that produced the evidence
 
 ## Agent Dispatch Rules
 
@@ -56,10 +57,10 @@ When working in this repo:
 - Use `/attack-paths` to analyze privilege escalation and lateral movement chains
 - Use `/report` to generate the final assessment report
 - Or just ask Copilot in plain language (e.g. "pentest my Azure subscription") — the `azure-redteam-orchestrator` skill (Pentest Manager) triggers and coordinates the team
-- The Orchestrator dispatches sub-agents via the `agent` (Task) tool; sub-agents are not model-invocable on their own (`disable-model-invocation: true`)
+- The Orchestrator dispatches sub-agents via the `agent` (Task) tool; it has no shell/`execute` capability and never runs `az` itself. Sub-agents are not model-invocable on their own (`disable-model-invocation: true`)
 - Each skill (`.github/skills/azure-redteam-<name>/SKILL.md`) delegates to its detailed methodology in `agents/<name>/system-prompt.md`
 - Checks are in `checks/<domain>/` — agents execute these, not ad-hoc queries
-- The `redteam-guardrails` hook blocks mutating `az`/`azd` commands; only read-only verbs (list/show/get/query) pass unless `engagement.yaml` sets `mode: controlled-validation`
+- The `redteam-guardrails` hook enforces read-only as an allowlist across `az`/`azd` and Azure PowerShell — only recognized read/query operations pass (it is wrapper-aware and tool-scoped). In `controlled-validation` mode a mutation triggers a human-approval prompt instead of being allowed
 - All output goes to `findings/raw/<agent-name>.jsonl` as structured JSON lines
 
 ## Coding Conventions
