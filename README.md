@@ -1,6 +1,32 @@
-# Azure Red Team Agent Orchestration
+<p align="center">
+  <img src="assets/banner.svg" alt="Azure Red Team Agent Orchestration" width="100%">
+</p>
 
-Agentic red team platform for identifying security vulnerabilities in Azure cloud infrastructure. A coordinated team of AI agents — each specialized in a security domain — performs comprehensive penetration testing against Azure environments.
+<p align="center">
+  <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
+  <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
+  <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
+  <img src="https://img.shields.io/badge/agents-9_specialists-ff2b40" alt="9 specialist agents">
+  <img src="https://img.shields.io/badge/checks-54-2496ed" alt="54 security checks">
+  <img src="https://img.shields.io/badge/status-template-555" alt="Template">
+</p>
+
+<p align="center">
+  <b>An agentic red team for Azure cloud security.</b><br>
+  A coordinated team of AI agents — each a domain specialist — runs comprehensive,
+  <b>read-only</b> penetration testing against your Azure environment, then hands you a
+  leadership-ready report and slide deck.
+</p>
+
+<p align="center">
+  <a href="#-quick-start"><b>Quick Start</b></a> ·
+  <a href="#-how-it-works"><b>How It Works</b></a> ·
+  <a href="#-agent-team"><b>Agent Team</b></a> ·
+  <a href="#-operating-modes"><b>Operating Modes</b></a> ·
+  <a href="#-safety--authorization"><b>Safety</b></a>
+</p>
+
+---
 
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
@@ -10,7 +36,7 @@ The team ships as native **GitHub Copilot CLI** primitives, so once this repo is
 
 Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
 
-## How It Works
+## 🧭 How It Works
 
 ```mermaid
 graph TD
@@ -35,7 +61,11 @@ graph TD
     Reporter -->|Final report| User
 ```
 
-## Agent Team
+## 🤖 Agent Team
+
+<p align="center">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches eight domain specialists" width="100%">
+</p>
 
 | Agent | Domain | Key Focus |
 |---|---|---|
@@ -49,7 +79,7 @@ graph TD
 | **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
-## How the Team Is Packaged (Agents + Skills + Hooks)
+## 🧩 How the Team Is Packaged (Agents + Skills + Hooks)
 
 The team uses three native Copilot CLI layers that map cleanly onto **who acts**, **what they know**, and **what they're allowed to do**.
 
@@ -105,7 +135,7 @@ never run `az` itself.
 
 Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`) are convenient entry points that drive the same team.
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Define engagement scope
 
@@ -178,7 +208,7 @@ Renders `reports/generated/assessment-deck.md` — a PowerPoint-convertible slid
 or Pandoc (`pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2`).
 `/report` also emits this deck automatically.
 
-## Operating Modes
+## 🎚️ Operating Modes
 
 | Mode | Description | Risk Level |
 |---|---|---|
@@ -188,7 +218,7 @@ or Pandoc (`pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx 
 
 Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook across all agents.
 
-## Repository Structure
+## 🗂️ Repository Structure
 
 ```
 ├── engagement.example.yaml      # Engagement scope template
@@ -219,7 +249,7 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 └── inventory/                   # Resource inventory cache (gitignored)
 ```
 
-## Findings Model
+## 🧾 Findings Model
 
 All findings are structured JSON — reports are rendered from them, never hand-written.
 
@@ -239,7 +269,7 @@ All findings are structured JSON — reports are rendered from them, never hand-
 }
 ```
 
-## Severity Model
+## ⚖️ Severity Model
 
 Severity is determined by five factors — agents propose, the reporting agent normalizes:
 
@@ -251,7 +281,7 @@ Severity is determined by five factors — agents propose, the reporting agent n
 | Data Sensitivity | Medium | Does this affect sensitive data? |
 | Compensating Controls | Low | Are there mitigations in place? |
 
-## Safety & Authorization
+## 🛡️ Safety & Authorization
 
 - **Scope enforcement**: Every agent validates target resources against `engagement.yaml`
 - **Preflight checks**: Permissions validated before any assessment begins
@@ -261,7 +291,7 @@ Severity is determined by five factors — agents propose, the reporting agent n
 - **Evidence redaction**: Secrets are never stored; PII redaction is configurable
 - **Audit trail**: All agent actions and findings are logged with timestamps
 
-## Requirements
+## ✅ Requirements
 
 - GitHub Copilot with Azure MCP tools enabled
 - Azure CLI authenticated (`az login`)
