@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/finding.schema.json",
+  "title": "Security Finding",
+  "description": "A single structured security finding produced by a red team agent. This is the source of truth — all reports are rendered from findings, never hand-authored.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "severity",
+    "confidence",
+    "agent",
+    "category",
+    "resource_id",
+    "subscription_id",
+    "description",
+    "attack_vector",
+    "recommendation",
+    "evidence",
+    "status",
+    "first_seen"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable finding ID. Format: AZ-<DOMAIN>-<NNN>, e.g. AZ-STOR-001",
+      "pattern": "^AZ-[A-Z]+-[0-9]{3}$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Short, specific title of the finding"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Informational"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["High", "Medium", "Low"],
+      "description": "Confidence that this finding is a true positive"
+    },
+    "agent": {
+      "type": "string",
+      "enum": [
+        "inventory-scope",
+        "identity-posture",
+        "authorization-attack-path",
+        "network-exposure",
+        "compute-platform",
+        "data-protection",
+        "logging-coverage",
+        "reporting"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "description": "Domain category, e.g. Storage, Identity, Network, RBAC, Compute, Database, Logging"
+    },
+    "check_id": {
+      "type": "string",
+      "description": "ID of the check that produced this finding, e.g. CHK-STOR-PUBLIC-BLOB"
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "Full Azure resource ID of the affected resource"
+    },
+    "subscription_id": {
+      "type": "string"
+    },
+    "resource_group": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "What the issue is and why it matters"
+    },
+    "attack_vector": {
+      "type": "string",
+      "description": "How an attacker would exploit this, e.g. 'Public exposure -> unauthenticated data access'"
+    },
+    "risk": {
+      "type": "string",
+      "description": "Business and technical risk if exploited"
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "Concrete remediation guidance"
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Evidence supporting the finding. Never include secret values.",
+      "items": {
+        "type": "object",
+        "required": ["source", "summary"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Azure tool/API that produced the evidence, e.g. 'azure-storage account get' or 'Azure Resource Graph'"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Human-readable summary of the evidence (redacted)"
+          },
+          "raw_ref": {
+            "type": "string",
+            "description": "Optional pointer into evidence/raw/ (gitignored)"
+          }
+        }
+      }
+    },
+    "attack_path": {
+      "type": "array",
+      "description": "Ordered steps if this finding is part of a multi-step compromise chain",
+      "items": { "type": "string" }
+    },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "cis_azure": { "type": "array", "items": { "type": "string" } },
+        "mitre": { "type": "array", "items": { "type": "string" } },
+        "defender_for_cloud": { "type": "array", "items": { "type": "string" } },
+        "nist_800_53": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "confirmed", "false_positive", "remediated", "accepted_risk"]
+    },
+    "first_seen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

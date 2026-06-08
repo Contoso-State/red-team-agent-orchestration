@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/engagement.schema.json",
+  "title": "Engagement Scope",
+  "description": "Defines the authorized scope, mode, and permissions for a red team engagement. Validated by every agent before any operation.",
+  "type": "object",
+  "required": ["engagement", "mode", "scope", "permissions"],
+  "properties": {
+    "engagement": {
+      "type": "object",
+      "required": ["id", "authorized_by"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "authorized_by": { "type": "string", "description": "Email of the authorizing security owner" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" }
+      }
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["read-only-assessment", "attack-path-analysis", "controlled-validation"],
+      "description": "Operating mode — controls what agents are permitted to do"
+    },
+    "scope": {
+      "type": "object",
+      "required": ["tenant_id", "subscriptions"],
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "resource_groups": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Resource group names, or ['*'] for all"
+              }
+            }
+          }
+        },
+        "exclusions": {
+          "type": "object",
+          "properties": {
+            "subscriptions": { "type": "array", "items": { "type": "string" } },
+            "resource_groups": { "type": "array", "items": { "type": "string" } },
+            "resources": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "required": ["allowed_actions", "forbidden_actions"],
+      "properties": {
+        "allowed_actions": { "type": "array", "items": { "type": "string" } },
+        "forbidden_actions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "data_handling": {
+      "type": "object",
+      "properties": {
+        "redact_secrets": { "type": "boolean" },
+        "redact_user_principal_names": { "type": "boolean" },
+        "redact_tenant_ids": { "type": "boolean" },
+        "store_raw_evidence": { "type": "boolean" },
+        "max_evidence_retention_days": { "type": "integer" }
+      }
+    },
+    "caller": {
+      "type": "object",
+      "properties": {
+        "identity_type": { "type": "string", "enum": ["user", "service-principal", "managed-identity"] },
+        "required_roles": { "type": "array", "items": { "type": "string" } },
+        "optional_roles": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

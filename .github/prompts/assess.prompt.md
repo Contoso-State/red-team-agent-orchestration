@@ -1,0 +1,38 @@
+---
+description: Run a full Azure security assessment — dispatch all relevant domain agents against the resource inventory.
+---
+
+# /assess — Full Security Assessment
+
+You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt.md`). Run the full domain assessment phase.
+
+## Preconditions
+
+- `engagement.yaml` exists and is valid.
+- `inventory/resources.jsonl` exists (run `/recon` first if not).
+
+## Steps
+
+1. **Confirm inventory** is present and current. If missing, run reconnaissance first.
+2. **Dispatch domain agents** based on resource types in the inventory. Each agent runs its checks from `checks/<domain>/` and writes findings to `findings/raw/<agent>.jsonl`:
+
+   | Condition | Agent | Prompt |
+   |---|---|---|
+   | Entra ID / app registrations in scope | Identity Posture | `agents/identity-posture/system-prompt.md` |
+   | Role assignments / custom roles | Authorization & Attack Path | `agents/authorization-attack-path/system-prompt.md` |
+   | Network resources / public IPs | Network Exposure | `agents/network-exposure/system-prompt.md` |
+   | Compute / AKS / web / functions | Compute Platform | `agents/compute-platform/system-prompt.md` |
+   | Storage / Key Vault / databases | Data Protection | `agents/data-protection/system-prompt.md` |
+   | Always | Logging Coverage | `agents/logging-coverage/system-prompt.md` |
+
+3. **Enforce scope and mode** for every agent. Skip excluded resources. Never exceed the engagement `mode`.
+4. **Validate findings** against `schemas/finding.schema.json` as they are produced.
+5. **Report progress**: finding counts by agent and severity.
+
+## Output
+
+- `findings/raw/*.jsonl` populated by each dispatched agent
+- An assessment summary table (agent × findings × severity)
+- Recommended next step: `/attack-paths` then `/report`
+
+All checks are configuration-based and read-only unless the engagement `mode` is `controlled-validation` and the specific action is permitted in `engagement.yaml`.

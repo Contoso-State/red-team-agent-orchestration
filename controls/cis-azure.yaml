@@ -1,0 +1,109 @@
+# CIS Microsoft Azure Foundations Benchmark — Control Mapping
+# Maps red team checks to CIS Azure controls. Reference: CIS Azure Foundations Benchmark.
+# This is a working subset aligned to the checks in this repo, not the full benchmark.
+
+controls:
+  - id: "1.1.1"
+    title: Ensure multi-factor authentication is enabled for privileged users
+    section: Identity and Access Management
+    checks: [CHK-IDEN-GA-NO-MFA, CHK-IDEN-NO-CA-POLICY]
+
+  - id: "1.1.3"
+    title: Ensure the number of Global Administrators is limited
+    section: Identity and Access Management
+    checks: [CHK-IDEN-EXCESS-GLOBAL-ADMINS]
+
+  - id: "1.1.4"
+    title: Ensure legacy authentication is blocked
+    section: Identity and Access Management
+    checks: [CHK-IDEN-LEGACY-AUTH]
+
+  - id: "1.4"
+    title: Ensure application credential hygiene (short-lived secrets)
+    section: Identity and Access Management
+    checks: [CHK-IDEN-STALE-APP-SECRET]
+
+  - id: "1.22"
+    title: Ensure minimal privileged role assignments (least privilege)
+    section: Identity and Access Management
+    checks: [CHK-RBAC-SUB-OWNER-SPRAWL, CHK-RBAC-CLASSIC-ADMIN]
+
+  - id: "1.23"
+    title: Ensure custom subscription roles do not grant excessive permissions
+    section: Identity and Access Management
+    checks: [CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE, CHK-RBAC-WILDCARD-ACTION]
+
+  - id: "2.1.x"
+    title: Ensure Microsoft Defender for Cloud plans are enabled
+    section: Microsoft Defender for Cloud
+    checks: [CHK-LOG-DEFENDER-DISABLED]
+
+  - id: "3.1"
+    title: Ensure secure transfer / Entra auth required for storage
+    section: Storage Accounts
+    checks: [CHK-STOR-NO-HTTPS-ONLY, CHK-STOR-SHARED-KEY]
+
+  - id: "3.7"
+    title: Ensure public access level is disabled for storage blob containers
+    section: Storage Accounts
+    checks: [CHK-STOR-PUBLIC-BLOB, CHK-STOR-ANON-CONTAINER]
+
+  - id: "3.8"
+    title: Ensure storage account default network access rule is Deny
+    section: Storage Accounts
+    checks: [CHK-STOR-PUBLIC-NETWORK]
+
+  - id: "4.1.1"
+    title: Ensure SQL auditing is enabled
+    section: Database Services
+    checks: [CHK-DB-SQL-NO-AUDIT]
+
+  - id: "4.1.x"
+    title: Ensure SQL public access restricted and Entra auth enforced
+    section: Database Services
+    checks: [CHK-DB-SQL-ALLOW-AZURE-SERVICES, CHK-DB-SQL-PUBLIC-NETWORK, CHK-DB-SQL-NO-ENTRA-ADMIN, CHK-DB-SQL-NO-TDE]
+
+  - id: "5.1.x"
+    title: Ensure a diagnostic setting exists for Activity Log
+    section: Logging and Monitoring
+    checks: [CHK-LOG-NO-ACTIVITY-EXPORT]
+
+  - id: "5.x"
+    title: Ensure diagnostic logs are enabled for critical resources
+    section: Logging and Monitoring
+    checks: [CHK-LOG-NO-DIAG-CRITICAL, CHK-LOG-NO-DIAG-KEYVAULT]
+
+  - id: "6.1"
+    title: Ensure RDP/SSH and broad access restricted from the internet
+    section: Networking
+    checks: [CHK-NET-MGMT-PORT-INTERNET, CHK-NET-ANY-ANY-RULE, CHK-NET-PUBLIC-IP-UNEXPECTED]
+
+  - id: "6.3"
+    title: Ensure SQL/DB ports not exposed to the internet
+    section: Networking
+    checks: [CHK-NET-DB-PORT-INTERNET]
+
+  - id: "6.5"
+    title: Ensure Network Watcher flow logs are enabled
+    section: Networking
+    checks: [CHK-LOG-NO-NSG-FLOW]
+
+  - id: "6.6"
+    title: Ensure subnets are associated with an NSG
+    section: Networking
+    checks: [CHK-NET-SUBNET-NO-NSG]
+
+  - id: "7.2"
+    title: Ensure VM disks are encrypted
+    section: Virtual Machines
+    checks: [CHK-COMP-VM-NO-DISK-ENCRYPTION]
+
+  - id: "8.4"
+    title: Ensure Key Vault soft delete and purge protection are enabled
+    section: Key Vault
+    checks: [CHK-STOR-KV-NO-PURGE-PROTECTION]
+
+  - id: "8.5"
+    title: Ensure Key Vault uses RBAC and restricts public network access
+    section: Key Vault
+    checks: [CHK-STOR-KV-ACCESS-POLICY-MODEL, CHK-STOR-KV-PUBLIC-NETWORK]

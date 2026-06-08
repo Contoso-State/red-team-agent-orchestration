@@ -1,0 +1,70 @@
+// KQL Queries for Detection Coverage Validation
+// Run against a Log Analytics workspace (via azure-monitor MCP tool or the portal).
+// Used by the Logging & Coverage Agent to validate whether attacker activity
+// would produce detectable signals. These are DEFENSIVE coverage checks.
+
+// ============================================================
+// 1. Privileged role assignment activity (should be alerted)
+// ============================================================
+AzureActivity
+| where OperationNameValue =~ "Microsoft.Authorization/roleAssignments/write"
+| where ActivityStatusValue =~ "Success"
+| project TimeGenerated, Caller, OperationNameValue, Properties, _ResourceId
+| order by TimeGenerated desc
+
+// ============================================================
+// 2. Key Vault secret access (validate audit logging exists)
+// ============================================================
+AzureDiagnostics
+| where ResourceProvider =~ "MICROSOFT.KEYVAULT"
+| where OperationName in ("SecretGet", "SecretList", "KeyGet")
+| project TimeGenerated, Resource, OperationName, CallerIPAddress, identity_claim_upn_s
+| order by TimeGenerated desc
+
+// ============================================================
+// 3. NSG / firewall changes (should be monitored)
+// ============================================================
+AzureActivity
+| where OperationNameValue has "networkSecurityGroups/write"
+    or OperationNameValue has "azureFirewalls/write"
+| project TimeGenerated, Caller, OperationNameValue, ActivityStatusValue, _ResourceId
+| order by TimeGenerated desc
+
+// ============================================================
+// 4. Resource deletion activity (mass-delete / destruction)
+// ============================================================
+AzureActivity
+| where OperationNameValue endswith "/delete"
+| where ActivityStatusValue =~ "Success"
+| summarize deletes = count() by Caller, bin(TimeGenerated, 1h)
+| where deletes > 5
+| order by deletes desc
+
+// ============================================================
+// 5. Entra ID risky sign-ins (validate connector ingestion)
+// ============================================================
+SigninLogs
+| where ResultType == 0
+| where RiskLevelDuringSignIn in ("high", "medium")
+    or ConditionalAccessStatus =~ "failure"
+| project TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress,
+          RiskLevelDuringSignIn, Location
+| order by TimeGenerated desc
+
+// ============================================================
+// 6. Diagnostic settings coverage gap check
+// (resources sending no data in the last 7d may lack logging)
+// ============================================================
+union withsource=TableName *
+| where TimeGenerated > ago(7d)
+| summarize LastSeen = max(TimeGenerated) by TableName
+| order by TableName asc
+
+// ============================================================
+// 7. Legacy authentication usage (bypasses MFA)
+// ============================================================
+SigninLogs
+| where ClientAppUsed in ("IMAP4", "POP3", "SMTP", "MAPI", "Other clients")
+| where ResultType == 0
+| summarize count() by UserPrincipalName, ClientAppUsed
+| order by count_ desc

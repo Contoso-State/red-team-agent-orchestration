@@ -1,0 +1,47 @@
+# ============================================================
+# Azure Red Team Agent Orchestration — .gitignore
+# ============================================================
+
+# Engagement artifacts (contain sensitive target data)
+findings/raw/
+evidence/raw/
+reports/generated/
+inventory/*.json
+inventory/*.jsonl
+
+# Structured output
+*.sarif
+*.ndjson
+
+# Engagement scope files with real target data
+engagement.yaml
+engagement.yml
+
+# Azure credentials and tokens
+*.pfx
+*.pem
+*.key
+azureauth.json
+.azure/
+azure.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# PowerShell
+*.psm1.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo

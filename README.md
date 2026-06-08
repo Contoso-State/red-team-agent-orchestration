@@ -1,138 +1,193 @@
-# Accounts — Security Solution Engineering
+# Azure Red Team Agent Orchestration
 
-Pre-sales account management repository for Security Solution Engineering engagements.
+Agentic red team platform for identifying security vulnerabilities in Azure cloud infrastructure. A coordinated team of AI agents — each specialized in a security domain — performs comprehensive penetration testing against Azure environments.
 
-## Rule #1 (Repository of Record)
+The team ships as **GitHub Copilot skills** (`.github/skills/azure-redteam-*`), so once this repo is checked out, Copilot automatically discovers the Pentest Manager and its specialists. Just ask Copilot to "run an Azure red team assessment" and the `azure-redteam-orchestrator` skill takes over.
 
-All customer and account meetings, notes, and artifacts must be created and maintained in:
-`https://github.com/agoodson_microsoft/Accounts.git`
+## How It Works
 
-Do not save new customer/account meeting content to any prior repository.
+```mermaid
+graph TD
+    User[Security Engineer] -->|/recon or /assess| Orchestrator
+    Orchestrator -->|1. Preflight| Preflight[Inventory & Scope Agent]
+    Preflight -->|Resource inventory| Orchestrator
+    Orchestrator -->|2. Dispatch| Agents
 
-## Directory Structure
+    subgraph Agents[Domain Agents]
+        ID[Identity Posture]
+        AUTH[Authorization & Attack Path]
+        NET[Network Exposure]
+        COMP[Compute Platform]
+        DATA[Data Protection]
+        LOG[Logging Coverage]
+    end
 
+    Agents -->|Structured findings| Orchestrator
+    Orchestrator -->|3. Correlate| APA[Attack Path Analysis]
+    APA -->|Attack chains| Orchestrator
+    Orchestrator -->|4. Report| Reporter[Reporting Agent]
+    Reporter -->|Final report| User
 ```
-├── _templates/              # Reusable templates for account work
-│   ├── discovery.md         # Discovery call question framework
-│   ├── demo-runbook.md      # Demo execution template
-│   ├── scenario-brief.md    # Scenario write-up template
-│   ├── meeting-notes.md     # Meeting notes template
-│   ├── questions.md         # Customer questions tracker template
-│   └── security-solution-engineer-agent.md # Presales SSE agent system prompt
-│
-├── accounts/                # Per-account folders (create one per customer)
-│   └── <account-name>/
-│       ├── README.md        # Account overview, key contacts, deal stage
-│       ├── meetings/        # Meeting records and summaries
-│       ├── notes/           # Meeting notes & call summaries
-│       ├── questions/       # Open/answered customer & internal questions
-│       ├── demos/           # Demo scripts & configs tailored to this account
-│       ├── scenarios/       # Customer-specific pain points → solution mappings
-│       ├── architecture/    # Current-state & proposed architecture diagrams
-│       └── artifacts/       # Proposals, SOWs, assessments, deliverables
-│
-├── demos/                   # Reusable demo library (not account-specific)
-│   ├── defender-xdr/        # Microsoft Defender XDR demos
-│   ├── sentinel/            # Microsoft Sentinel demos
-│   ├── entra/               # Microsoft Entra ID demos
-│   ├── purview/             # Microsoft Purview demos
-│   ├── intune/              # Microsoft Intune demos
-│   └── copilot-security/    # Security Copilot demos
-│
-├── scenarios/               # Common security scenarios & playbooks
-│   ├── threat-protection/   # XDR, EDR, email security scenarios
-│   ├── identity/            # Zero Trust, conditional access, PIM
-│   ├── cloud-security/      # CSPM, CWPP, multicloud
-│   ├── data-security/       # DLP, sensitivity labels, insider risk
-│   ├── siem-soar/           # SIEM migration, SOAR automation
-│   └── compliance/          # Regulatory compliance, audit readiness
-│
-├── competitive/             # Competitive intelligence
-│   └── battle-cards/        # Per-competitor battle cards
-│
-└── resources/               # Reference materials & links
-```
+
+## Agent Team
+
+| Agent | Domain | Key Focus |
+|---|---|---|
+| **Orchestrator** | Coordination | Engagement lifecycle, task dispatch, finding aggregation |
+| **Inventory & Scope** | Preflight | Resource enumeration, permission validation, scope enforcement |
+| **Identity Posture** | Entra ID | MFA gaps, Conditional Access, app registrations, guest users, credential hygiene |
+| **Authorization & Attack Path** | RBAC / Privilege | Over-permissioned roles, custom role abuse, managed identity chains, priv esc paths |
+| **Network Exposure** | Networking | Public IPs, NSG rules, firewall gaps, VNet peering, DNS exposure, private endpoints |
+| **Compute Platform** | Compute | VM patching, AKS security, Container Apps, Function Apps, App Service hardening |
+| **Data Protection** | Storage / Data | Storage account exposure, Key Vault policies, database firewall rules, encryption |
+| **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
+| **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
+
+## How the Team Is Packaged (Copilot Skills)
+
+Each agent is a Copilot skill under `.github/skills/`. Copilot loads them automatically based on each skill's `description`, so you invoke the team in plain language — no manual wiring.
+
+| Skill | When Copilot uses it |
+|---|---|
+| `azure-redteam-orchestrator` | **Pentest Manager.** "Run a red team assessment", "pentest my Azure environment" |
+| `azure-redteam-inventory` | Preflight recon — permission validation + resource enumeration |
+| `azure-redteam-identity` | Entra ID / authentication posture |
+| `azure-redteam-authorization` | RBAC, privilege escalation, attack-path correlation |
+| `azure-redteam-network` | Public exposure, NSGs, segmentation |
+| `azure-redteam-compute` | VM, AKS, container, serverless security |
+| `azure-redteam-data` | Storage, Key Vault, database protection |
+| `azure-redteam-logging` | Detection & monitoring coverage |
+| `azure-redteam-reporting` | Normalize findings, render deliverables |
+
+Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same skills.
 
 ## Quick Start
 
-1. **New account?** Copy `_templates/` files into a new folder under `accounts/<account-name>/`
-2. **Prepping a demo?** Check `demos/` for reusable content, customize in the account folder
-3. **Building a scenario?** Start from `scenarios/` playbooks, tailor to the customer
+### 1. Define engagement scope
 
-## Meeting Hook Flow (Pre + Post Call)
-
-Use the scripted hook flow to standardize pre-call prep, transcript handling, parsed notes, and postmortem:
-
-```powershell
-# Pre-call (interactive): prompts questions one-by-one and creates a meeting package
-powershell -ExecutionPolicy Bypass -File .\scripts\meeting-hook.ps1 -Mode pre -Account pheaa -Topic "server-security-alignment"
-
-# Pre-call (non-interactive): pass required values in command args
-powershell -ExecutionPolicy Bypass -File .\scripts\meeting-hook.ps1 -Mode pre -Account pheaa -Topic "server-security-alignment" -DecisionNeeded "Confirm POC scope"
-
-# Post-call (interactive): prompts retrospective and writes postmortem.md
-powershell -ExecutionPolicy Bypass -File .\scripts\meeting-hook.ps1 -Mode post -MeetingFolder "accounts\pheaa\meetings\2026-05-19-server-security-alignment"
+```bash
+cp engagement.example.yaml engagement.yaml
+# Edit engagement.yaml with target subscription, tenant, and permissions
 ```
 
-For each call, pre-call mode creates a meeting package folder:
-- `meeting.md` (prep + live notes)
-- `transcript.txt` (raw transcript drop zone)
-- `parsed.md` (structured extraction placeholder)
-- `postmortem.md` (retrospective scaffold, updated post-call)
-
-Scripts:
-- `scripts\meeting-hook.ps1` (wrapper)
-- `scripts\meeting-prep.ps1` (pre-call intake and package generation)
-- `scripts\meeting-postmortem.ps1` (post-call retrospective capture)
-- `scripts\meeting-parse.ps1` (transcript to parsed notes)
-- `scripts\account-new.ps1` (new account scaffolding)
-- `scripts\meeting-brief.ps1` (account summary from recent meetings)
-
-## Slash Commands (Copilot Chat)
-
-Custom slash commands are now defined in `.github\prompts\`:
-
-| Command | Purpose |
-|---|---|
-| `/prep` | Interactive pre-call package creation |
-| `/post` | Interactive postmortem capture |
-| `/meeting-new` | Non-interactive meeting package creation |
-| `/transcript-parse` | Build `parsed.md` from `transcript.txt` |
-| `/account-new` | Scaffold account folder and README |
-| `/brief` | Generate or update `accounts\<account>\brief.md` |
-
-Example usage:
+### 2. Run reconnaissance
 
 ```text
-/prep account pheaa topic "server-security-alignment"
-/transcript-parse accounts\pheaa\meetings\2026-05-19-server-security-alignment
-/brief pheaa
+/recon
 ```
 
-## Local Skills
+The orchestrator will:
+- Validate your Azure permissions (preflight)
+- Enumerate all resources in scope
+- Build a resource inventory
+- Identify which domain agents to dispatch
 
-Project-local skills are stored under `.github\skills\` and available to Copilot in this repo:
+### 3. Run full assessment
 
-| Skill | Purpose |
-|---|---|
-| `azure-architecture-autopilot` | Azure architecture design, analysis, and deployment guidance |
-| `azure-role-selector` | Least-privilege Azure role selection guidance |
-| `cloud-design-patterns` | Distributed system and cloud architecture patterns |
-| `create-agentsmd` | Generate `AGENTS.md` guidance for a repo |
-| `create-implementation-plan` | Create implementation plans for features or refactors |
-| `create-llms` | Generate `llms.txt` for repo structure |
-| `create-readme` | Create or improve repository README content |
-| `microsoft-agent-framework` | Build and review Microsoft Agent Framework solutions |
-| `microsoft-code-reference` | Find official Microsoft API references and code samples |
-| `microsoft-docs` | Ground answers in official Microsoft documentation |
-| `msgraph-sdk` | Implement Microsoft Graph SDK integrations |
-| `remember` | Store reusable repo or workflow knowledge for future tasks |
+```text
+/assess
+```
 
-These complement the slash commands: use slash commands for repeatable repo workflows, and use skills when you want Copilot to apply deeper domain guidance while working in the repo.
+Dispatches all domain agents against the inventory. Each agent produces structured findings in `findings/raw/`.
 
-## Naming Conventions
+### 4. Analyze attack paths
 
-- Account folders: `lowercase-hyphenated` (e.g., `contoso-corp`)
-- Meeting folders: `YYYY-MM-DD-topic` (e.g., `2026-05-19-server-security-alignment`)
-- Notes: `YYYY-MM-DD-topic.md` (optional legacy, same format as meetings)
-- Demos: `product-scenario.md` (e.g., `sentinel-siem-migration.md`)
+```text
+/attack-paths
+```
+
+Correlates findings across domains to identify multi-step compromise chains.
+
+### 5. Generate report
+
+```text
+/report
+```
+
+Normalizes findings, deduplicates, reconciles severity, and generates executive + technical reports in `reports/generated/`.
+
+## Operating Modes
+
+| Mode | Description | Risk Level |
+|---|---|---|
+| `read-only-assessment` | Enumerate and analyze configurations only | 🟢 Safe |
+| `attack-path-analysis` | Read-only + build attack path graphs | 🟡 Low |
+| `controlled-validation` | Limited safe validation of specific findings | 🟠 Medium |
+
+Mode is set in `engagement.yaml` and enforced by all agents.
+
+## Repository Structure
+
+```
+├── engagement.example.yaml      # Engagement scope template
+├── .github/
+│   ├── skills/                  # Copilot skills — the red team (azure-redteam-*)
+│   └── prompts/                 # Slash commands: /recon /assess /attack-paths /report
+├── agents/                      # Agent system prompts and methodology (skills delegate here)
+│   ├── orchestrator/            # Team lead — coordinates the engagement
+│   ├── inventory-scope/         # Preflight — enumeration and permission checks
+│   ├── identity-posture/        # Entra ID and authentication security
+│   ├── authorization-attack-path/ # RBAC analysis and privilege escalation
+│   ├── network-exposure/        # Network security and public exposure
+│   ├── compute-platform/        # VM, AKS, containers, serverless security
+│   ├── data-protection/         # Storage, databases, Key Vault, encryption
+│   ├── logging-coverage/        # Monitoring, Sentinel, diagnostic settings
+│   └── reporting/               # Finding normalization and report generation
+├── checks/                      # Atomic security checks per domain
+├── playbooks/                   # Multi-step assessment methodologies
+├── schemas/                     # JSON schemas for findings, checks, engagement
+├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
+├── knowledge/                   # Azure attack matrix, common misconfigs
+├── tools/                       # KQL queries, Resource Graph, PowerShell scripts
+├── reports/templates/           # Report templates
+├── findings/                    # Assessment output (gitignored: raw/)
+├── evidence/                    # Evidence artifacts (gitignored: raw/)
+└── inventory/                   # Resource inventory cache (gitignored)
+```
+
+## Findings Model
+
+All findings are structured JSON — reports are rendered from them, never hand-written.
+
+```json
+{
+  "id": "AZ-STOR-001",
+  "title": "Storage account permits public blob access",
+  "severity": "High",
+  "confidence": "High",
+  "agent": "data-protection",
+  "resource_id": "/subscriptions/.../storageAccounts/example",
+  "category": "Storage",
+  "attack_vector": "Public exposure → unauthenticated data access",
+  "evidence": [],
+  "recommendation": "Disable public blob access at the storage account level",
+  "controls": { "cis_azure": ["3.7"], "mitre": ["T1530"] }
+}
+```
+
+## Severity Model
+
+Severity is determined by five factors — agents propose, the reporting agent normalizes:
+
+| Factor | Weight | Description |
+|---|---|---|
+| Exploitability | High | How easy is this to exploit? |
+| Exposure | High | Is the resource internet-facing? |
+| Blast Radius | Medium | What's the scope of impact? |
+| Data Sensitivity | Medium | Does this affect sensitive data? |
+| Compensating Controls | Low | Are there mitigations in place? |
+
+## Safety & Authorization
+
+- **Scope enforcement**: Every agent validates target resources against `engagement.yaml`
+- **Preflight checks**: Permissions validated before any assessment begins
+- **Read-only default**: The default mode only reads configurations — no mutations
+- **Evidence redaction**: Secrets are never stored; PII redaction is configurable
+- **Audit trail**: All agent actions and findings are logged with timestamps
+
+## Requirements
+
+- GitHub Copilot with Azure MCP tools enabled
+- Azure CLI authenticated (`az login`)
+- Minimum Azure RBAC: `Reader` + `Security Reader` on target scope
+- Recommended: `Log Analytics Reader`, `Directory Reader`, `Key Vault Reader`

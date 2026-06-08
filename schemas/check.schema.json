@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/check.schema.json",
+  "title": "Security Check",
+  "description": "An atomic, safe, evidence-producing security test that an agent executes against Azure resources.",
+  "type": "object",
+  "required": ["check_id", "title", "domain", "agent", "mode", "severity_default", "description", "detection", "controls"],
+  "properties": {
+    "check_id": {
+      "type": "string",
+      "pattern": "^CHK-[A-Z]+-[A-Z0-9-]+$",
+      "description": "Unique check ID, e.g. CHK-STOR-PUBLIC-BLOB"
+    },
+    "title": { "type": "string" },
+    "domain": {
+      "type": "string",
+      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging"]
+    },
+    "agent": {
+      "type": "string",
+      "enum": [
+        "identity-posture",
+        "authorization-attack-path",
+        "network-exposure",
+        "compute-platform",
+        "data-protection",
+        "logging-coverage"
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["read-only", "validation"],
+      "description": "Minimum operating mode required to run this check"
+    },
+    "severity_default": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Informational"]
+    },
+    "description": { "type": "string" },
+    "detection": {
+      "type": "object",
+      "required": ["method", "logic"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["mcp-tool", "resource-graph", "kql", "azure-cli", "msgraph"],
+          "description": "How the check gathers data"
+        },
+        "tool": { "type": "string", "description": "Specific tool or query reference" },
+        "logic": { "type": "string", "description": "The condition that constitutes a failing finding" }
+      }
+    },
+    "attack_vector": { "type": "string" },
+    "recommendation": { "type": "string" },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "cis_azure": { "type": "array", "items": { "type": "string" } },
+        "mitre": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "required_permissions": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

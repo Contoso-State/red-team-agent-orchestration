@@ -1,0 +1,126 @@
+# Logging & Detection Coverage Checks
+# Executed by the Logging & Coverage Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-LOG-DEFENDER-DISABLED
+  title: Microsoft Defender for Cloud plans disabled
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: High
+  description: Defender for Cloud paid plans are off, removing threat detection for key resource types.
+  detection:
+    method: azure-cli
+    tool: "az security pricing list"
+    logic: One or more critical plans (Servers, Storage, SQL, Containers, KeyVault, AppServices, Arm) pricingTier == Free.
+  attack_vector: No runtime threat detection across resources
+  recommendation: Enable Defender plans for in-scope resource types.
+  controls:
+    cis_azure: ["2.1.x"]
+    mitre: ["T1562.001"]
+  required_permissions: ["Security Reader"]
+
+- check_id: CHK-LOG-NO-DIAG-KEYVAULT
+  title: Key Vault without diagnostic logging
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: High
+  description: A Key Vault has no diagnostic setting, so secret access is not audited.
+  detection:
+    method: resource-graph
+    tool: "vaults left-joined to microsoft.insights/diagnosticSettings"
+    logic: Vault has no diagnostic setting forwarding AuditEvent logs.
+  attack_vector: Secret access/exfiltration leaves no trail
+  recommendation: Add a diagnostic setting sending AuditEvent to Log Analytics.
+  controls:
+    cis_azure: ["5.x", "8.x"]
+    mitre: ["T1562.008"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-DIAG-CRITICAL
+  title: Critical resource type without diagnostic settings
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Medium
+  description: Critical resources (NSG, SQL, storage, App Gateway) lack diagnostic settings.
+  detection:
+    method: resource-graph
+    tool: "resources left-joined to diagnosticSettings"
+    logic: Resource of a critical type has no diagnostic setting.
+  attack_vector: Activity against the resource is not logged
+  recommendation: Enable diagnostic settings to a central Log Analytics workspace.
+  controls:
+    cis_azure: ["5.x"]
+    mitre: ["T1562.008"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-ACTIVITY-EXPORT
+  title: Activity Log not exported to Log Analytics
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Medium
+  description: Subscription Activity Log has no diagnostic export, limiting control-plane forensics and alerting.
+  detection:
+    method: azure-cli
+    tool: "az monitor diagnostic-settings subscription list"
+    logic: No subscription diagnostic setting forwarding Administrative/Security categories.
+  attack_vector: Control-plane changes (role grants, deletions) go unmonitored
+  recommendation: Export Activity Log to Log Analytics; build alerts on key categories.
+  controls:
+    cis_azure: ["5.1.x"]
+    mitre: ["T1562.008"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-NSG-FLOW
+  title: NSG flow logs not enabled
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Low
+  description: NSG flow logs are disabled, preventing reconstruction of network activity.
+  detection:
+    method: azure-cli
+    tool: "az network watcher flow-log list"
+    logic: NSGs without an enabled flow log.
+  attack_vector: Network-based attacks cannot be investigated
+  recommendation: Enable NSG flow logs (v2) with Traffic Analytics.
+  controls:
+    cis_azure: ["6.5"]
+    mitre: ["T1562.008"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-ALERT-ROLE-ASSIGN
+  title: No alert on privileged role assignments
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Medium
+  description: There is no alert rule firing on Owner/role assignment changes, so privilege escalation is silent.
+  detection:
+    method: azure-cli
+    tool: "az monitor activity-log alert list / Sentinel analytics rules"
+    logic: No activity-log alert or analytics rule targets Microsoft.Authorization/roleAssignments/write.
+  attack_vector: Privilege escalation occurs without detection
+  recommendation: Create an alert on role assignment write operations, especially Owner/User Access Administrator.
+  controls:
+    mitre: ["T1098"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-SENTINEL-IDENTITY
+  title: Entra ID logs not ingested into SIEM
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: High
+  description: Sentinel (or SIEM) is missing Entra sign-in/audit log connectors, making identity attacks invisible.
+  detection:
+    method: mcp-tool
+    tool: "azure-monitor workspace + Sentinel data connectors"
+    logic: No Sentinel workspace, or AzureActiveDirectory connector not enabled.
+  attack_vector: Sign-in anomalies, MFA fatigue, token theft go undetected
+  recommendation: Enable Sentinel and the Entra ID connector; add identity analytics rules.
+  controls:
+    mitre: ["T1078", "T1556"]
+  required_permissions: ["Log Analytics Reader"]

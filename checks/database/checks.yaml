@@ -1,0 +1,126 @@
+# Database Security Checks
+# Executed by the Data Protection Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-DB-SQL-ALLOW-AZURE-SERVICES
+  title: SQL Server allows all Azure services
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: The "Allow Azure services and resources to access this server" firewall rule (0.0.0.0) permits any Azure tenant to reach the server.
+  detection:
+    method: mcp-tool
+    tool: "azure-sql server firewall-rule list"
+    logic: Firewall rule with startIp 0.0.0.0 and endIp 0.0.0.0 exists.
+  attack_vector: Any Azure-hosted attacker resource reaches the database
+  recommendation: Remove the allow-Azure-services rule; use private endpoints and explicit IP rules.
+  controls:
+    cis_azure: ["4.1.x"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-SQL-PUBLIC-NETWORK
+  title: SQL Server public network access enabled
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: publicNetworkAccess is enabled on the SQL logical server.
+  detection:
+    method: resource-graph
+    tool: "servers properties.publicNetworkAccess"
+    logic: publicNetworkAccess == Enabled.
+  attack_vector: Internet-exposed database endpoint
+  recommendation: Disable public network access; use private endpoints.
+  controls:
+    cis_azure: ["4.1.x"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-SQL-NO-ENTRA-ADMIN
+  title: SQL Server without Entra (Azure AD) admin / Entra-only auth
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: No Entra admin is set and/or SQL authentication is allowed, weakening identity controls.
+  detection:
+    method: mcp-tool
+    tool: "azure-sql server ad-admin + azureADOnlyAuthentication"
+    logic: No Entra admin configured or azureADOnlyAuthentication == false.
+  attack_vector: SQL-auth credential theft bypasses identity protections
+  recommendation: Configure an Entra admin and enforce Entra-only authentication.
+  controls:
+    cis_azure: ["4.1.x"]
+    mitre: ["T1078"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-SQL-NO-TDE
+  title: SQL database without Transparent Data Encryption
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: TDE is disabled, leaving data at rest unencrypted.
+  detection:
+    method: mcp-tool
+    tool: "azure-sql db tde show"
+    logic: TDE state == Disabled.
+  attack_vector: Backup/file theft -> data access
+  recommendation: Enable TDE (default for new DBs); consider customer-managed keys.
+  controls:
+    cis_azure: ["4.1.x"]
+    mitre: ["T1005"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-SQL-NO-AUDIT
+  title: SQL Server auditing disabled
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: Auditing is not enabled, so database access and changes are not logged.
+  detection:
+    method: mcp-tool
+    tool: "azure-sql server audit-policy show"
+    logic: Auditing state == Disabled.
+  attack_vector: Database compromise goes undetected
+  recommendation: Enable auditing to Log Analytics/storage with adequate retention.
+  controls:
+    cis_azure: ["4.1.1"]
+    mitre: ["T1562.008"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-COSMOS-PUBLIC-FIREWALL
+  title: Cosmos DB without IP firewall or VNet restriction
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: A Cosmos DB account permits access from all networks.
+  detection:
+    method: mcp-tool
+    tool: "azure-cosmos account properties (ipRules, isVirtualNetworkFilterEnabled, publicNetworkAccess)"
+    logic: publicNetworkAccess Enabled with no IP rules and no VNet filter.
+  attack_vector: Internet-reachable database; key-based access if also enabled
+  recommendation: Restrict to known IPs/VNets or private endpoints; prefer RBAC data plane.
+  controls:
+    mitre: ["T1190", "T1530"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-DB-FLEX-PUBLIC-ACCESS
+  title: PostgreSQL/MySQL flexible server public access with weak firewall
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: A flexible server allows public access with broad firewall rules.
+  detection:
+    method: mcp-tool
+    tool: "azure-postgres / azure-mysql server + firewall rules"
+    logic: Public access enabled with a 0.0.0.0-255.255.255.255 (or allow-all) firewall rule.
+  attack_vector: Direct internet database access
+  recommendation: Disable public access; use private access (VNet integration) and explicit IP rules.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]

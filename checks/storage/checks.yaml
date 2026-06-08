@@ -1,0 +1,146 @@
+# Storage Security Checks
+# Executed by the Data Protection Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-STOR-PUBLIC-BLOB
+  title: Storage account allows public blob access
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: allowBlobPublicAccess is enabled, permitting containers to be set to anonymous access.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts properties.allowBlobPublicAccess"
+    logic: allowBlobPublicAccess == true.
+  attack_vector: Anonymous container -> unauthenticated data read
+  recommendation: Set allowBlobPublicAccess=false at the account level.
+  controls:
+    cis_azure: ["3.7"]
+    mitre: ["T1530"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-ANON-CONTAINER
+  title: Blob container with anonymous access
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Critical
+  description: A container's public access level is Blob or Container, exposing data to the internet.
+  detection:
+    method: mcp-tool
+    tool: "azure-storage container list -> publicAccess"
+    logic: Container publicAccess in (blob, container).
+  attack_vector: Direct unauthenticated download of blobs
+  recommendation: Set container access to Private; serve data via SAS or authenticated access.
+  controls:
+    cis_azure: ["3.7"]
+    mitre: ["T1530"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-PUBLIC-NETWORK
+  title: Storage account public network access without firewall
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: publicNetworkAccess is enabled with default-allow network rules.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts networkAcls + publicNetworkAccess"
+    logic: publicNetworkAccess == Enabled and networkAcls.defaultAction == Allow.
+  attack_vector: Internet-reachable storage endpoint
+  recommendation: Set defaultAction=Deny, add private endpoints, restrict to known networks.
+  controls:
+    cis_azure: ["3.8"]
+    mitre: ["T1530"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-SHARED-KEY
+  title: Storage account allows Shared Key authorization
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: Account key (Shared Key) auth is permitted instead of Entra-only, enabling full access from a leaked key.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts properties.allowSharedKeyAccess"
+    logic: allowSharedKeyAccess != false.
+  attack_vector: Leaked account key = full data-plane access
+  recommendation: Set allowSharedKeyAccess=false; use Entra (Azure AD) authorization.
+  controls:
+    cis_azure: ["3.1"]
+    mitre: ["T1552.001"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-NO-HTTPS-ONLY
+  title: Storage account secure transfer disabled
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: supportsHttpsTrafficOnly is disabled, allowing plaintext HTTP access.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts properties.supportsHttpsTrafficOnly"
+    logic: supportsHttpsTrafficOnly == false.
+  attack_vector: Network interception of data/keys in transit
+  recommendation: Enable HTTPS-only and minimum TLS 1.2.
+  controls:
+    cis_azure: ["3.1", "3.2"]
+    mitre: ["T1040"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-KV-ACCESS-POLICY-MODEL
+  title: Key Vault uses legacy access policies instead of RBAC
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: The vault uses access policies rather than Azure RBAC, making least privilege and auditing harder.
+  detection:
+    method: resource-graph
+    tool: "vaults properties.enableRbacAuthorization"
+    logic: enableRbacAuthorization == false.
+  attack_vector: Coarse access grants -> broader secret exposure
+  recommendation: Migrate the vault to Azure RBAC authorization.
+  controls:
+    cis_azure: ["8.5"]
+    mitre: ["T1555.006"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-KV-PUBLIC-NETWORK
+  title: Key Vault public network access enabled
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: High
+  description: The vault is reachable over the public internet without private endpoint/firewall restriction.
+  detection:
+    method: resource-graph
+    tool: "vaults properties.publicNetworkAccess + networkAcls"
+    logic: publicNetworkAccess == Enabled and networkAcls.defaultAction == Allow.
+  attack_vector: Internet-reachable secret store
+  recommendation: Add a private endpoint; set network defaultAction=Deny.
+  controls:
+    cis_azure: ["8.5"]
+    mitre: ["T1555.006"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-KV-NO-PURGE-PROTECTION
+  title: Key Vault soft delete or purge protection disabled
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: Without purge protection, an attacker (or mistake) can permanently destroy keys/secrets.
+  detection:
+    method: resource-graph
+    tool: "vaults properties.enableSoftDelete / enablePurgeProtection"
+    logic: enableSoftDelete == false or enablePurgeProtection != true.
+  attack_vector: Destruction of keys -> data loss / ransomware leverage
+  recommendation: Enable soft delete and purge protection on all vaults.
+  controls:
+    cis_azure: ["8.4"]
+    mitre: ["T1485", "T1486"]
+  required_permissions: ["Reader"]

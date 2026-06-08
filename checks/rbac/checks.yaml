@@ -1,0 +1,142 @@
+# RBAC & Privilege Escalation Checks
+# Executed by the Authorization & Attack Path Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE
+  title: Custom role grants roleAssignments/write (self-escalation primitive)
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: Critical
+  description: A custom role definition includes Microsoft.Authorization/roleAssignments/write, allowing any holder to grant themselves Owner.
+  detection:
+    method: resource-graph
+    tool: "authorizationresources roleDefinitions + roleAssignments"
+    logic: Custom role action set includes roleAssignments/write or Microsoft.Authorization/*/write, and is assigned to a non-admin principal.
+  attack_vector: Self-assign Owner -> subscription/management group takeover
+  recommendation: Remove authorization write actions from custom roles; restrict role assignment to User Access Administrators under PIM.
+  controls:
+    cis_azure: ["1.23"]
+    mitre: ["T1098", "T1078"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-WILDCARD-ACTION
+  title: Custom role with wildcard (*) actions
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A custom role grants '*' actions, effectively equal to Owner with less visibility.
+  detection:
+    method: resource-graph
+    tool: "authorizationresources roleDefinitions"
+    logic: Custom role Actions contains '*' or broad '*/write'.
+  attack_vector: Over-broad permissions -> unintended privileged operations
+  recommendation: Scope custom roles to the specific actions required.
+  controls:
+    cis_azure: ["1.23"]
+    mitre: ["T1098"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-SUB-OWNER-SPRAWL
+  title: Excessive subscription-level Owner assignments
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: Too many principals hold Owner at subscription scope, expanding blast radius.
+  detection:
+    method: resource-graph
+    tool: "authorizationresources roleAssignments where roleDefinition == Owner and scope == subscription"
+    logic: Owner assignments at subscription scope exceed a reasonable threshold or include unexpected principals.
+  attack_vector: Any compromised Owner = full subscription control
+  recommendation: Reduce Owners; move to least-privilege roles and PIM-eligible assignments.
+  controls:
+    cis_azure: ["1.22"]
+    mitre: ["T1078"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-SP-PRIVILEGED
+  title: Service principal with Owner/Contributor at broad scope
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A service principal holds Owner or Contributor at subscription/management-group scope.
+  detection:
+    method: resource-graph
+    tool: "authorizationresources roleAssignments joined to principal type ServicePrincipal"
+    logic: ServicePrincipal principal holds Owner/Contributor at subscription or higher.
+  attack_vector: SP credential theft -> broad resource control
+  recommendation: Scope SP permissions to specific resource groups/resources; rotate credentials; prefer managed identities.
+  controls:
+    mitre: ["T1078.004"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-MI-RUNCOMMAND
+  title: Non-owner principal can run code via VM runCommand
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A principal below Owner holds Microsoft.Compute/virtualMachines/runCommand/action, enabling code execution as the VM's identity.
+  detection:
+    method: resource-graph
+    tool: "Effective permissions analysis for runCommand/action"
+    logic: Principal has runCommand/action on a VM that has a privileged managed identity.
+  attack_vector: Run code as VM -> use VM managed identity privileges
+  recommendation: Restrict runCommand to break-glass; reduce VM managed identity privileges.
+  controls:
+    mitre: ["T1059", "T1651"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-AKS-CLUSTER-ADMIN
+  title: Principal can obtain AKS cluster-admin credentials
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A principal holds listClusterAdminCredential/action, bypassing Kubernetes RBAC to full cluster admin.
+  detection:
+    method: resource-graph
+    tool: "Effective permissions for Microsoft.ContainerService/managedClusters/listClusterAdminCredential/action"
+    logic: Non-admin principal can call listClusterAdminCredential on an AKS cluster.
+  attack_vector: Pull admin kubeconfig -> full cluster + workload compromise
+  recommendation: Disable local accounts on AKS; enforce Entra RBAC for Kubernetes; remove the action from broad roles.
+  controls:
+    mitre: ["T1552.007", "T1078"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-KV-ACCESSPOLICY-WRITE
+  title: Principal can grant itself Key Vault access
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A principal holds Microsoft.KeyVault/vaults/accessPolicies/write and can grant itself secret access.
+  detection:
+    method: resource-graph
+    tool: "Effective permissions for vaults/accessPolicies/write"
+    logic: Non-admin principal can modify Key Vault access policies on a vault holding sensitive secrets.
+  attack_vector: Grant self secret/get -> read credentials -> lateral movement
+  recommendation: Migrate Key Vault to Azure RBAC; remove accessPolicies/write from broad roles.
+  controls:
+    mitre: ["T1555.006"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-CLASSIC-ADMIN
+  title: Classic (co-)administrator assignments present
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: Medium
+  description: Legacy classic administrators retain full control outside modern RBAC visibility.
+  detection:
+    method: azure-cli
+    tool: "az role assignment list --include-classic-administrators"
+    logic: Classic administrator or co-administrator assignments exist.
+  attack_vector: Forgotten classic admin = hidden full-control path
+  recommendation: Remove classic administrators; manage access via Azure RBAC only.
+  controls:
+    cis_azure: ["1.22"]
+    mitre: ["T1078"]
+  required_permissions: ["Microsoft.Authorization/*/read"]

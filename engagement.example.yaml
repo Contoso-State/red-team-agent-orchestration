@@ -1,0 +1,76 @@
+# ============================================================
+# Engagement Scope Definition
+# ============================================================
+# Copy this file to engagement.yaml and fill in target details.
+# engagement.yaml is gitignored — never commit real target data.
+#
+# Every agent validates operations against this scope before
+# executing. Out-of-scope resources are skipped automatically.
+# ============================================================
+
+engagement:
+  id: "example-2026-q2"
+  name: "Contoso Azure Security Assessment"
+  authorized_by: "ciso@contoso.com"
+  start_date: "2026-06-01"
+  end_date: "2026-06-30"
+
+# Operating mode — controls what agents are allowed to do
+# Options:
+#   read-only-assessment  — enumerate and analyze only (DEFAULT, safest)
+#   attack-path-analysis  — read-only + build attack path graphs
+#   controlled-validation — read + limited safe validation of findings
+mode: read-only-assessment
+
+# Target scope — agents ONLY operate within these boundaries
+scope:
+  tenant_id: "00000000-0000-0000-0000-000000000000"
+  subscriptions:
+    - id: "00000000-0000-0000-0000-000000000001"
+      name: "Production"
+      resource_groups:
+        - "*"  # all resource groups, or list specific ones
+  # Explicit exclusions override the above
+  exclusions:
+    subscriptions: []
+    resource_groups: []
+    resources:
+      - "/subscriptions/.../resourceGroups/shared/providers/Microsoft.KeyVault/vaults/payroll-kv"
+
+# What the agents are permitted and forbidden from doing
+permissions:
+  allowed_actions:
+    - enumerate_resources
+    - read_configurations
+    - analyze_rbac
+    - inspect_network_exposure
+    - query_logs
+    - read_policy_assignments
+    - read_defender_recommendations
+  forbidden_actions:
+    - mutate_resources
+    - create_credentials
+    - modify_role_assignments
+    - deploy_payloads
+    - disable_logging
+    - access_customer_data_contents
+    - delete_resources
+
+# Data handling controls
+data_handling:
+  redact_secrets: true
+  redact_user_principal_names: false
+  redact_tenant_ids: false
+  store_raw_evidence: true
+  max_evidence_retention_days: 90
+
+# Caller identity for preflight validation
+caller:
+  identity_type: "user"  # user | service-principal | managed-identity
+  required_roles:
+    - "Reader"
+    - "Security Reader"
+  optional_roles:
+    - "Log Analytics Reader"
+    - "Directory Reader"
+    - "Key Vault Reader"

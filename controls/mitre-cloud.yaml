@@ -1,0 +1,88 @@
+# MITRE ATT&CK Cloud Matrix — Technique Mapping
+# Maps red team checks to MITRE ATT&CK techniques relevant to Azure.
+# Reference: MITRE ATT&CK Enterprise - Cloud (IaaS / Identity Provider / SaaS).
+
+tactics:
+  - tactic: Initial Access
+    techniques:
+      - id: T1190
+        name: Exploit Public-Facing Application
+        checks: [CHK-NET-MGMT-PORT-INTERNET, CHK-NET-DB-PORT-INTERNET, CHK-NET-ANY-ANY-RULE, CHK-NET-WAF-MISSING, CHK-COMP-AKS-PUBLIC-API, CHK-DB-SQL-ALLOW-AZURE-SERVICES, CHK-DB-SQL-PUBLIC-NETWORK]
+      - id: T1133
+        name: External Remote Services
+        checks: [CHK-NET-MGMT-PORT-INTERNET]
+      - id: T1078.004
+        name: Valid Accounts - Cloud Accounts
+        checks: [CHK-IDEN-GA-NO-MFA, CHK-IDEN-GUEST-PRIVILEGED, CHK-RBAC-SP-PRIVILEGED]
+
+  - tactic: Execution
+    techniques:
+      - id: T1651
+        name: Cloud Administration Command
+        checks: [CHK-RBAC-MI-RUNCOMMAND, CHK-COMP-VM-PUBLIC-RUNCOMMAND]
+
+  - tactic: Persistence
+    techniques:
+      - id: T1098
+        name: Account Manipulation
+        checks: [CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE, CHK-RBAC-WILDCARD-ACTION]
+      - id: T1098.001
+        name: Additional Cloud Credentials
+        checks: [CHK-IDEN-STALE-APP-SECRET, CHK-IDEN-APP-OVERPRIV-GRAPH]
+
+  - tactic: Privilege Escalation
+    techniques:
+      - id: T1078
+        name: Valid Accounts
+        checks: [CHK-RBAC-SUB-OWNER-SPRAWL, CHK-RBAC-CLASSIC-ADMIN, CHK-DB-SQL-NO-ENTRA-ADMIN]
+      - id: T1548
+        name: Abuse Elevation Control Mechanism
+        checks: [CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE, CHK-RBAC-KV-ACCESSPOLICY-WRITE, CHK-RBAC-AKS-CLUSTER-ADMIN]
+
+  - tactic: Defense Evasion
+    techniques:
+      - id: T1562.001
+        name: Impair Defenses - Disable or Modify Tools
+        checks: [CHK-LOG-DEFENDER-DISABLED]
+      - id: T1562.008
+        name: Impair Defenses - Disable Cloud Logs
+        checks: [CHK-LOG-NO-DIAG-KEYVAULT, CHK-LOG-NO-DIAG-CRITICAL, CHK-LOG-NO-ACTIVITY-EXPORT, CHK-LOG-NO-NSG-FLOW]
+
+  - tactic: Credential Access
+    techniques:
+      - id: T1110.003
+        name: Brute Force - Password Spraying
+        checks: [CHK-IDEN-LEGACY-AUTH]
+      - id: T1552.001
+        name: Unsecured Credentials - Credentials In Files
+        checks: [CHK-COMP-APPSVC-SECRETS-PLAINTEXT, CHK-STOR-SHARED-KEY, CHK-COMP-ACR-ADMIN-USER]
+      - id: T1555.006
+        name: Cloud Secrets Management Stores
+        checks: [CHK-STOR-KV-ACCESS-POLICY-MODEL, CHK-STOR-KV-PUBLIC-NETWORK, CHK-RBAC-KV-ACCESSPOLICY-WRITE]
+      - id: T1552.007
+        name: Container API
+        checks: [CHK-COMP-AKS-LOCAL-ADMIN, CHK-RBAC-AKS-CLUSTER-ADMIN]
+
+  - tactic: Lateral Movement
+    techniques:
+      - id: T1021
+        name: Remote Services
+        checks: [CHK-NET-PEERING-CROSS-ENV, CHK-NET-SUBNET-NO-NSG, CHK-COMP-AKS-NO-NETPOL]
+
+  - tactic: Collection
+    techniques:
+      - id: T1530
+        name: Data from Cloud Storage
+        checks: [CHK-STOR-PUBLIC-BLOB, CHK-STOR-ANON-CONTAINER, CHK-STOR-PUBLIC-NETWORK, CHK-DB-COSMOS-PUBLIC-FIREWALL, CHK-DB-FLEX-PUBLIC-ACCESS]
+      - id: T1005
+        name: Data from Local System
+        checks: [CHK-COMP-VM-NO-DISK-ENCRYPTION, CHK-DB-SQL-NO-TDE]
+
+  - tactic: Impact
+    techniques:
+      - id: T1485
+        name: Data Destruction
+        checks: [CHK-STOR-KV-NO-PURGE-PROTECTION]
+      - id: T1584.001
+        name: Compromise Infrastructure - Domains (subdomain takeover)
+        checks: [CHK-NET-DANGLING-DNS]

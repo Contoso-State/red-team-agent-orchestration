@@ -1,0 +1,143 @@
+# Network Exposure Checks
+# Executed by the Network Exposure Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-NET-MGMT-PORT-INTERNET
+  title: Management port (RDP/SSH) open to the internet
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: Critical
+  description: An NSG allows inbound RDP (3389) or SSH (22) from Internet/0.0.0.0/0 to a workload.
+  detection:
+    method: resource-graph
+    tool: "networksecuritygroups securityRules"
+    logic: Inbound Allow rule with source Internet/* / 0.0.0.0/0 on port 22 or 3389.
+  attack_vector: Internet brute force / exploit -> host compromise
+  recommendation: Restrict management access to Azure Bastion or specific admin IPs; remove broad inbound rules.
+  controls:
+    cis_azure: ["6.1", "6.2"]
+    mitre: ["T1190", "T1133"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-DB-PORT-INTERNET
+  title: Database port open to the internet
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: Critical
+  description: An NSG allows inbound database ports (1433/3306/5432) from the internet.
+  detection:
+    method: resource-graph
+    tool: "networksecuritygroups securityRules"
+    logic: Inbound Allow rule with broad source on port 1433, 3306, or 5432.
+  attack_vector: Direct internet database access -> data breach
+  recommendation: Place databases behind private endpoints; remove internet-facing DB port rules.
+  controls:
+    cis_azure: ["6.3", "6.4"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-ANY-ANY-RULE
+  title: NSG rule allows any source, any port
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: High
+  description: An NSG inbound rule allows '*' source and '*' destination port.
+  detection:
+    method: resource-graph
+    tool: "networksecuritygroups securityRules"
+    logic: Inbound Allow rule with sourceAddressPrefix '*' and destinationPortRange '*'.
+  attack_vector: No L4 filtering -> full inbound exposure
+  recommendation: Replace with least-privilege rules; enforce deny-by-default.
+  controls:
+    cis_azure: ["6.1"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-SUBNET-NO-NSG
+  title: Subnet without an associated NSG
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: Medium
+  description: A subnet has no NSG, providing no L4 segmentation.
+  detection:
+    method: resource-graph
+    tool: "virtualnetworks subnets"
+    logic: Subnet has no networkSecurityGroup reference (excluding gateway/special subnets).
+  attack_vector: Unfiltered intra-VNet movement
+  recommendation: Associate an NSG with deny-by-default rules to every workload subnet.
+  controls:
+    cis_azure: ["6.6"]
+    mitre: ["T1021"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-PEERING-CROSS-ENV
+  title: VNet peering bridges environments or subscriptions
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: High
+  description: A VNet peering connects production to non-production or to an untrusted subscription, enabling lateral movement.
+  detection:
+    method: resource-graph
+    tool: "virtualnetworks peerings"
+    logic: Peering remote VNet is in a different (untrusted) subscription/environment; allowForwardedTraffic/gatewayTransit broaden reach.
+  attack_vector: Compromise in low-trust env -> lateral movement to prod
+  recommendation: Segment environments; review peering necessity and traffic forwarding settings.
+  controls:
+    mitre: ["T1021"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-DANGLING-DNS
+  title: Dangling DNS record (subdomain takeover risk)
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: High
+  description: A DNS record points to a deprovisioned Azure resource (App Service, Storage, Public IP), allowing takeover.
+  detection:
+    method: resource-graph
+    tool: "dnszones recordsets cross-referenced with live resources"
+    logic: CNAME/A record target no longer maps to an existing Azure resource/FQDN.
+  attack_vector: Claim the freed resource name -> subdomain takeover
+  recommendation: Remove stale DNS records; use Azure Defender DNS / alias records with health checks.
+  controls:
+    mitre: ["T1584.001"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-PUBLIC-IP-UNEXPECTED
+  title: Public IP attached to a workload that should be private
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: Medium
+  description: A resource has a public IP that expands its attack surface unnecessarily.
+  detection:
+    method: resource-graph
+    tool: "publicipaddresses + associations"
+    logic: Public IP associated with a backend/internal workload (e.g. app tier, DB tier).
+  attack_vector: Direct exposure of internal workload
+  recommendation: Remove public IPs from internal tiers; front with a load balancer/WAF where needed.
+  controls:
+    cis_azure: ["6.1"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-NET-WAF-MISSING
+  title: Public web endpoint without WAF
+  domain: network
+  agent: network-exposure
+  mode: read-only
+  severity_default: Medium
+  description: An internet-facing web app/App Gateway/Front Door lacks a Web Application Firewall or runs in detection-only mode.
+  detection:
+    method: resource-graph
+    tool: "applicationgateways / frontdoors WAF policy"
+    logic: Public HTTP(S) endpoint has no associated WAF policy, or WAF mode is Detection.
+  attack_vector: Web application attacks reach origin unfiltered
+  recommendation: Attach a WAF in Prevention mode to public web endpoints; lock origin to the edge.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]

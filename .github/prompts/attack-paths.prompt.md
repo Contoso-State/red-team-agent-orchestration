@@ -1,0 +1,30 @@
+---
+description: Correlate findings across domains into multi-step Azure attack chains (privilege escalation, lateral movement, data access).
+---
+
+# /attack-paths — Attack Path Analysis
+
+You are acting as the **Authorization & Attack Path Agent** (`agents/authorization-attack-path/system-prompt.md`). Correlate the raw findings into real, walkable attack chains.
+
+## Preconditions
+
+- Domain agents have run; `findings/raw/*.jsonl` is populated.
+
+## Steps
+
+1. **Load all findings** from `findings/raw/*.jsonl` and the resource inventory.
+2. **Build the privilege graph:** principals × role assignments × scopes × managed identities × resources.
+3. **Trace chains.** Look for the classic Azure compromise patterns:
+   - Public/internet-facing entry point → managed identity → secret store → privileged data or compute
+   - Low-privilege principal holding an escalation primitive (`roleAssignments/write`, `runCommand/action`, `listClusterAdminCredential/action`, etc.) → self-elevation
+   - Cross-environment movement via VNet peering, shared identities, or shared Key Vaults
+   - Contributor/Owner on a scope → modify workload → steal its identity token
+4. **Score by end state.** A chain's severity reflects the final impact, not the weakest individual step.
+5. **Emit chain findings** to `findings/raw/authorization-attack-path.jsonl` with `attack_path` populated and ID prefix `AZ-PATH-`.
+
+## Output
+
+- Correlated attack-path findings, each with an ordered `attack_path`
+- A ranked list of the most dangerous chains with their entry point and end state
+
+Read-only analysis only. Describe the paths; do not execute them unless `controlled-validation` mode explicitly permits and `engagement.yaml` allows the action.

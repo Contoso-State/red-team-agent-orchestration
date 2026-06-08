@@ -1,0 +1,157 @@
+# Compute Platform Checks
+# Executed by the Compute Platform Agent. Conforms to schemas/check.schema.json.
+
+- check_id: CHK-COMP-AKS-PUBLIC-API
+  title: AKS API server publicly accessible
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: The AKS API server is reachable from the internet with no authorized IP ranges and is not a private cluster.
+  detection:
+    method: resource-graph
+    tool: "managedClusters apiServerAccessProfile"
+    logic: enablePrivateCluster is false and authorizedIPRanges is empty.
+  attack_vector: Internet-exposed control plane -> credential attacks
+  recommendation: Use a private cluster or restrict API access with authorized IP ranges.
+  controls:
+    cis_azure: ["8.x"]
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-LOCAL-ADMIN
+  title: AKS local accounts / admin kubeconfig enabled
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: AKS local accounts are enabled, allowing cluster-admin kubeconfig that bypasses Entra RBAC.
+  detection:
+    method: resource-graph
+    tool: "managedClusters disableLocalAccounts"
+    logic: disableLocalAccounts is false (or absent) on an Entra-integrated cluster.
+  attack_vector: listClusterAdminCredential -> cluster admin bypassing identity controls
+  recommendation: Set disableLocalAccounts=true and enforce Entra RBAC for Kubernetes.
+  controls:
+    mitre: ["T1078", "T1552.007"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-NO-NETPOL
+  title: AKS cluster without network policy
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: The cluster has no network policy engine, leaving pod-to-pod traffic unrestricted.
+  detection:
+    method: resource-graph
+    tool: "managedClusters networkProfile.networkPolicy"
+    logic: networkPolicy is none/empty.
+  attack_vector: Compromised pod -> unrestricted lateral movement
+  recommendation: Enable Azure or Calico network policy and define deny-by-default policies.
+  controls:
+    mitre: ["T1021"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-APPSVC-SECRETS-PLAINTEXT
+  title: App Service/Function app secrets in plaintext settings
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: Application settings contain secret-shaped values (connection strings, keys) in plaintext instead of Key Vault references.
+  detection:
+    method: mcp-tool
+    tool: "azure-appservice / azure-functionapp config appsettings list"
+    logic: App setting value matches secret patterns and is not a @Microsoft.KeyVault reference.
+  attack_vector: Config read access -> credential theft
+  recommendation: Move secrets to Key Vault and use Key Vault references; use managed identity.
+  controls:
+    mitre: ["T1552.001"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-APPSVC-NO-AUTH
+  title: App Service without authentication on sensitive content
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: Easy Auth is disabled on an app serving sensitive functionality.
+  detection:
+    method: mcp-tool
+    tool: "azure-appservice auth settings"
+    logic: authsettingsV2 disabled and app is internet-facing.
+  attack_vector: Unauthenticated access to application
+  recommendation: Enable App Service authentication or enforce app-level auth; add access restrictions.
+  controls:
+    mitre: ["T1190"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-APPSVC-FTP-DEBUG
+  title: App Service FTP deployment or remote debugging enabled
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: Insecure deployment channels (FTP) or remote debugging are enabled.
+  detection:
+    method: mcp-tool
+    tool: "azure-appservice config (ftpsState, remoteDebuggingEnabled)"
+    logic: ftpsState == AllAllowed or remoteDebuggingEnabled == true.
+  attack_vector: Weak deployment channel -> code injection
+  recommendation: Set ftpsState to Disabled (or FtpsOnly); disable remote debugging.
+  controls:
+    mitre: ["T1190", "T1505"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-VM-NO-DISK-ENCRYPTION
+  title: VM without disk encryption
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: A VM's disks are not encrypted with Azure Disk Encryption or encryption-at-host.
+  detection:
+    method: resource-graph
+    tool: "virtualMachines + disks encryption settings"
+    logic: No ADE and encryptionAtHost not enabled; or unmanaged disks.
+  attack_vector: Disk/snapshot theft -> offline data access
+  recommendation: Enable encryption-at-host or ADE; migrate to managed disks.
+  controls:
+    cis_azure: ["7.2", "7.3"]
+    mitre: ["T1005"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-VM-PUBLIC-RUNCOMMAND
+  title: Public VM with privileged managed identity and runCommand exposure
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: An internet-facing VM has a privileged managed identity, creating a high-value code-execution target.
+  detection:
+    method: resource-graph
+    tool: "virtualMachines + publicIP + identity + role assignments"
+    logic: VM has public IP and a managed identity holding Contributor/Owner.
+  attack_vector: VM compromise -> managed identity privileges (chained)
+  recommendation: Remove public IP, reduce identity privileges, restrict runCommand.
+  controls:
+    mitre: ["T1078.004", "T1651"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-ACR-ADMIN-USER
+  title: Container Registry admin user enabled
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: ACR admin account is enabled, providing a shared credential instead of identity-based pull.
+  detection:
+    method: mcp-tool
+    tool: "azure-acr registry properties adminUserEnabled"
+    logic: adminUserEnabled == true.
+  attack_vector: Shared registry credential theft -> image pull/push
+  recommendation: Disable the admin user; use managed identity or token-based access.
+  controls:
+    mitre: ["T1552.001"]
+  required_permissions: ["Reader"]
