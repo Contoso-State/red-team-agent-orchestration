@@ -24,7 +24,8 @@ Engagement flow:
 
 | Path | Purpose |
 |---|---|
-| `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` for real assessments |
+| `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` (or run `/setup`) for real assessments |
+| `.github/prompts/*.prompt.md` | Slash commands — `/setup` (pick subscription → `engagement.yaml`), `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck` |
 | `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 8 specialists are dispatched by it |
 | `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |
 | `.github/extensions/redteam-guardrails/` | Hooks extension — `preToolUse` deny of mutating `az`/`azd` (logic in `guardrails-core.mjs`, tested by `guardrails-core.test.mjs`) |
@@ -52,10 +53,12 @@ Engagement flow:
 When working in this repo:
 
 - Launch the team with `/agent redteam-orchestrator` — the Orchestrator (Pentest Manager) coordinates and dispatches the specialist sub-agents
+- Use `/setup` to choose the target subscription and generate `engagement.yaml`
 - Use `/recon` to start a new reconnaissance engagement
 - Use `/assess` to run a full security assessment
 - Use `/attack-paths` to analyze privilege escalation and lateral movement chains
-- Use `/report` to generate the final assessment report
+- Use `/report` to generate the final assessment report (executive summary, technical report, and PowerPoint-ready deck)
+- Use `/deck` to (re)render just the PowerPoint-convertible `assessment-deck.md`
 - Or just ask Copilot in plain language (e.g. "pentest my Azure subscription") — the `azure-redteam-orchestrator` skill (Pentest Manager) triggers and coordinates the team
 - The Orchestrator dispatches sub-agents via the `agent` (Task) tool; it has no shell/`execute` capability and never runs `az` itself. Sub-agents are not model-invocable on their own (`disable-model-invocation: true`)
 - Each skill (`.github/skills/azure-redteam-<name>/SKILL.md`) delegates to its detailed methodology in `agents/<name>/system-prompt.md`

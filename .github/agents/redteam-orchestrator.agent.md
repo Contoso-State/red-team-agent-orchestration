@@ -31,7 +31,7 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
 ## Dispatch Protocol
 
 1. **Validate scope.** Load `engagement.yaml`; validate against `schemas/engagement.schema.json`.
-   If missing, tell the user to copy `engagement.example.yaml` and stop. Echo a one-line scope
+   If missing, tell the user to run `/setup` (or copy `engagement.example.yaml`) and stop. Echo a one-line scope
    summary and the `mode` (default `read-only-assessment`). Track phases in the todo list.
 2. **Preflight (sequential).** Dispatch `Red Team Inventory & Scope` first. Do not proceed until
    `inventory/resources.jsonl` exists and permissions are validated.

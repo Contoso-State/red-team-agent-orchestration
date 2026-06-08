@@ -22,12 +22,18 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
 8. **Render**:
    - `reports/generated/executive-summary.md` (from `reports/templates/executive-summary.md`)
    - `reports/generated/technical-report.md` (from `reports/templates/technical-report.md`)
+   - `reports/generated/assessment-deck.md` (from `reports/templates/assessment-deck.md`) — the
+     PowerPoint-convertible slide deck. Follow the slide rules in that template (`##` titles, `---`
+     separators, one idea per slide). See `/deck` for the standalone flow and conversion commands.
    - `reports/generated/findings.json` (normalized canonical set)
 
 ## Output
 
 - A leadership-ready executive summary led by attack paths and business risk
 - A complete technical report with per-finding remediation
+- A PowerPoint-ready deck (`assessment-deck.md`) — convert with
+  `npx @marp-team/marp-cli reports/generated/assessment-deck.md -o assessment-deck.pptx`
+  or `pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2`
 - A prioritized remediation roadmap (quick wins vs strategic)
 
 Apply `data_handling` redaction. Never include secret values. Generated reports are gitignored.

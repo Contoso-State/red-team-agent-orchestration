@@ -18,6 +18,7 @@ Full methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templ
 5. **Render** to `reports/generated/`:
    - `executive-summary.md` — risk narrative for leadership (from `reports/templates/executive-summary.md`)
    - `technical-report.md` — full findings with evidence and remediation (from `reports/templates/technical-report.md`)
+   - `assessment-deck.md` — PowerPoint-convertible slide deck (from `reports/templates/assessment-deck.md`); `##` slide titles + `---` separators so it converts to `.pptx` via Marp or Pandoc (`--slide-level=2`)
    - per-finding files from `reports/templates/finding.md`
 6. **Map** each finding to CIS (`controls/cis-azure.yaml`) and MITRE ATT&CK Cloud (`controls/mitre-cloud.yaml`).
 

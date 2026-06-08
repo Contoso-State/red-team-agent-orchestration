@@ -103,11 +103,20 @@ human-approval prompt. Decision logic lives in `guardrails-core.mjs` and is unit
 agent — and the orchestrator additionally has **no shell access at all** (dispatch-only), so it can
 never run `az` itself.
 
-Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same team.
+Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`) are convenient entry points that drive the same team.
 
 ## Quick Start
 
 ### 1. Define engagement scope
+
+Run the guided setup — it lists the subscriptions you can access, asks which one to assess, and
+writes `engagement.yaml` for you:
+
+```text
+/setup
+```
+
+Prefer to do it by hand? Copy the template instead:
 
 ```bash
 cp engagement.example.yaml engagement.yaml
@@ -158,6 +167,17 @@ Correlates findings across domains to identify multi-step compromise chains.
 
 Normalizes findings, deduplicates, reconciles severity, and generates executive + technical reports in `reports/generated/`.
 
+### 7. Build the presentation deck
+
+```text
+/deck
+```
+
+Renders `reports/generated/assessment-deck.md` — a PowerPoint-convertible slide deck. Convert it to
+`.pptx` with Marp (`npx @marp-team/marp-cli reports/generated/assessment-deck.md -o assessment-deck.pptx`)
+or Pandoc (`pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2`).
+`/report` also emits this deck automatically.
+
 ## Operating Modes
 
 | Mode | Description | Risk Level |
@@ -176,7 +196,7 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 │   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 8 specialists)
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
 │   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny)
-│   └── prompts/                 # Slash commands: /recon /assess /attack-paths /report
+│   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
 │   ├── inventory-scope/         # Preflight — enumeration and permission checks

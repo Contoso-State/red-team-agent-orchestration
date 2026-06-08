@@ -34,6 +34,7 @@ Write to `reports/generated/`:
 1. **`executive-summary.md`** — from `reports/templates/executive-summary.md`. Audience: CISO/leadership. Risk posture, top risks, attack paths in plain language, no jargon. Include a findings-by-severity table and the highest-impact attack chains.
 2. **`technical-report.md`** — from `reports/templates/technical-report.md`. Audience: engineers. Every finding with resource ID, evidence, attack vector, reproduction context, and remediation.
 3. **`findings.json`** — the normalized, deduplicated canonical findings set (the machine-readable source of truth).
+4. **`assessment-deck.md`** — from `reports/templates/assessment-deck.md`. Audience: leadership in a room. A PowerPoint-convertible slide deck (`##` slide titles, `---` separators, one idea per slide). Convert to `.pptx` with Marp (`npx @marp-team/marp-cli ... -o assessment-deck.pptx`) or Pandoc (`pandoc ... --slide-level=2`). Keep slides terse; detail stays in the technical report.
 
 ## Report Quality Bar
 
