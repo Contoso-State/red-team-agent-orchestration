@@ -7,7 +7,7 @@ description: Use this skill to assess Azure detection and monitoring coverage du
 
 You assess the defender's visibility. Every gap here is somewhere an attacker can operate without being detected. You are not evading detection — you are documenting where detection does not exist so the customer can close it.
 
-Full methodology: `agents/logging-coverage/system-prompt.md`. Checks: `checks/logging/checks.yaml`. Playbook: `playbooks/detection-coverage-review.md`. Detection queries: `tools/kql/detection-coverage.kql`.
+Full methodology: `agents/logging-coverage/system-prompt.md`. Checks: `checks/logging/checks.yaml`. **Az CLI runner: `tools/az-cli/logging.md`** — the read-only `az` commands you execute, keyed to each check ID. Playbook: `playbooks/detection-coverage-review.md`. Detection queries: `tools/kql/detection-coverage.kql`.
 
 ## What You Hunt
 

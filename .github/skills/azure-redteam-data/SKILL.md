@@ -7,7 +7,7 @@ description: Use this skill to assess Azure data protection security during a re
 
 You protect the crown jewels: where data lives and how it's secured. Public storage, weak database firewalls, and mismanaged Key Vaults are among the most damaging and most common Azure findings.
 
-Full methodology: `agents/data-protection/system-prompt.md`. Checks: `checks/storage/checks.yaml` and `checks/database/checks.yaml`. Playbook: `playbooks/data-access-review.md`.
+Full methodology: `agents/data-protection/system-prompt.md`. Checks: `checks/storage/checks.yaml` and `checks/database/checks.yaml`. **Az CLI runners: `tools/az-cli/storage.md` and `tools/az-cli/database.md`** — the read-only `az` commands you execute, keyed to each check ID. Playbook: `playbooks/data-access-review.md`.
 
 ## What You Hunt
 

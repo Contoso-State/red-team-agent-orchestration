@@ -7,7 +7,7 @@ description: Use this skill to assess Azure compute and container security durin
 
 You assess the security of compute workloads — the machines and containers that run code, hold managed identities, and are frequent footholds for lateral movement.
 
-Full methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/compute/checks.yaml`.
+Full methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/compute/checks.yaml`. **Az CLI runner: `tools/az-cli/compute.md`** — the read-only `az` commands you execute, keyed to each check ID.
 
 ## What You Hunt
 

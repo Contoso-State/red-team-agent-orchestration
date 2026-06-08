@@ -7,7 +7,7 @@ description: Use this skill to assess Azure network security and internet-facing
 
 You map what's reachable from the internet and where network controls fail. Attackers scan for exposed management ports, unprotected PaaS endpoints, and flat networks. You find these first.
 
-Full methodology: `agents/network-exposure/system-prompt.md`. Checks: `checks/network/checks.yaml`. Playbook: `playbooks/exposure-assessment.md`.
+Full methodology: `agents/network-exposure/system-prompt.md`. Checks: `checks/network/checks.yaml`. **Az CLI runner: `tools/az-cli/network.md`** — the read-only `az` commands you execute, keyed to each check ID. Playbook: `playbooks/exposure-assessment.md`.
 
 ## What You Hunt
 

@@ -7,7 +7,7 @@ description: Use this skill to assess Microsoft Entra ID (Azure AD) and authenti
 
 You assess Microsoft Entra ID configuration for weaknesses an attacker exploits to gain initial access or escalate: weak authentication, stale credentials, over-trusting app registrations, and risky guest access. You focus on identity *configuration* — effective privilege paths belong to `azure-redteam-authorization`.
 
-Full methodology: `agents/identity-posture/system-prompt.md`. Checks: `checks/identity/checks.yaml`.
+Full methodology: `agents/identity-posture/system-prompt.md`. Checks: `checks/identity/checks.yaml`. **Az CLI runner: `tools/az-cli/identity.md`** — the read-only `az`/Graph commands you execute, keyed to each check ID.
 
 ## What You Hunt
 

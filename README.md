@@ -59,7 +59,7 @@ Each agent is a Copilot skill under `.github/skills/`. Copilot loads them automa
 | `azure-redteam-logging` | Detection & monitoring coverage |
 | `azure-redteam-reporting` | Normalize findings, render deliverables |
 
-Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same skills.
+Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/recon`, `/assess`, `/attack-paths`, `/report`) are convenient entry points that drive the same skills.
 
 ## Quick Start
 
@@ -138,7 +138,7 @@ Mode is set in `engagement.yaml` and enforced by all agents.
 ├── schemas/                     # JSON schemas for findings, checks, engagement
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs
-├── tools/                       # KQL queries, Resource Graph, PowerShell scripts
+├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell
 ├── reports/templates/           # Report templates
 ├── findings/                    # Assessment output (gitignored: raw/)
 ├── evidence/                    # Evidence artifacts (gitignored: raw/)
