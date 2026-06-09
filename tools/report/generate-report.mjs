@@ -1742,13 +1742,14 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .filters input[type=search]{flex:1; min-width:200px}
 .filter-count{font-size:12.5px; color:var(--muted); margin-left:auto}
 .finding{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; background:var(--panel)}
-.finding-head{display:grid; grid-template-columns:auto 92px 1fr 130px 150px 96px auto; gap:12px; align-items:center; width:100%; text-align:left; background:none; border:none; padding:12px 14px; cursor:pointer; font:inherit; color:var(--txt)}
+.finding-head{display:grid; grid-template-columns:auto 92px minmax(0,1fr) 130px 150px 96px auto; gap:12px; align-items:start; width:100%; text-align:left; background:none; border:none; padding:12px 14px; cursor:pointer; font:inherit; color:var(--txt)}
 .finding-head:hover{background:var(--panel2)}
+.fh-sev,.fh-id,.fh-status{align-self:center}
 .fh-id{font-weight:700; font-size:12.5px; color:var(--navy2)}
-.fh-title{font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-title{font-weight:600; min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35}
 .fh-domain{font-size:12px; color:var(--muted)}
 .fh-res{font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.fh-caret{justify-self:end; color:var(--muted); transition:transform .15s}
+.fh-caret{justify-self:end; align-self:center; color:var(--muted); transition:transform .15s}
 .finding.open .fh-caret{transform:rotate(90deg)}
 .flash{animation:flash 1.2s ease-out}
 @keyframes flash{0%{box-shadow:0 0 0 3px var(--navy2)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
