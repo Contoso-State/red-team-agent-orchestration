@@ -22,6 +22,7 @@
   <a href="#-quick-start"><b>Quick Start</b></a> ·
   <a href="#-how-it-works"><b>How It Works</b></a> ·
   <a href="#-agent-team"><b>Agent Team</b></a> ·
+  <a href="#-session-output"><b>Session Output</b></a> ·
   <a href="#-operating-modes"><b>Operating Modes</b></a> ·
   <a href="#-safety--authorization"><b>Safety</b></a>
 </p>
@@ -227,6 +228,32 @@ Renders `engagements/<session>/reports/assessment-deck.md` — a PowerPoint-conv
 or Pandoc (`pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2`).
 `/report` also emits this deck automatically.
 
+## 📂 Session Output
+
+Every assessment **run** writes **all** of its output into a single, self-contained folder named for
+the engagement and the moment it ran — nothing is scattered across the repo root:
+
+```
+engagements/
+└── <session>/                        # <engagement-id>-<YYYY-MM-DD-HHMMSS>
+    ├── engagement.yaml               # scope snapshot used by this run
+    ├── inventory/                    # resources.jsonl, subscriptions.json, coverage-limitations.json
+    ├── findings/                     # raw/<agent>.jsonl + normalized/findings.json
+    ├── evidence/                     # raw + sanitized artifacts
+    └── reports/                      # executive-summary, technical-report, assessment-deck, findings.json
+```
+
+- **Timestamped, never overwritten** — `<session>` = `<engagement.id>` + a UTC `YYYY-MM-DD-HHMMSS`
+  stamp (e.g. `example-2026-q2-2026-06-15-141200`), so re-running produces a new folder and keeps a
+  clean, auditable history of every assessment.
+- **Fully gitignored** — the entire `engagements/` tree is ignored (only `README.md` + `.gitkeep` are
+  tracked) because session output contains sensitive target data. Never commit a session folder.
+- **Opened automatically** — the Orchestrator (and `/recon`) creates the folder at the start of a run
+  and tells every dispatched agent the exact path to write under. With the PowerShell helpers, set
+  `$env:REDTEAM_SESSION` or pass `-SessionPath ./engagements/<session>`.
+
+See [`engagements/README.md`](engagements/README.md) for the full layout reference.
+
 ## 🎚️ Operating Modes
 
 | Mode | Description | Risk Level |
@@ -312,6 +339,7 @@ Severity is determined by five factors — agents propose, the reporting agent n
 - **Scope enforcement**: Every agent validates target resources against `engagement.yaml`
 - **Preflight checks**: Permissions validated before any assessment begins
 - **Read-only default**: The default mode only reads configurations — no mutations
+- **Per-session isolation**: Every run writes all output to its own gitignored `engagements/<session>/` folder, so sensitive target data is never committed and runs never overwrite each other
 - **Hook-enforced guardrail**: The `redteam-guardrails` extension applies a session-wide `preToolUse` deny that allows **only** recognized read/query Azure commands (allowlist / deny-by-default), across both `az`/`azd` and Azure PowerShell — so read-only is enforced even if an agent is misprompted, not just requested
 - **Dispatch-only orchestrator**: The Pentest Manager has no shell access; it assigns work to specialists and presents their findings, so it can never run `az` directly
 - **Evidence redaction**: Secrets are never stored; PII redaction is configurable
