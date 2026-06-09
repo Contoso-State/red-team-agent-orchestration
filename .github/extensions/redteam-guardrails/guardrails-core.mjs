@@ -26,7 +26,7 @@ const AZ_READ_OP =
 // Session / local-tooling commands that are not reads but do NOT touch the target Azure
 // resources (auth context, local CLI config, extension install needed for `az graph query`).
 const AZ_BENIGN =
-  /^azd?\s+(account\s+(show|list|set|get-access-token|clear|list-locations)|login|logout|logoff|config(ure)?(\s|$)|cloud\s+(show|list|set)|extension\s+(add|list|show|update)|graph\s+query|version|upgrade(\s|$)|find)\b/i;
+  /^azd?\s+(account\s+(show|list|set|get-access-token|clear|list-locations)|login|logout|logoff|config\s+get(\s|$)|cloud\s+(show|list|set)|extension\s+(add|list|show|update)|graph\s+query|version|upgrade(\s|$)|find)\b/i;
 
 // ---------------------------------------------------------------------------
 // Azure PowerShell (Verb-AzNoun)
@@ -45,20 +45,50 @@ const PS_BENIGN =
 
 export function splitSegments(command) {
   return command
-    .split(/\n|;|&&|\|\||\||&|\(|\)|\{|\}/)
+    .split(/\n|;|&&|\|\||\||&|\(|\)|\{|\}|`/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
+// Normalize an executable token: strip surrounding quotes, any path prefix, and a
+// Windows/script extension. So `'az'`, "az", az.exe, C:\tools\az.cmd all become `az`,
+// and `& 'Remove-AzVM'` resolves to Remove-AzVM. Keeps invocation detection from being
+// bypassed by trivially quoting or qualifying the program name.
+function normalizeExe(token) {
+  return token
+    .replace(/^['"]+/, "")
+    .replace(/['"]+$/, "")
+    .replace(/^.*[\\/]/, "")
+    .replace(/\.(exe|cmd|bat|ps1|com)$/i, "");
+}
+
+// Leading execution wrappers that run another program. If a segment starts with one, we
+// fast-forward to the first Azure invocation token so `timeout 30 az ...`,
+// `xargs -I{} az ...`, `env -i FOO=bar az ...`, `watch -n5 az ...` are still evaluated.
+const WRAPPERS = new Set([
+  "env", "time", "nice", "nohup", "setsid", "stdbuf", "xargs", "timeout", "watch",
+]);
+
+function isAzToken(tok) {
+  const n = normalizeExe(tok);
+  return n === "az" || n === "azd" || /^[A-Za-z]+-Az[A-Za-z0-9]/.test(n);
+}
+
 function strip(segment) {
-  return segment
+  let s = segment
     .replace(/^[&\s]+/, "") // PowerShell call operator / leading whitespace
     .replace(/^(?:\w+=\S+\s+)*/, "") // leading VAR=value env assignments
     .replace(/^sudo\s+/, "");
+  const toks = s.split(/\s+/);
+  if (toks.length && WRAPPERS.has(normalizeExe(toks[0]).toLowerCase())) {
+    const i = toks.findIndex(isAzToken);
+    if (i > 0) s = toks.slice(i).join(" ");
+  }
+  return s;
 }
 
 function firstToken(segment) {
-  return strip(segment).split(/\s+/)[0] || "";
+  return normalizeExe(strip(segment).split(/\s+/)[0] || "");
 }
 
 export function isAzInvocation(segment) {
@@ -70,11 +100,28 @@ export function isAzPwshInvocation(segment) {
   return /^[A-Za-z]+-Az[A-Za-z0-9]/.test(firstToken(segment));
 }
 
+// az global options that may precede the command group. Known ones are skipped so a
+// read like `az --verbose vm list` / `az -o json account show` isn't mis-denied; an
+// UNKNOWN leading flag still fails closed (op stays undefined -> deny).
+const AZ_GLOBAL_BOOL = new Set(["--debug", "--verbose", "--only-show-errors", "-h", "--help"]);
+const AZ_GLOBAL_VALUE = new Set(["-o", "--output", "--query", "--subscription"]);
+
 export function operationToken(segment) {
   const tokens = strip(segment).split(/\s+/).slice(1);
   const path = [];
-  for (const t of tokens) {
-    if (t.startsWith("-")) break;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.startsWith("-")) {
+      if (path.length === 0) {
+        const key = t.split("=")[0].toLowerCase();
+        if (AZ_GLOBAL_VALUE.has(key)) {
+          if (!t.includes("=")) i++; // also skip the value token
+          continue;
+        }
+        if (AZ_GLOBAL_BOOL.has(key)) continue;
+      }
+      break;
+    }
     path.push(t.toLowerCase());
   }
   return path[path.length - 1];
@@ -137,6 +184,44 @@ export function gatherCommandTexts(command, depth = 3) {
 // Per-segment decision
 // ---------------------------------------------------------------------------
 
+// Clean a parsed flag value: strip quotes; a dynamic/non-alpha value (e.g. $VAR,
+// "$(...)", or a missing value) is treated as non-GET so it fails closed.
+function cleanVal(v) {
+  if (v === undefined || v === null || v === "") return "UNSET";
+  const s = String(v).replace(/^['"]+/, "").replace(/['"]+$/, "");
+  return /^[A-Za-z]+$/.test(s) ? s.toUpperCase() : "DYNAMIC";
+}
+
+// Extract the HTTP method from an `az rest` token list. Handles `--method X`,
+// `--method=X`, `-m X`, `-m=X`, and attached `-mX`. Returns null if no method flag.
+function azRestMethod(toks) {
+  for (let i = 1; i < toks.length; i++) {
+    const t = toks[i];
+    let m = t.match(/^(?:--method|-m)(?:=(.*))?$/i);
+    if (m) return cleanVal(m[1] !== undefined ? m[1] : toks[i + 1]);
+    m = t.match(/^-m(.+)$/i); // attached short form -mPOST
+    if (m && !m[1].startsWith("-")) return cleanVal(m[1]);
+  }
+  return null;
+}
+
+// True if an `az rest` invocation carries a request body (so it defaults to POST).
+function hasBodyFlag(toks) {
+  return toks
+    .slice(1)
+    .some((t) => /^--body([=@].*)?$/i.test(t) || /^-b([=@].*)?$/i.test(t) || /^-b\S/.test(t));
+}
+
+// Extract the method from an Invoke-AzRestMethod token list, honoring PowerShell
+// parameter abbreviation (-M, -Me, -Met, ... -Method) and `:`/`=`/space separators.
+function iarmMethod(toks) {
+  for (let i = 1; i < toks.length; i++) {
+    const m = toks[i].match(/^-M(?:e(?:t(?:h(?:o(?:d)?)?)?)?)?(?:[:=](.*))?$/i);
+    if (m) return cleanVal(m[1] !== undefined && m[1] !== "" ? m[1] : toks[i + 1]);
+  }
+  return null;
+}
+
 // Returns a deny reason string if the segment is a non-read Azure operation, else null.
 export function violation(segment) {
   // Azure CLI ----------------------------------------------------------------
@@ -145,11 +230,13 @@ export function violation(segment) {
     if (AZ_BENIGN.test(norm)) return null;
 
     if (/^azd?\s+rest\b/i.test(norm)) {
-      const m = norm.match(/--method\s+(\w+)/i);
-      if (m && m[1].toUpperCase() !== "GET") {
-        return `az rest --method ${m[1].toUpperCase()} is a write operation`;
+      const toks = norm.split(/\s+/);
+      const method = azRestMethod(toks);
+      if (method !== null) {
+        return method === "GET" ? null : `az rest --method ${method} is a write operation`;
       }
-      return null; // default method is GET
+      if (hasBodyFlag(toks)) return "az rest with a request body defaults to POST (write operation)";
+      return null; // no method, no body => default GET
     }
 
     const op = operationToken(segment);
@@ -163,9 +250,9 @@ export function violation(segment) {
     if (PS_BENIGN.test(first)) return null;
 
     if (/^Invoke-AzRestMethod$/i.test(first)) {
-      const m = segment.match(/-Method\s+(\w+)/i);
-      if (m && m[1].toUpperCase() !== "GET") {
-        return `Invoke-AzRestMethod -Method ${m[1].toUpperCase()} is a write operation`;
+      const method = iarmMethod(segment.split(/\s+/));
+      if (method !== null && method !== "GET") {
+        return `Invoke-AzRestMethod -Method ${method} is a write operation`;
       }
       return null;
     }

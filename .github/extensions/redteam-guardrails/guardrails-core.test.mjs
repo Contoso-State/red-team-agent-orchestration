@@ -103,6 +103,81 @@ denyEval(`powershell -EncodedCommand ${enc}`);
   "Import-Module Az.Accounts",
 ].forEach(allowed);
 
+// --- hardening: az rest method/body parsing (all must DENY writes) ---
+[
+  "az rest --method=POST --url https://management.azure.com/x",
+  "az rest -m POST --url https://management.azure.com/x",
+  "az rest -mPOST --url https://management.azure.com/x",
+  "az rest --method 'POST' --url https://management.azure.com/x",
+  "az rest --method DELETE --uri https://management.azure.com/x",
+  "az rest --uri https://management.azure.com/x --body @b.json",
+  "az rest --uri https://management.azure.com/x --body=@b.json",
+  "az rest --uri https://management.azure.com/x -b @b.json",
+  "az rest --method $VAR --uri https://management.azure.com/x",
+].forEach(denied);
+[
+  "az rest --method GET --url https://management.azure.com/x",
+  "az rest --url https://graph.microsoft.com/v1.0/users",
+  "az rest --method get --uri https://graph.microsoft.com/v1.0/domains",
+].forEach(allowed);
+
+// --- hardening: quoted / path / extension executable normalization -> deny ---
+[
+  "'az' group delete -n rg",
+  "\"az\" vm create -n v -g rg",
+  "az.exe group delete -n rg",
+  "az.cmd group delete -n rg",
+  "& 'Remove-AzVM' -Name v -ResourceGroupName rg",
+  "& \"New-AzVM\" -Name v",
+].forEach(denied);
+
+// --- hardening: Invoke-AzRestMethod method abbreviation / separators -> deny ---
+[
+  "Invoke-AzRestMethod -Me POST -Path /x",
+  "Invoke-AzRestMethod -M PUT -Path /x",
+  "Invoke-AzRestMethod -Method:DELETE -Path /x",
+  "Invoke-AzRestMethod -Method=PATCH -Path /x",
+].forEach(denied);
+[
+  "Invoke-AzRestMethod -Method GET -Path /x",
+  "Invoke-AzRestMethod -Path /x -MaximumRetryCount 3",
+].forEach(allowed);
+
+// --- hardening: execution-wrapper fast-forward -> deny the inner az write ---
+[
+  "env az group delete -n rg",
+  "env -i FOO=bar az group delete -n rg",
+  "timeout 30 az group delete -n rg",
+  "timeout --foreground 30 az group delete -n rg",
+  "nohup az group delete -n rg",
+  "watch -n 5 az group delete -n rg",
+].forEach(denied);
+allowed("timeout 30 az group list"); // wrapper around a read stays allowed
+
+// --- hardening: leading az global flags don't break read detection (FP guard) ---
+[
+  "az --verbose vm list",
+  "az -o json account show",
+  "az --query \"[].name\" vm list",
+  "az --subscription 00000000-0000-0000-0000-000000000000 group show -n rg",
+].forEach(allowed);
+[
+  "az --verbose vm delete -n v -g rg",
+  "az -o json group delete -n rg",
+  "az --frobnicate vm list", // unknown leading global -> fail closed -> deny
+].forEach(denied);
+
+// --- hardening: local CLI config mutation tightened ---
+allowed("az config get defaults");
+[
+  "az config set extension.use_dynamic_install=yes_without_prompt",
+  "az config unset defaults.group",
+].forEach(denied);
+
+// --- hardening: backtick command substitution unwrapped (via evaluate) ---
+denyEval("echo `az group delete -n rg`");
+denyEval("RESULT=`az role assignment create --assignee x --role Owner`");
+
 // --- tool scoping: only command-execution tools are inspected ---
 // File edit/create tools (args without a command field) must be ignored even if their content
 // mentions mutating az commands (this was a real false-positive bug).

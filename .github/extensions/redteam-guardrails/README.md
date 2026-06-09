@@ -15,11 +15,21 @@ agent issues the command.
   plus session/local-context commands (`az account set`, `az login`, `az extension add`,
   `Set-AzContext`, `Connect-AzAccount`).
 - **Blocked examples:** `az vm create`, `az role assignment create`, `az storage account update`,
-  `az keyvault purge`, `az vm run-command invoke`, `az rest --method POST|PUT|PATCH|DELETE`,
-  `New-AzVM`, `Remove-AzKeyVault`, `Invoke-AzVMRunCommand`.
+  `az keyvault purge`, `az vm run-command invoke`, `az rest --method POST|PUT|PATCH|DELETE` (in every
+  form — `--method=POST`, `-m POST`, `-mPOST`, quoted, or an implicit-POST `az rest … --body …`),
+  `az config set`, `New-AzVM`, `Remove-AzKeyVault`, `Invoke-AzVMRunCommand`,
+  `Invoke-AzRestMethod -Method POST` (incl. abbreviations `-M`/`-Me`).
+- **Evasion-aware normalization.** The executable name is normalized before matching, so quoting or
+  qualifying it can't hide a mutation (`'az'`, `"az"`, `az.exe`, `& 'Remove-AzVM'`). Leading
+  execution wrappers are fast-forwarded to the inner Azure call (`timeout 30 az …`, `xargs -I{} az …`,
+  `env -i FOO=bar az …`, `watch -n5 az …`), and a dynamic method value (`--method $VAR`) fails closed.
 - **Wrapper-aware.** Indirection can't sneak a mutation past it — it also inspects payloads passed to
   `pwsh -Command`, `powershell -EncodedCommand` (base64 is decoded), `bash -c`, `cmd /c`,
-  `Invoke-Expression`/`iex`, the call operator `&`, and `Start-Process … -ArgumentList`.
+  `Invoke-Expression`/`iex`, the call operator `&`, backtick command substitution, and
+  `Start-Process … -ArgumentList`.
+- **Precise on reads.** Leading `az` global flags (`az --verbose vm list`, `az -o json account show`)
+  are recognized so legitimate reads aren't mis-denied, while an *unknown* leading flag still fails
+  closed.
 - **Tool-scoped.** Only command-execution tools are inspected. File `read`/`edit`/`create` calls are
   never treated as commands, so documentation that *mentions* `az ... delete` is never blocked.
 - **`mode: controlled-validation`** does **not** silently allow mutations — it downgrades them to an

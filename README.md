@@ -158,7 +158,7 @@ is treated as a state change and blocked, so unknown or new mutating verbs fail 
 inspected — docs that merely mention `az ... delete` are never blocked). `mode:
 controlled-validation` doesn't silently allow mutations; it downgrades them to an explicit
 human-approval prompt. Decision logic lives in `guardrails-core.mjs` and is unit-tested by
-`guardrails-core.test.mjs` (68 assertions). Because the hook is session-wide it covers **every**
+`guardrails-core.test.mjs` (111 assertions). Because the hook is session-wide it covers **every**
 agent — and the orchestrator additionally has **no shell access at all** (dispatch-only), so it can
 never run `az` itself.
 
