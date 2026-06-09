@@ -15,6 +15,19 @@ deliverable opened in a browser — it must never phone home.
 
 ## Usage
 
+> **Validate first.** Before generating, check the artifacts against the schemas so
+> authoring mistakes fail fast instead of rendering into a polished-but-wrong report:
+>
+> ```bash
+> node tools/validate-findings.mjs \
+>   --findings     engagements/<session>/reports/findings.json \
+>   --attack-paths engagements/<session>/reports/attack-paths.json   # optional
+> ```
+>
+> It exits non-zero on hard schema violations (bad `id` pattern, unknown
+> severity/confidence/agent/status enum, missing required fields, evidence items
+> without `source`/`summary`, dangling attack-path edges).
+
 ```bash
 node tools/report/generate-report.mjs \
   --findings   engagements/<session>/reports/findings.json \

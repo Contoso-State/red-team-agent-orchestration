@@ -51,8 +51,8 @@
   description: The Microsoft Defender for Cloud secure score is low and high-impact security recommendations (assessments) remain unhealthy, indicating systemic posture debt. Distinct from logging's plan on/off check — this evaluates the resulting recommendation backlog, not whether plans are enabled.
   detection:
     method: azure-cli
-    tool: "az security secure-scores list; az security assessment list"
-    logic: Secure score percentage below the engagement threshold (e.g. < 60%), or high-severity assessments in an Unhealthy state remain unremediated.
+    tool: "az security secure-scores list; az rest --method GET --url 'https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/secureScores/ascScore?api-version=2020-01-01'; az security assessment list"
+    logic: Secure score percentage below the engagement threshold (e.g. < 60%), or high-severity assessments in an Unhealthy state remain unremediated. If `az security secure-scores list` returns empty (extension/API-version dependent), fall back to the `az rest` ascScore endpoint before concluding "no data".
   attack_vector: Each unhealthy recommendation is a concrete, Microsoft-confirmed exposure an attacker can exploit
   recommendation: Triage and remediate high-severity Defender for Cloud recommendations; track secure score as a posture KPI.
   controls:

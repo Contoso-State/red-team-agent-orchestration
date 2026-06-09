@@ -43,6 +43,7 @@ To avoid duplicate or contradictory findings, you own **only** the control-plane
 ## Tools You Use
 
 - Azure CLI: `az policy assignment/exemption list`, `az security secure-scores/assessment/contact list`, `az account management-group list/show`, `az lock list`, `az role assignment list --include-inherited`
+  - If `az security secure-scores list` returns empty (extension/API-version dependent), fall back to `az rest --method GET --url ".../providers/Microsoft.Security/secureScores/ascScore?api-version=2020-01-01"` before treating it as "no data".
 - `az rest --method GET` for the management-group hierarchy when the CLI extension is unavailable
 - The shared inventory for the list of in-scope subscriptions and critical resource groups
 

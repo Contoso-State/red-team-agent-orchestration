@@ -97,7 +97,8 @@
     },
     "evidence": {
       "type": "array",
-      "description": "Evidence supporting the finding. Never include secret values.",
+      "minItems": 1,
+      "description": "Evidence supporting the finding. At least one item required; never include secret values.",
       "items": {
         "type": "object",
         "required": ["source", "summary"],

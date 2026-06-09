@@ -4,6 +4,14 @@ Reusable Azure Resource Graph (ARG) queries for fast, cross-subscription enumera
 
 > Replace `<sub>` filters as needed, or scope with `--subscriptions` / `--management-groups`.
 
+> ⚠️ **Pass KQL to `az graph query -q` as a SINGLE-LINE string.** The queries below
+> are formatted multi-line for readability, but a multi-line / here-string argument
+> can be **silently mangled** at the shell→CLI boundary — the `where` / `project` /
+> `summarize` pipeline gets dropped and you get *unfiltered rows with blank columns
+> and no error*. Before running, collapse newlines to spaces (e.g. pipe the `.kql`
+> through `node tools/resource-graph/flatten-kql.mjs <file>`), or author the query
+> on one line. Verify a query returns the columns you projected before trusting it.
+
 ## Inventory
 
 ### Full resource inventory

@@ -24,9 +24,15 @@ az policy exemption list --scope "/subscriptions/<subId>" -o json
 ## CHK-GOV-SECURE-SCORE-LOW — Secure score + unhealthy recommendations
 ```bash
 az security secure-scores list -o json
+# Fallback: `az security secure-scores list` is extension/API-version dependent and
+# can return empty even when Defender for Cloud is enabled. If so, read the score
+# directly from ARM (the well-known score name is 'ascScore'):
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/secureScores/ascScore?api-version=2020-01-01" -o json
 az security assessment list -o json
 # Flag: secure score percentage below engagement threshold, or High-severity assessments
-# with status.code == 'Unhealthy'. (Plan on/off coverage is owned by logging:
+# with status.code == 'Unhealthy'. Treat an empty CLI result as "use the REST fallback",
+# not as "no finding". (Plan on/off coverage is owned by logging:
 # CHK-LOG-DEFENDER-DISABLED — do not re-flag it here.)
 ```
 

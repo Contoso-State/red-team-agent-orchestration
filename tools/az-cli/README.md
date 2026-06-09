@@ -27,6 +27,9 @@ for *what* to test and the matching file here for the *exact `az` command* that 
   values, keys, connection strings, or data records.
 - **Each command is a template.** Replace `<...>` placeholders at runtime. Commands are static
   reference text — running them is the agent's job during an engagement, not part of the repo.
+- **Capture evidence with `ConvertTo-Json` (PowerShell), not the `-f` format operator.** The `-f`
+  operator can render blank in non-interactive/captured shells, silently dropping evidence text.
+  Prefer `... | ConvertTo-Json -Depth <n>` or explicit `Select-Object` / string interpolation.
 
 ## Preflight (run once, by the inventory agent)
 

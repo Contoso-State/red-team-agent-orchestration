@@ -32,8 +32,30 @@
  * Read-only: only reads the input files and writes the single --out file.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { argv } from 'node:process';
+
+// Agents permitted by schemas/finding.schema.json. Kept in sync with that enum.
+// Used only to surface authoring mistakes as visible Notes (the generator stays
+// lenient and still renders; tools/validate-findings.mjs is the strict gate).
+const KNOWN_AGENTS = new Set([
+  'inventory-scope',
+  'identity-posture',
+  'authorization-attack-path',
+  'network-exposure',
+  'compute-platform',
+  'data-protection',
+  'web-exposure',
+  'ai-foundry',
+  'attack-surface',
+  'logging-coverage',
+  'email-security',
+  'governance-posture',
+  'devops-supplychain',
+  'reporting',
+]);
+const FINDING_ID_RE = /^AZ-[A-Z]+-[0-9]{3}$/;
 
 const GENERATOR_VERSION = '2.0.0';
 
@@ -246,6 +268,20 @@ function normalizeFindings(rawFindings) {
     const id = String(f.id ?? '').trim() || `UNKNOWN-${findings.length + 1}`;
     if (seenIds.has(id)) warn(`Duplicate finding id "${id}" — both are shown.`);
     seenIds.add(id);
+    if (!FINDING_ID_RE.test(id)) {
+      warn(`Finding "${id}" does not match the required id pattern AZ-<DOMAIN>-<NNN>.`);
+    }
+    if (f.agent != null && !KNOWN_AGENTS.has(String(f.agent))) {
+      warn(`Finding "${id}" has agent "${f.agent}" which is not a known agent enum value.`);
+    }
+    for (const req of ['title', 'category', 'resource_id', 'subscription_id', 'description', 'attack_vector', 'recommendation', 'first_seen']) {
+      if (f[req] == null || String(f[req]).trim() === '') {
+        warn(`Finding "${id}" is missing required field "${req}".`);
+      }
+    }
+    if (!Array.isArray(f.evidence) || f.evidence.length === 0) {
+      warn(`Finding "${id}" has no evidence[]; findings should cite at least one source.`);
+    }
     const severity = SEVERITY_RANK[f.severity] ? f.severity : 'Informational';
     if (!SEVERITY_RANK[f.severity]) {
       warn(`Finding "${id}" has unknown/missing severity "${f.severity}"; treated as Informational.`);
@@ -2063,6 +2099,8 @@ function main() {
   const html = buildHtml(findings, paths, meta, args.title);
   const outPath = args.out || 'report.html';
   try {
+    const outDir = dirname(outPath);
+    if (outDir && outDir !== '.') mkdirSync(outDir, { recursive: true });
     writeFileSync(outPath, html, 'utf8');
   } catch (err) {
     console.error('Error: could not write "' + outPath + '": ' + err.message);

@@ -22,11 +22,12 @@
 [CmdletBinding()]
 param(
     [string]$EngagementFile = "./engagement.yaml",
-    [string]$SessionPath = $env:REDTEAM_SESSION
+    [string]$SessionPath
 )
 
 $ErrorActionPreference = "Stop"
-if (-not $SessionPath) { $SessionPath = "./engagements/$(Get-Date -Format 'yyyy-MM-dd-HHmmss')" }
+. (Join-Path $PSScriptRoot 'Common.ps1')
+$SessionPath = Resolve-SessionPath $SessionPath
 
 function Write-Section($text) { Write-Host "`n=== $text ===" -ForegroundColor Cyan }
 
@@ -79,8 +80,15 @@ foreach ($role in $requiredRoles.Keys) {
 
 # --- Emit coverage limitations ---
 Write-Section "Coverage Limitations"
+# Scaffold the full session tree so every downstream tool (inventory, agents, and the
+# report generator) has its output dir ready — historically only inventory/ existed,
+# which made report generation fail on a fresh session.
+foreach ($sub in @("inventory", "findings/raw", "evidence/raw", "reports")) {
+    $d = Join-Path $SessionPath $sub
+    if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+}
 $invDir = Join-Path $SessionPath "inventory"
-if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir -Force | Out-Null }
+Set-CurrentSession $SessionPath
 Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
 
 if ($limitations.Count -gt 0) {

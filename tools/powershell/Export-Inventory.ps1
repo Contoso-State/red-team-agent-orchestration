@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Uses Azure Resource Graph to enumerate all resources in the in-scope
-    subscriptions and writes engagements/<session>/inventory/resources.jsonl plus a type summary.
+    subscriptions and writes engagements/<session>/inventory/resources.json (canonical
+    array) plus resources.jsonl, subscriptions.json, and a summary.json type rollup.
     Read-only. Requires the Resource Graph extension (auto-installed by az).
 
 .PARAMETER Subscriptions
@@ -21,13 +22,15 @@
 [CmdletBinding()]
 param(
     [string[]]$Subscriptions,
-    [string]$SessionPath = $env:REDTEAM_SESSION
+    [string]$SessionPath
 )
 
 $ErrorActionPreference = "Stop"
-if (-not $SessionPath) { $SessionPath = "./engagements/$(Get-Date -Format 'yyyy-MM-dd-HHmmss')" }
+. (Join-Path $PSScriptRoot 'Common.ps1')
+$SessionPath = Resolve-SessionPath $SessionPath
 $invDir = Join-Path $SessionPath "inventory"
 if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir -Force | Out-Null }
+Set-CurrentSession $SessionPath
 Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
 
 if (-not $Subscriptions) {
@@ -38,11 +41,9 @@ if (-not $Subscriptions) {
 Write-Host "Enumerating resources via Azure Resource Graph..." -ForegroundColor Cyan
 Write-Host "Subscriptions: $($Subscriptions -join ', ')"
 
-$query = @"
-Resources
-| project id, name, type, resourceGroup, subscriptionId, location, kind, tags
-| order by type asc
-"@
+# Single-line query string — multi-line/here-string KQL can be silently mangled by
+# the shell -> az boundary (where/project pipeline dropped). Keep it on one line.
+$query = "Resources | project id, name, type, resourceGroup, subscriptionId, location, kind, tags | order by type asc"
 
 # Page through results (ARG returns up to 1000 rows per page)
 $all = @()
@@ -56,21 +57,26 @@ do {
     $skip += 1000
 } while ($page.data.Count -eq 1000)
 
-# Write JSONL inventory
+# Write inventory: a canonical JSON array (resources.json) for downstream tooling,
+# a JSONL stream (resources.jsonl) for line-oriented processing, and a type summary.
+$jsonPath = "$invDir/resources.json"
 $jsonlPath = "$invDir/resources.jsonl"
+ConvertTo-JsonArrayFile -Items $all -Path $jsonPath -Depth 10
 $all | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 10 } | Set-Content $jsonlPath
-Write-Host "Wrote $($all.Count) resources to $jsonlPath" -ForegroundColor Green
+Write-Host "Wrote $($all.Count) resources to $jsonPath (+ resources.jsonl)" -ForegroundColor Green
 
 # Write subscription metadata
 $subMeta = foreach ($s in $Subscriptions) {
     $info = az account show --subscription $s --only-show-errors | ConvertFrom-Json
     [pscustomobject]@{ id = $info.id; name = $info.name; state = $info.state }
 }
-$subMeta | ConvertTo-Json -Depth 4 | Set-Content "$invDir/subscriptions.json"
+ConvertTo-JsonArrayFile -Items @($subMeta) -Path "$invDir/subscriptions.json" -Depth 4
 
-# Type summary
+# Type summary — persisted to summary.json and printed
+$summary = $all | Group-Object type | Sort-Object Count -Descending |
+    ForEach-Object { [pscustomobject]@{ type = $_.Name; count = $_.Count } }
+ConvertTo-JsonArrayFile -Items @($summary) -Path "$invDir/summary.json" -Depth 4
 Write-Host "`nResource counts by type:" -ForegroundColor Cyan
-$all | Group-Object type | Sort-Object Count -Descending |
-    Select-Object Count, Name | Format-Table -AutoSize
+$summary | Select-Object count, type | Format-Table -AutoSize
 
 Write-Host "Inventory complete. Proceed with assessment (/assess)." -ForegroundColor Cyan
