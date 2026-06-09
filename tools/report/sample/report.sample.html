@@ -1,331 +1,380 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src &#39;self&#39; data:; style-src &#39;unsafe-inline&#39;; script-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;; font-src &#39;none&#39;; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%9B%8A%3C/text%3E%3C/svg%3E">
 <title>Contoso Cloud — Sample Assessment</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Ctext%20y%3D%2213%22%20font-size%3D%2213%22%3E%E2%9B%8A%3C%2Ftext%3E%3C%2Fsvg%3E">
 <style>
-
 :root{
-  --bg:#0b0e14; --panel:#121722; --panel2:#0f1420; --line:#222b3a;
-  --txt:#e6ebf2; --muted:#8a97ab; --accent:#ff3b52; --accent2:#ff6b3d;
-  --crit:#ff2d55; --high:#ff7a18; --med:#ffc043; --low:#3da5ff; --info:#7c8aa3;
-  --ok:#22c55e;
+  --page:#f4f6f9; --panel:#fff; --panel2:#f8fafc; --line:#e2e8f0; --line2:#cbd5e1;
+  --txt:#0f172a; --txt2:#1a2230; --muted:#5b6b80; --navy:#16365c; --navy2:#1e3a5f;
+  --crit:#b91c1c; --high:#c2410c; --med:#b45309; --low:#1d4ed8; --info:#475569; --ok:#15803d;
+  --radius:10px; --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.05);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:linear-gradient(180deg,#080a0f,#0b0e14 240px);color:var(--txt);
-  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.86em;
-  background:#0a0d13;border:1px solid var(--line);border-radius:4px;padding:1px 5px;
-  overflow-wrap:anywhere;word-break:break-word;}
-h2{font-size:18px;margin:0 0 4px;letter-spacing:.2px}
-h3{font-size:15px;margin:0}
-h4{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 6px}
-.muted{color:var(--muted)} .small{font-size:12px}
-a{color:#7db5ff;text-decoration:none} a:hover{text-decoration:underline}
+body{
+  margin:0; background:var(--page); color:var(--txt);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{color:var(--txt2); line-height:1.25; margin:0}
+a{color:var(--navy2); text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.85em}
+.muted{color:var(--muted)}
+.num{text-align:right; font-variant-numeric:tabular-nums}
+.empty,.note{color:var(--muted); background:var(--panel2); border:1px dashed var(--line2); border-radius:var(--radius); padding:14px 16px}
 
-.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;
-  padding:14px 24px;background:rgba(10,13,19,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-mark{font-size:26px;color:var(--accent);filter:drop-shadow(0 0 8px rgba(255,59,82,.5))}
-.brand-title{font-weight:700;font-size:16px}
-.brand-sub{color:var(--muted);font-size:12px}
-.topbar-actions{display:flex;gap:8px}
-button.ghost,.link-btn{background:#161c28;border:1px solid var(--line);color:var(--txt);
-  padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
-button.ghost:hover,.link-btn:hover{border-color:var(--accent);color:#fff}
+/* Cover */
+.cover{
+  max-width:920px; margin:28px auto 0; background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 60%,#27496e 100%);
+  color:#eef3f9; border-radius:16px; padding:34px 40px 30px; box-shadow:var(--shadow);
+}
+.cover-top{display:flex; justify-content:space-between; align-items:center}
+.brand{display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:.02em}
+.brand-mark{font-size:22px}
+.confidential{font-size:11px; font-weight:700; letter-spacing:.16em; border:1px solid rgba(255,255,255,.45); padding:4px 10px; border-radius:6px}
+.cover-main{margin:30px 0 26px}
+.cover-kicker{margin:0 0 8px; text-transform:uppercase; letter-spacing:.18em; font-size:12px; color:#a9c2e0}
+.cover-title{font-size:34px; font-weight:700; margin:0 0 22px; color:#fff}
+.cover-meta{display:grid; grid-template-columns:1fr 1fr; gap:6px 28px; max-width:720px}
+.cm-row{display:flex; gap:10px; font-size:13.5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.12)}
+.cm-k{color:#a9c2e0; min-width:118px}
+.cm-v{color:#fff}
+.cover-sevs{margin-top:20px; display:flex; flex-wrap:wrap; gap:8px}
+.cover-sev{font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2)}
+.cover-foot{display:grid; grid-template-columns:1fr 1.1fr; gap:28px; margin-top:8px; padding-top:22px; border-top:1px solid rgba(255,255,255,.18)}
+.cover-toc h2{color:#cfe0f2; font-size:13px; text-transform:uppercase; letter-spacing:.12em; margin-bottom:8px}
+.print-toc{list-style:none; margin:0; padding:0; columns:1}
+.print-toc li{display:flex; gap:10px; font-size:13px; padding:3px 0; color:#dbe7f4}
+.pt-num{color:#9fc; opacity:.8; min-width:18px; color:#a9c2e0}
+.disclaimer{font-size:12px; line-height:1.5; color:#c4d4e6; margin:0}
 
-main{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:0 0 20px;
-  box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
-.section-note{color:var(--muted);margin:2px 0 16px;max-width:74ch}
+/* Action bar */
+.actionbar{max-width:1180px; margin:18px auto 0; display:flex; gap:8px; justify-content:flex-end; padding:0 24px}
+.ab-btn{background:var(--panel); color:var(--txt2); border:1px solid var(--line2); border-radius:7px; padding:7px 13px; font-size:13px; cursor:pointer}
+.ab-btn:hover{background:var(--panel2); border-color:var(--navy2)}
+.ab-primary{background:var(--navy2); color:#fff; border-color:var(--navy2)}
+.ab-primary:hover{background:var(--navy)}
 
-/* summary */
-.summary-grid{display:grid;grid-template-columns:auto 1fr auto;gap:26px;align-items:center}
-.summary-sevs{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.sevcard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--panel2);
-  border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;cursor:pointer;color:var(--txt)}
-.sevcard:hover{border-color:var(--accent)}
-.sevcard-n{font-size:24px;font-weight:700}
-.sevcard-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.sevcard.sev-critical{border-left-color:var(--crit)} .sevcard.sev-high{border-left-color:var(--high)}
-.sevcard.sev-medium{border-left-color:var(--med)} .sevcard.sev-low{border-left-color:var(--low)}
-.sevcard.sev-informational{border-left-color:var(--info)}
-.summary-kpis{display:grid;grid-template-columns:repeat(2,auto);gap:10px 22px}
-.kpi{display:flex;flex-direction:column}
-.kpi-n{font-size:22px;font-weight:700} .kpi-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.toprisk{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
-.toprisk-link{font-weight:600}
+/* Layout */
+.layout{max-width:1180px; margin:18px auto 60px; padding:0 24px; display:grid; grid-template-columns:228px 1fr; gap:30px; align-items:start}
+.toc{position:sticky; top:18px}
+.toc-inner{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 14px; box-shadow:var(--shadow)}
+.toc-inner h2{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:10px}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc li a{display:flex; gap:9px; align-items:baseline; padding:6px 8px; border-radius:6px; color:var(--txt2); font-size:13.5px; border-left:2px solid transparent}
+.toc li a:hover{background:var(--panel2); text-decoration:none}
+.toc li a.active{background:#eaf1fa; border-left-color:var(--navy2); color:var(--navy2); font-weight:600}
+.toc-num{color:var(--muted); min-width:16px; font-variant-numeric:tabular-nums}
+.doc{min-width:0}
 
-.donut-total{font-size:26px;font-weight:700;fill:var(--txt)}
-.donut-label{font-size:10px;fill:var(--muted);text-transform:uppercase;letter-spacing:1px}
-.donut-seg{transition:opacity .2s} .donut-empty{stroke:#1b2330}
-.donut-critical{stroke:var(--crit)} .donut-high{stroke:var(--high)} .donut-medium{stroke:var(--med)}
-.donut-low{stroke:var(--low)} .donut-informational{stroke:var(--info)}
+/* Sections */
+.section{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px 26px; margin-bottom:22px; box-shadow:var(--shadow)}
+.sec-head{display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid var(--line)}
+.sec-num{display:grid; place-items:center; width:30px; height:30px; border-radius:8px; background:var(--navy2); color:#fff; font-weight:700; font-size:15px}
+.sec-head h2{font-size:21px}
+.sec-intro{color:var(--muted); margin:0 0 18px; max-width:78ch}
+.appendix .sec-num{background:#475569}
 
-.tabs{display:flex;gap:8px;margin:0 0 18px}
-.tabs a{padding:8px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--muted)}
-.tabs a:hover{color:#fff;border-color:var(--accent);text-decoration:none}
+/* Exec summary */
+.exec-grid{display:grid; grid-template-columns:1fr 280px; gap:26px; align-items:start}
+.exec-prose p{margin:0 0 12px}
+.exec-prose p:first-child{font-size:16px; color:var(--txt)}
+.exec-stats{display:flex; flex-direction:column; align-items:center; gap:14px; background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius); padding:18px}
+.kpis{display:flex; gap:10px; width:100%; justify-content:space-around}
+.kpi{display:flex; flex-direction:column; align-items:center}
+.kpi-n{font-size:22px; font-weight:700; color:var(--navy2)}
+.kpi-l{font-size:11px; color:var(--muted); text-align:center}
+.donut-total{font-size:26px; font-weight:700; fill:var(--txt2)}
+.donut-label{font-size:11px; fill:var(--muted)}
+.donut-empty{stroke:var(--line2)}
+.donut-critical{stroke:var(--crit)} .donut-high{stroke:var(--high)} .donut-medium{stroke:var(--med)} .donut-low{stroke:var(--low)} .donut-informational{stroke:var(--info)}
+.sevcards{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:20px}
+.sevcard{display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 8px; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel2); cursor:pointer; border-top:3px solid var(--line2)}
+.sevcard:hover{box-shadow:var(--shadow)}
+.sevcard.active{box-shadow:0 0 0 2px var(--navy2)}
+.sc-n{font-size:24px; font-weight:700}
+.sc-l{font-size:12px; color:var(--muted)}
+.sevcard.sev-critical{border-top-color:var(--crit)} .sevcard.sev-critical .sc-n{color:var(--crit)}
+.sevcard.sev-high{border-top-color:var(--high)} .sevcard.sev-high .sc-n{color:var(--high)}
+.sevcard.sev-medium{border-top-color:var(--med)} .sevcard.sev-medium .sc-n{color:var(--med)}
+.sevcard.sev-low{border-top-color:var(--low)} .sevcard.sev-low .sc-n{color:var(--low)}
+.sevcard.sev-informational{border-top-color:var(--info)} .sevcard.sev-informational .sc-n{color:var(--info)}
 
-/* pills + badges */
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px}
-.sev-critical{background:rgba(255,45,85,.16);color:#ff6b85;border:1px solid rgba(255,45,85,.5)}
-.sev-high{background:rgba(255,122,24,.15);color:#ff9b52;border:1px solid rgba(255,122,24,.5)}
-.sev-medium{background:rgba(255,192,67,.14);color:#ffd27a;border:1px solid rgba(255,192,67,.45)}
-.sev-low{background:rgba(61,165,255,.14);color:#7dc0ff;border:1px solid rgba(61,165,255,.45)}
-.sev-informational{background:rgba(124,138,163,.14);color:#aab6c8;border:1px solid rgba(124,138,163,.4)}
-.badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
-.status-open{color:#ff9b52;border-color:rgba(255,122,24,.4)}
-.status-confirmed{color:#ff6b85;border-color:rgba(255,45,85,.4)}
-.status-remediated{color:var(--ok);border-color:rgba(34,197,94,.4)}
-.status-false_positive{color:var(--muted)}
-.status-accepted_risk{color:#ffd27a;border-color:rgba(255,192,67,.4)}
+/* Pills / badges / chips */
+.pill{display:inline-block; font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap}
+.sev-critical{background:#fdeaea; color:var(--crit); border:1px solid #f3c4c4}
+.sev-high{background:#fdf0e7; color:var(--high); border:1px solid #f4cdb0}
+.sev-medium{background:#fdf6e3; color:var(--med); border:1px solid #efdca4}
+.sev-low{background:#e8f0fe; color:var(--low); border:1px solid #c3d6fb}
+.sev-informational{background:#eef2f6; color:var(--info); border:1px solid #d3dbe4}
+.badge{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; background:var(--panel2); border:1px solid var(--line2); color:var(--muted)}
+.status-open,.status-confirmed{background:#fdeaea; color:var(--crit); border-color:#f3c4c4}
+.status-remediated,.status-resolved,.status-closed{background:#e7f6ec; color:var(--ok); border-color:#bfe3cb}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid var(--line2); background:var(--panel2); color:var(--txt2)}
+.c-mitre{background:#f3eafc; border-color:#dcc6f2; color:#6b21a8}
+.c-cis{background:#e8f0fe; border-color:#c3d6fb; color:#1d4ed8}
+.c-dfc{background:#e7f6ec; border-color:#bfe3cb; color:#15803d}
+.c-nist{background:#fef4e6; border-color:#f0d8af; color:#b45309}
+.tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 8px; border-radius:6px}
+.tag-explicit{background:#e8f0fe; color:#1d4ed8} .tag-derived{background:#eef2f6; color:var(--info)}
+.tag-chain{background:#fdeaea; color:var(--crit)}
+.kv{font-size:12.5px; color:var(--txt2)}
+.linkbtn{background:none; border:none; color:var(--navy2); cursor:pointer; font:inherit; font-size:12.5px; padding:0}
+.linkbtn:hover{text-decoration:underline}
 
-/* attack paths */
-.appath{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 16px}
-.appath-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
-.appath-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:6px}
-.derived-tag{background:#1a2230;border:1px dashed var(--line);border-radius:5px;padding:0 6px;color:var(--muted)}
-.appath-graph{overflow-x:auto;padding:6px 0}
-.break-chain{margin-top:10px;padding:9px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);
-  border-radius:8px;font-size:13px}
-.apgraph{display:block}
-.ap-node rect{fill:#19212f;stroke:#2b3a4f;stroke-width:1.5}
-.ap-entry rect{stroke:var(--accent);fill:rgba(255,59,82,.10)}
-.ap-target rect{stroke:var(--crit);fill:rgba(255,45,85,.14)}
-.ap-pivot rect{stroke:var(--med)} .ap-step rect{stroke:#3a4a60}
-.ap-node-type{fill:var(--muted);font-size:9px;font-weight:700;letter-spacing:1px}
-.ap-node-label{fill:var(--txt);font-size:12px;font-weight:600}
-.ap-node-fid{fill:#7db5ff;font-size:10px}
-.ap-edge{stroke:#3a4a60;stroke-width:2} .ap-arrow{fill:#3a4a60}
-.ap-edge-label{fill:var(--muted);font-size:10px}
-.ap-clickable{cursor:pointer}
-.ap-clickable:hover rect{filter:brightness(1.3)}
-.ap-clickable:focus{outline:none} .ap-clickable:focus rect{stroke:#7db5ff;stroke-width:2.5}
+/* Attack paths */
+.appath{border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px; background:var(--panel2)}
+.appath-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px}
+.ap-id{font-weight:700; font-size:13px; color:var(--navy2)}
+.ap-title{font-weight:600}
+.ap-jump{margin-left:auto}
+.ap-tags{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px}
+.ap-scroll{overflow-x:auto; padding:6px 2px}
+.ap-break{margin-top:10px; font-size:13px; background:#e7f6ec; border:1px solid #bfe3cb; border-radius:8px; padding:8px 12px}
+.apgraph,.cgraph{font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.ap-edge,.cg-edge{stroke:var(--line2); stroke-width:2; fill:none}
+.ap-arrow,.cg-arrowhead{fill:var(--line2)}
+.ap-edge-label,.cg-edge-label{fill:var(--muted); font-size:10px; font-weight:600}
+.ap-node rect,.cg-node rect{fill:#fff; stroke:var(--line2); stroke-width:1.5}
+.ap-node-type,.cg-node-type{fill:var(--muted); font-size:9px; font-weight:700; letter-spacing:.06em}
+.ap-node-label,.cg-node-label{fill:var(--txt2); font-size:11.5px; font-weight:600}
+.ap-node-fid,.cg-node-fid{fill:var(--navy2); font-size:10px; font-weight:600}
+.ap-entry rect{fill:#eaf1fa; stroke:var(--navy2)}
+.ap-target rect{fill:#fdeaea; stroke:var(--crit)}
+.ap-clickable,.cg-clickable{cursor:pointer}
+.ap-clickable:hover rect,.cg-clickable:hover rect{stroke-width:2.5; filter:drop-shadow(0 1px 3px rgba(15,23,42,.18))}
 
-/* findings */
-.findings-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.filters input[type=search],.filters select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
-  padding:7px 10px;border-radius:8px;font-size:12px}
-.filters input[type=search]{min-width:240px}
-.sevtoggles{display:flex;gap:4px}
-.sevtoggle{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:5px 8px;border-radius:7px;
-  border:1px solid var(--line);background:var(--panel2);cursor:pointer;user-select:none}
-.sevtoggle input{accent-color:var(--accent);margin:0}
-.result-count{color:var(--muted);font-size:12px;margin:12px 0 6px}
-.finding-list-headrow{display:grid;grid-template-columns:84px 108px 1fr 130px 160px 96px 20px;gap:10px;
-  padding:6px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
-.finding{border-bottom:1px solid var(--line)}
-.finding-head{display:grid;grid-template-columns:84px 108px 1fr 130px 160px 96px 20px;gap:10px;align-items:center;
-  width:100%;text-align:left;background:none;border:none;color:var(--txt);padding:11px 12px;cursor:pointer;font-size:13px}
-.finding-head:hover{background:rgba(255,255,255,.03)}
-.fh-id{font-family:Consolas,monospace;font-size:12px;color:#9fb2c9}
-.fh-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fh-domain{color:var(--muted);font-size:12px}
-.fh-res{color:#9fb2c9;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fh-caret{color:var(--muted);transition:transform .15s;justify-self:end}
-.finding.open .fh-caret{transform:rotate(90deg);color:var(--accent)}
-.finding.open .finding-head{background:rgba(255,59,82,.05)}
-.finding-detail{padding:6px 16px 20px 16px;background:var(--panel2)}
-.detail-meta{display:flex;gap:18px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
-.kv{font-size:12px} .kv .muted{margin-right:4px}
-.detail-block{margin:0 0 14px;max-width:90ch}
-.detail-block p{margin:0;overflow-wrap:anywhere}
-.detail-block.rec{background:rgba(61,165,255,.06);border:1px solid rgba(61,165,255,.25);border-radius:8px;padding:12px 14px}
-.resfull{display:inline-block;max-width:100%;overflow-wrap:anywhere}
-.apsteps,.refs,.evidence{margin:0;padding-left:18px}
-.apsteps li,.evidence li{margin:4px 0}
-.evidence{list-style:none;padding:0}
-.evidence li{background:#0d1119;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0}
-.ev-source{font-size:11px;color:var(--med);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.ev-summary{margin-top:2px} .ev-ref{margin-top:4px;font-size:12px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;border:1px solid var(--line);background:#0d1119}
-.c-mitre{color:#ff9b8a;border-color:rgba(255,107,61,.4)}
-.c-cis{color:#8ad6ff;border-color:rgba(61,165,255,.4)}
-.c-dfc{color:#c4a6ff;border-color:rgba(150,120,255,.4)}
-.c-nist{color:#9fe6b4;border-color:rgba(34,197,94,.35)}
-.ref-inert{color:var(--muted);text-decoration:line-through dotted}
+/* Findings */
+.filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px}
+.filters input,.filters select{background:var(--panel); border:1px solid var(--line2); border-radius:7px; padding:7px 10px; font:inherit; font-size:13px; color:var(--txt)}
+.filters input[type=search]{flex:1; min-width:200px}
+.filter-count{font-size:12.5px; color:var(--muted); margin-left:auto}
+.finding{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; background:var(--panel)}
+.finding-head{display:grid; grid-template-columns:auto 92px 1fr 130px 150px 96px auto; gap:12px; align-items:center; width:100%; text-align:left; background:none; border:none; padding:12px 14px; cursor:pointer; font:inherit; color:var(--txt)}
+.finding-head:hover{background:var(--panel2)}
+.fh-id{font-weight:700; font-size:12.5px; color:var(--navy2)}
+.fh-title{font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-domain{font-size:12px; color:var(--muted)}
+.fh-res{font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-caret{justify-self:end; color:var(--muted); transition:transform .15s}
+.finding.open .fh-caret{transform:rotate(90deg)}
+.flash{animation:flash 1.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--navy2)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+.finding-detail{padding:4px 16px 18px; border-top:1px solid var(--line); background:var(--panel2)}
+.detail-meta{display:flex; flex-wrap:wrap; gap:14px; padding:12px 0; color:var(--txt2)}
+.detail-block{margin:12px 0}
+.detail-block h4{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px}
+.detail-block p{margin:0}
+.detail-block.rec{background:#e7f6ec; border:1px solid #bfe3cb; border-radius:8px; padding:10px 12px}
+.detail-block.rec h4{color:var(--ok)}
+.resfull{display:block; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:7px 9px; word-break:break-all}
+.apsteps,.refs,.evidence{margin:0; padding-left:18px}
+.evidence{list-style:none; padding-left:0}
+.evidence li{border-left:2px solid var(--line2); padding:4px 0 4px 12px; margin-bottom:8px}
+.ev-source{font-weight:600; font-size:13px}
+.ev-summary{font-size:13px}
+.ev-ref{font-size:12px; margin-top:2px}
+.ref-inert{color:var(--muted)}
 
-.cov-grid{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:24px}
-.cov-table{width:100%;border-collapse:collapse;font-size:13px}
-.cov-table th,.cov-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-.cov-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+/* Recommendations */
+.rec-tier{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; overflow:hidden}
+.tier-head{display:flex; align-items:baseline; gap:12px; padding:11px 16px; background:var(--panel2); border-bottom:1px solid var(--line)}
+.tier-badge{font-weight:700; font-size:13px; padding:3px 11px; border-radius:6px; color:#fff}
+.tier-1 .tier-badge{background:var(--crit)} .tier-2 .tier-badge{background:var(--high)} .tier-3 .tier-badge{background:var(--info)}
+.tier-sub{font-size:12.5px; color:var(--muted)}
+.rec-list{padding:12px 16px; display:grid; gap:10px}
+.rec{border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--panel)}
+.rec-top{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+.rec-cat{font-size:12.5px; color:var(--muted)}
+.rec-text{margin:0 0 8px; font-size:14px}
+.rec-foot{display:flex; flex-direction:column; gap:6px}
+.rec-fids{font-size:12.5px; display:flex; flex-wrap:wrap; gap:8px; align-items:baseline}
 
-.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 22px;margin-bottom:14px}
-.about-grid .muted{font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-.about-wide{grid-column:1/-1}
-.provenance{border-top:1px solid var(--line);padding-top:14px;color:var(--txt);max-width:90ch}
-.provenance p{margin:0 0 8px}
-.warnings{margin-top:10px}
-.warnings summary{cursor:pointer;color:var(--med)}
-.warnings ul{margin:8px 0 0;color:var(--muted);font-size:12px}
+/* Resources */
+.scope-strip{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px}
+.scope-chip{border:1px solid var(--line2); border-radius:8px; padding:8px 12px; background:var(--panel2)}
+.scope-label{display:block; font-weight:600; font-size:13px}
+.scope-nums{font-size:12px; color:var(--muted)}
+.restable{width:100%; border-collapse:collapse; font-size:13px}
+.restable th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:2px solid var(--line)}
+.restable td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+.restable tbody tr:hover{background:var(--panel2)}
+.asset-name{font-weight:600}
+.asset-type{font-size:11.5px; color:var(--muted)}
+.asset-scope{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
+.cov td:first-child{font-weight:600}
 
-.empty{color:var(--muted);font-style:italic;padding:10px 0}
-.foot{max-width:1180px;margin:0 auto;padding:18px 24px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
-.hidden-by-filter{display:none !important}
-.flash{animation:flash 1.4s ease-out}
-@keyframes flash{0%{background:rgba(255,59,82,.25)}100%{background:transparent}}
+/* Consolidated graph */
+.cg-controls{display:flex; align-items:center; gap:8px; margin-bottom:10px}
+.cg-hint{font-size:12px; color:var(--muted); margin-left:6px}
+.cg-legend{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; font-size:12px}
+.cg-leg{display:inline-flex; align-items:center; gap:6px; color:var(--txt2)}
+.cg-leg::before{content:""; width:11px; height:11px; border-radius:3px; display:inline-block; background:var(--line2)}
+.cg-leg.sev-critical::before{background:var(--crit)} .cg-leg.sev-high::before{background:var(--high)} .cg-leg.sev-medium::before{background:var(--med)} .cg-leg.sev-low::before{background:var(--low)} .cg-leg.sev-informational::before{background:var(--info)}
+.cg-leg-back::before{background:repeating-linear-gradient(90deg,var(--muted) 0 3px,transparent 3px 6px)}
+.cg-frame{border:1px solid var(--line); border-radius:var(--radius); background:var(--panel2); overflow:hidden; touch-action:none}
+.cgraph{display:block; width:100%; height:auto; min-height:240px; cursor:grab}
+.cgraph:active{cursor:grabbing}
+.cg-node rect{fill:#fff}
+.cg-node.sev-critical rect{stroke:var(--crit); stroke-width:2}
+.cg-node.sev-high rect{stroke:var(--high); stroke-width:2}
+.cg-node.sev-medium rect{stroke:var(--med); stroke-width:2}
+.cg-node.sev-low rect{stroke:var(--low); stroke-width:2}
+.cg-node.sev-informational rect{stroke:var(--info)}
+.cg-node.sev-none rect{stroke:var(--line2); stroke-dasharray:4 3}
+.cg-back{stroke:var(--muted); stroke-width:1.6; stroke-dasharray:5 4}
+.cg-node.cg-hi rect{stroke-width:3; filter:drop-shadow(0 1px 4px rgba(15,23,42,.22))}
+.cg-edge.cg-hi{stroke:var(--navy2); stroke-width:3}
 
-@media (max-width:880px){
-  .summary-grid{grid-template-columns:1fr}
-  .cov-grid{grid-template-columns:1fr}
-  .finding-list-headrow,.finding-head{grid-template-columns:70px 1fr 84px 18px}
-  .finding-list-headrow span:nth-child(2),.fh-id,
-  .finding-list-headrow span:nth-child(4),.fh-domain,
-  .finding-list-headrow span:nth-child(5),.fh-res{display:none}
+/* Prose / appendix */
+.prose p{margin:0 0 12px; max-width:80ch}
+.prose h3{font-size:15px; margin:16px 0 6px}
+.restable.about td:first-child{font-weight:600; width:200px; color:var(--muted)}
+.fw-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:18px}
+.fw h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:6px}
+.warnbox{margin-top:18px; background:#fdf6e3; border:1px solid #efdca4; border-radius:8px; padding:12px 14px}
+.warnbox h4{color:var(--med); font-size:13px; margin-bottom:6px}
+.warnbox ul{margin:0; padding-left:18px; font-size:13px}
+
+/* Responsive */
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .toc{display:none}
+  .exec-grid{grid-template-columns:1fr}
+  .cover-meta{grid-template-columns:1fr}
+  .cover-foot{grid-template-columns:1fr}
+  .sevcards{grid-template-columns:repeat(2,1fr)}
+  .finding-head{grid-template-columns:auto 1fr auto; gap:8px}
+  .fh-domain,.fh-res,.fh-status{display:none}
 }
 
+/* Print */
 @media print{
-  :root{--bg:#fff;--panel:#fff;--panel2:#fff;--txt:#111;--muted:#555;--line:#ccc}
-  body{background:#fff;color:#111}
+  body{background:#fff}
   .no-print{display:none !important}
-  .panel{break-inside:avoid;box-shadow:none;border-color:#ccc}
-  .appath,.finding{break-inside:avoid}
+  .cover{box-shadow:none; border-radius:0; margin:0; color:#fff}
+  .layout{display:block; max-width:none; margin:0; padding:0}
+  .section{box-shadow:none; border-radius:0; border:none; border-top:1.5px solid var(--line); break-inside:avoid; page-break-inside:avoid; margin:0 0 14px}
+  .finding{break-inside:avoid}
+  .appath{break-inside:avoid}
+  .cg-viewport{transform:none !important}
+  .cg-frame{overflow:visible}
   .finding-detail{display:block !important}
-  .fh-caret{display:none}
-  section{page-break-before:auto}
-  #findings{page-break-before:always}
-  .ap-node rect{fill:#f3f5f8}
-  a{color:#0b57d0}
+  .finding .fh-caret{display:none}
+  a{color:var(--txt2)}
 }
-
 </style>
+<noscript><style>
+  .finding-detail{display:block !important}
+  .fh-caret,.filters,.actionbar,.cg-controls,.cg-hint{display:none !important}
+</style></noscript>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">⛊</span>
-    <div>
-      <div class="brand-title">Contoso Cloud — Sample Assessment</div>
-      <div class="brand-sub">Azure Red Team — interactive assessment report</div>
-    </div>
-  </div>
-  <div class="topbar-actions no-print">
-    <button id="expandAll" class="ghost">Expand all</button>
-    <button id="collapseAll" class="ghost">Collapse all</button>
-    <button id="printBtn" class="ghost">Print / PDF</button>
-  </div>
-</header>
 
-<main>
-  <section class="summary panel">
-    <div class="summary-grid">
-      <div class="summary-donut"><svg viewBox="0 0 132 132" width="132" height="132" class="donut" role="img" aria-label="Findings by severity">
+  <header class="cover">
+    <div class="cover-top">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">⛊</span><span class="brand-name">Azure Red Team</span></div>
+      <span class="confidential">CONFIDENTIAL</span>
+    </div>
+    <div class="cover-main">
+      <p class="cover-kicker">Cloud Security Assessment</p>
+      <h1 class="cover-title">Contoso Cloud — Sample Assessment</h1>
+      <div class="cover-meta"><div class="cm-row"><span class="cm-k">Client</span><span class="cm-v">Fictional Demo Corp (not a real customer)</span></div><div class="cm-row"><span class="cm-k">Engagement ID</span><span class="cm-v">sample-acme-2026-q2</span></div><div class="cm-row"><span class="cm-k">Mode</span><span class="cm-v">read-only-assessment</span></div><div class="cm-row"><span class="cm-k">Assessment date</span><span class="cm-v">2026-06-09</span></div><div class="cm-row"><span class="cm-k">Subscriptions</span><span class="cm-v">00000000-0000-0000-0000-000000000000  ·  00000000-0000-0000-0000-000000000001</span></div></div>
+      <div class="cover-sevs"><span class="cover-sev sev-critical">1 Critical</span><span class="cover-sev sev-high">4 High</span><span class="cover-sev sev-medium">2 Medium</span><span class="cover-sev sev-low">1 Low</span><span class="cover-sev sev-informational">1 Informational</span></div>
+    </div>
+    <div class="cover-foot">
+      <div class="cover-toc">
+        <h2>Contents</h2>
+        <ol class="print-toc"><li><span class="pt-num">1</span><span class="pt-label">Executive Summary</span></li><li><span class="pt-num">2</span><span class="pt-label">Attack Paths</span></li><li><span class="pt-num">3</span><span class="pt-label">Findings</span></li><li><span class="pt-num">4</span><span class="pt-label">Recommendations</span></li><li><span class="pt-num">5</span><span class="pt-label">Resources &amp; Scope</span></li><li><span class="pt-num">6</span><span class="pt-label">Consolidated Attack Graph</span></li><li><span class="pt-num">A</span><span class="pt-label">Appendix A · Coverage &amp; Controls</span></li><li><span class="pt-num">B</span><span class="pt-label">Appendix B · Methodology &amp; Limitations</span></li><li><span class="pt-num">C</span><span class="pt-label">Appendix C · About This Report</span></li></ol>
+      </div>
+      <p class="disclaimer">Read-only assessment. This report is generated from supplied, read-only findings and methodology output; it performs no live scanning and contains no exploit payloads. Distribution is restricted to authorized recipients.</p>
+    </div>
+  </header>
+
+  <div class="actionbar no-print">
+    <button id="btnExpand" class="ab-btn">Expand all</button>
+    <button id="btnCollapse" class="ab-btn">Collapse all</button>
+    <button id="btnPrint" class="ab-btn ab-primary">Print / Save PDF</button>
+  </div>
+<div class="layout">
+<nav class="toc no-print" aria-label="Table of contents"><div class="toc-inner"><h2>Contents</h2><ol><li><a href="#exec-summary" data-section="exec-summary"><span class="toc-num">1</span><span class="toc-label">Executive Summary</span></a></li><li><a href="#attack-paths" data-section="attack-paths"><span class="toc-num">2</span><span class="toc-label">Attack Paths</span></a></li><li><a href="#findings" data-section="findings"><span class="toc-num">3</span><span class="toc-label">Findings</span></a></li><li><a href="#recommendations" data-section="recommendations"><span class="toc-num">4</span><span class="toc-label">Recommendations</span></a></li><li><a href="#resources" data-section="resources"><span class="toc-num">5</span><span class="toc-label">Resources &amp; Scope</span></a></li><li><a href="#attack-graph" data-section="attack-graph"><span class="toc-num">6</span><span class="toc-label">Consolidated Attack Graph</span></a></li><li><a href="#appendix-coverage" data-section="appendix-coverage"><span class="toc-num">A</span><span class="toc-label">Appendix A · Coverage &amp; Controls</span></a></li><li><a href="#appendix-methodology" data-section="appendix-methodology"><span class="toc-num">B</span><span class="toc-label">Appendix B · Methodology &amp; Limitations</span></a></li><li><a href="#appendix-about" data-section="appendix-about"><span class="toc-num">C</span><span class="toc-label">Appendix C · About This Report</span></a></li></ol></div></nav>
+<main class="doc">
+
+  <section id="exec-summary" class="section">
+    <div class="sec-head"><span class="sec-num">1</span><h2>Executive Summary</h2></div>
+    <div class="exec-grid">
+      <div class="exec-prose"><p>The assessment recorded 9 findings in the in-scope environment (1 Critical, 4 High, 2 Medium, 1 Low, 1 Informational).</p><p>The highest-severity modeled attack path, AZ-PATH-001 (Critical), “Public web app to subscription Owner,” traces a route ending in Subscription Owner.</p><p>9 of 9 findings are in an open or unresolved state and warrant remediation tracking.</p><p>4 findings participate in at least one modeled attack path and should be prioritized to break those chains.</p></div>
+      <aside class="exec-stats">
+        <svg viewBox="0 0 132 132" width="132" height="132" class="donut" role="img" aria-label="Findings by severity">
     <circle cx="66" cy="66" r="52" fill="none" class="donut-seg donut-critical" stroke-width="18" stroke-dasharray="36.302848441482055 290.42278753185644" stroke-dashoffset="0" transform="rotate(-90 66 66)"><title>Critical: 1</title></circle><circle cx="66" cy="66" r="52" fill="none" class="donut-seg donut-high" stroke-width="18" stroke-dasharray="145.21139376592822 181.5142422074103" stroke-dashoffset="-36.302848441482055" transform="rotate(-90 66 66)"><title>High: 4</title></circle><circle cx="66" cy="66" r="52" fill="none" class="donut-seg donut-medium" stroke-width="18" stroke-dasharray="72.60569688296411 254.1199390903744" stroke-dashoffset="-181.5142422074103" transform="rotate(-90 66 66)"><title>Medium: 2</title></circle><circle cx="66" cy="66" r="52" fill="none" class="donut-seg donut-low" stroke-width="18" stroke-dasharray="36.302848441482055 290.42278753185644" stroke-dashoffset="-254.1199390903744" transform="rotate(-90 66 66)"><title>Low: 1</title></circle><circle cx="66" cy="66" r="52" fill="none" class="donut-seg donut-informational" stroke-width="18" stroke-dasharray="36.302848441482055 290.42278753185644" stroke-dashoffset="-290.42278753185644" transform="rotate(-90 66 66)"><title>Informational: 1</title></circle>
     <text x="66" y="62" text-anchor="middle" class="donut-total">9</text>
     <text x="66" y="80" text-anchor="middle" class="donut-label">findings</text>
-  </svg></div>
-      <div class="summary-sevs"><button class="sevcard sev-critical" data-filter-severity="Critical">
-      <span class="sevcard-n">1</span>
-      <span class="sevcard-l">Critical</span>
-    </button><button class="sevcard sev-high" data-filter-severity="High">
-      <span class="sevcard-n">4</span>
-      <span class="sevcard-l">High</span>
-    </button><button class="sevcard sev-medium" data-filter-severity="Medium">
-      <span class="sevcard-n">2</span>
-      <span class="sevcard-l">Medium</span>
-    </button><button class="sevcard sev-low" data-filter-severity="Low">
-      <span class="sevcard-n">1</span>
-      <span class="sevcard-l">Low</span>
-    </button><button class="sevcard sev-informational" data-filter-severity="Informational">
-      <span class="sevcard-n">1</span>
-      <span class="sevcard-l">Informational</span>
-    </button></div>
-      <div class="summary-kpis">
-        <div class="kpi"><span class="kpi-n">9</span><span class="kpi-l">Findings</span></div>
-        <div class="kpi"><span class="kpi-n">9</span><span class="kpi-l">Open risk</span></div>
-        <div class="kpi"><span class="kpi-n">2</span><span class="kpi-l">Attack paths</span></div>
-        <div class="kpi"><span class="kpi-n">5</span><span class="kpi-l">Critical + High</span></div>
-      </div>
+  </svg>
+        <div class="kpis">
+          <div class="kpi"><span class="kpi-n">9</span><span class="kpi-l">Total findings</span></div>
+          <div class="kpi"><span class="kpi-n">9</span><span class="kpi-l">Open / unresolved</span></div>
+          <div class="kpi"><span class="kpi-n">4</span><span class="kpi-l">In attack paths</span></div>
+        </div>
+      </aside>
     </div>
-    <div class="toprisk">
-      <span class="muted">Top risk</span>
-      <span class="pill sev sev-critical">Critical</span>
-      <a href="#row-az-path-001" data-goto-finding="AZ-PATH-001" class="toprisk-link">AZ-PATH-001 — Public web app to subscription Owner via managed identity and Key Vault</a>
-    </div>
+    <div class="sevcards"><div class="sevcard sev-critical" data-severity="Critical" role="button" tabindex="0"><span class="sc-n">1</span><span class="sc-l">Critical</span></div><div class="sevcard sev-high" data-severity="High" role="button" tabindex="0"><span class="sc-n">4</span><span class="sc-l">High</span></div><div class="sevcard sev-medium" data-severity="Medium" role="button" tabindex="0"><span class="sc-n">2</span><span class="sc-l">Medium</span></div><div class="sevcard sev-low" data-severity="Low" role="button" tabindex="0"><span class="sc-n">1</span><span class="sc-l">Low</span></div><div class="sevcard sev-informational" data-severity="Informational" role="button" tabindex="0"><span class="sc-n">1</span><span class="sc-l">Informational</span></div></div>
   </section>
 
-  <nav class="tabs no-print" role="tablist">
-    <a href="#attack-paths">Attack paths</a>
-    <a href="#findings">Findings</a>
-    <a href="#coverage">Coverage</a>
-    <a href="#about">About</a>
-  </nav>
-
-  <section id="attack-paths" class="panel">
-    <h2>Attack Paths</h2>
-    <p class="section-note">Chained findings represent real, walkable compromise paths and are featured first. Severity reflects the end state. Click a node with a finding badge to jump to its detail.</p>
-    <article class="appath" id="path-az-path-001">
-        <header class="appath-head">
-          <div class="appath-titles">
-            <h3><span class="pill sev sev-critical">Critical</span> AZ-PATH-001 — Public web app to subscription Owner</h3>
-            <div class="appath-meta">
-              <span><span class="muted">Entry</span> Public App Service</span>
-              <span><span class="muted">End state</span> Subscription Owner</span>
-              
-            </div>
-          </div>
-          <button class="link-btn" data-goto-finding="AZ-PATH-001">View finding →</button>
-        </header>
-        <div class="appath-graph" data-finding="AZ-PATH-001"><svg class="apgraph" viewBox="0 0 1248 184" width="1248" height="184" role="img" aria-label="Attack path: Public web app to subscription Owner"><defs><marker id="arrow-az-path-001" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" class="ap-arrow"/></marker></defs><line x1="196" y1="92" x2="280" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="240" y="84" text-anchor="middle" class="ap-edge-label">IMDS token · T1552.005</text><line x1="452" y1="92" x2="536" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="496" y="84" text-anchor="middle" class="ap-edge-label">secret read · T1555.0…</text><line x1="708" y1="92" x2="792" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="752" y="84" text-anchor="middle" class="ap-edge-label">SP credential</text><line x1="964" y1="92" x2="1048" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="1008" y="84" text-anchor="middle" class="ap-edge-label">roleAssignments/write…</text><g class="ap-node ap-entry ap-clickable" data-finding="AZ-WEB-009" tabindex="0" role="button"><title>Public App Service
+  <section id="attack-paths" class="section">
+    <div class="sec-head"><span class="sec-num">2</span><h2>Attack Paths</h2></div>
+    <p class="sec-intro">Modeled routes an adversary could take through the environment. Nodes linked to a finding are clickable and jump to the detailed finding.</p>
+    
+      <article class="appath">
+        <div class="appath-head">
+          <span class="ap-sev"><span class="pill sev sev-critical">Critical</span></span>
+          <span class="ap-id">AZ-PATH-001</span>
+          <span class="ap-title">Public web app to subscription Owner</span>
+          <button class="linkbtn ap-jump" data-target="finding-az-path-001">View finding AZ-PATH-001 ›</button>
+        </div>
+        <div class="ap-tags"><span class="tag tag-explicit">modeled</span><span class="kv"><span class="muted">Entry</span> Public App Service</span><span class="kv"><span class="muted">End state</span> Subscription Owner</span></div>
+        <div class="ap-scroll"><svg class="apgraph" viewBox="0 0 1248 184" width="1248" height="184" role="img" aria-label="Attack path: Public web app to subscription Owner"><defs><marker id="arrow-az-path-001" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" class="ap-arrow"/></marker></defs><line x1="196" y1="92" x2="280" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="240" y="84" text-anchor="middle" class="ap-edge-label">IMDS token · T1552.005</text><line x1="452" y1="92" x2="536" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="496" y="84" text-anchor="middle" class="ap-edge-label">secret read · T1555.0…</text><line x1="708" y1="92" x2="792" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="752" y="84" text-anchor="middle" class="ap-edge-label">SP credential</text><line x1="964" y1="92" x2="1048" y2="92" class="ap-edge" marker-end="url(#arrow-az-path-001)"/><text x="1008" y="84" text-anchor="middle" class="ap-edge-label">roleAssignments/write…</text><g class="ap-node ap-entry ap-clickable" data-finding="AZ-WEB-009" tabindex="0" role="button"><title>Public App Service
 /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal
 Finding AZ-WEB-009</title><rect x="28" y="60" width="168" height="64" rx="9"/><text x="112" y="82" text-anchor="middle" class="ap-node-type">ENTRY</text><text x="112" y="102" text-anchor="middle" class="ap-node-label">Public App Service</text><text x="112" y="116" text-anchor="middle" class="ap-node-fid">AZ-WEB-009</text></g><g class="ap-node ap-pivot"><title>App managed identity</title><rect x="284" y="60" width="168" height="64" rx="9"/><text x="368" y="82" text-anchor="middle" class="ap-node-type">PIVOT</text><text x="368" y="102" text-anchor="middle" class="ap-node-label">App managed identity</text></g><g class="ap-node ap-pivot ap-clickable" data-finding="AZ-LOG-005" tabindex="0" role="button"><title>Key Vault secret
 /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod
 Finding AZ-LOG-005</title><rect x="540" y="60" width="168" height="64" rx="9"/><text x="624" y="82" text-anchor="middle" class="ap-node-type">PIVOT</text><text x="624" y="102" text-anchor="middle" class="ap-node-label">Key Vault secret</text><text x="624" y="116" text-anchor="middle" class="ap-node-fid">AZ-LOG-005</text></g><g class="ap-node ap-pivot ap-clickable" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>sp-deploy-prod
 Finding AZ-AUTH-014</title><rect x="796" y="60" width="168" height="64" rx="9"/><text x="880" y="82" text-anchor="middle" class="ap-node-type">PIVOT</text><text x="880" y="102" text-anchor="middle" class="ap-node-label">sp-deploy-prod</text><text x="880" y="116" text-anchor="middle" class="ap-node-fid">AZ-AUTH-014</text></g><g class="ap-node ap-target ap-clickable" data-finding="AZ-PATH-001" tabindex="0" role="button"><title>Subscription Owner
 Finding AZ-PATH-001</title><rect x="1052" y="60" width="168" height="64" rx="9"/><text x="1136" y="82" text-anchor="middle" class="ap-node-type">TARGET</text><text x="1136" y="102" text-anchor="middle" class="ap-node-label">Subscription Owner</text><text x="1136" y="116" text-anchor="middle" class="ap-node-fid">AZ-PATH-001</text></g></svg></div>
-        <div class="break-chain"><strong>Break the chain:</strong> Remove Microsoft.Authorization/roleAssignments/write from sp-deploy-prod (finding AZ-AUTH-014). Without the escalation primitive, the chain terminates at a low-privilege identity.</div>
-      </article><article class="appath" id="path-az-auth-014">
-        <header class="appath-head">
-          <div class="appath-titles">
-            <h3><span class="pill sev sev-high">High</span> AZ-AUTH-014 — Service principal holds roleAssignments/write at subscription scope</h3>
-            <div class="appath-meta">
-              <span><span class="muted">Entry</span> Compromised SP sp-deploy-prod</span>
-              <span><span class="muted">End state</span> Self-assign Owner</span>
-              <span class="derived-tag" title="Linearized from the finding's attack_path text; nodes are narrative steps, not validated topology">derived</span>
-            </div>
-          </div>
-          <button class="link-btn" data-goto-finding="AZ-AUTH-014">View finding →</button>
-        </header>
-        <div class="appath-graph" data-finding="AZ-AUTH-014"><svg class="apgraph" viewBox="0 0 736 184" width="736" height="184" role="img" aria-label="Attack path: Service principal holds roleAssignments/write at subscription scope"><defs><marker id="arrow-az-auth-014" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" class="ap-arrow"/></marker></defs><line x1="196" y1="92" x2="280" y2="92" class="ap-edge" marker-end="url(#arrow-az-auth-014)"/><line x1="452" y1="92" x2="536" y2="92" class="ap-edge" marker-end="url(#arrow-az-auth-014)"/><g class="ap-node ap-entry ap-clickable" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>Compromised SP sp-deploy-prod
+        <div class="ap-break"><span class="muted">Break the chain:</span> Remove Microsoft.Authorization/roleAssignments/write from sp-deploy-prod (finding AZ-AUTH-014). Without the escalation primitive, the chain terminates at a low-privilege identity.</div>
+      </article>
+      <article class="appath">
+        <div class="appath-head">
+          <span class="ap-sev"><span class="pill sev sev-high">High</span></span>
+          <span class="ap-id">AZ-AUTH-014</span>
+          <span class="ap-title">Service principal holds roleAssignments/write at subscription scope</span>
+          <button class="linkbtn ap-jump" data-target="finding-az-auth-014">View finding AZ-AUTH-014 ›</button>
+        </div>
+        <div class="ap-tags"><span class="tag tag-derived">derived</span><span class="kv"><span class="muted">Entry</span> Compromised SP sp-deploy-prod</span><span class="kv"><span class="muted">End state</span> Self-assign Owner</span></div>
+        <div class="ap-scroll"><svg class="apgraph" viewBox="0 0 736 184" width="736" height="184" role="img" aria-label="Attack path: Service principal holds roleAssignments/write at subscription scope"><defs><marker id="arrow-az-auth-014" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" class="ap-arrow"/></marker></defs><line x1="196" y1="92" x2="280" y2="92" class="ap-edge" marker-end="url(#arrow-az-auth-014)"/><line x1="452" y1="92" x2="536" y2="92" class="ap-edge" marker-end="url(#arrow-az-auth-014)"/><g class="ap-node ap-entry ap-clickable" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>Compromised SP sp-deploy-prod
 Finding AZ-AUTH-014</title><rect x="28" y="60" width="168" height="64" rx="9"/><text x="112" y="82" text-anchor="middle" class="ap-node-type">ENTRY</text><text x="112" y="102" text-anchor="middle" class="ap-node-label">Compromised SP sp-deplo…</text><text x="112" y="116" text-anchor="middle" class="ap-node-fid">AZ-AUTH-014</text></g><g class="ap-node ap-step ap-clickable" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>roleAssignments/write
 Finding AZ-AUTH-014</title><rect x="284" y="60" width="168" height="64" rx="9"/><text x="368" y="82" text-anchor="middle" class="ap-node-type">STEP</text><text x="368" y="102" text-anchor="middle" class="ap-node-label">roleAssignments/write</text><text x="368" y="116" text-anchor="middle" class="ap-node-fid">AZ-AUTH-014</text></g><g class="ap-node ap-target ap-clickable" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>Self-assign Owner
 Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/><text x="624" y="82" text-anchor="middle" class="ap-node-type">TARGET</text><text x="624" y="102" text-anchor="middle" class="ap-node-label">Self-assign Owner</text><text x="624" y="116" text-anchor="middle" class="ap-node-fid">AZ-AUTH-014</text></g></svg></div>
-        <div class="break-chain"><strong>Break the chain:</strong> Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.</div>
+        <div class="ap-break"><span class="muted">Break the chain:</span> Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.</div>
       </article>
   </section>
 
-  <section id="findings" class="panel">
-    <div class="findings-head">
-      <h2>Findings</h2>
-      <div class="filters no-print">
-        <input type="search" id="search" placeholder="Search id, title, resource, domain…" aria-label="Search findings">
-        <select id="agentFilter" aria-label="Filter by domain agent">
-          <option value="">All domains</option>
-          <option value="ai-foundry">ai-foundry</option><option value="authorization-attack-path">authorization-attack-path</option><option value="data-protection">data-protection</option><option value="governance-posture">governance-posture</option><option value="identity-posture">identity-posture</option><option value="logging-coverage">logging-coverage</option><option value="network-exposure">network-exposure</option><option value="web-exposure">web-exposure</option>
-        </select>
-        <select id="statusFilter" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          <option value="accepted_risk">accepted risk</option><option value="confirmed">confirmed</option><option value="open">open</option>
-        </select>
-        <div class="sevtoggles">
-          <label class="sevtoggle sev-critical"><input type="checkbox" value="Critical" checked> C</label><label class="sevtoggle sev-high"><input type="checkbox" value="High" checked> H</label><label class="sevtoggle sev-medium"><input type="checkbox" value="Medium" checked> M</label><label class="sevtoggle sev-low"><input type="checkbox" value="Low" checked> L</label><label class="sevtoggle sev-informational"><input type="checkbox" value="Informational" checked> I</label>
-        </div>
-      </div>
+  <section id="findings" class="section">
+    <div class="sec-head"><span class="sec-num">3</span><h2>Findings</h2></div>
+    <div class="filters no-print">
+      <input type="search" id="fSearch" placeholder="Search findings…" aria-label="Search findings">
+      <select id="fSeverity" aria-label="Filter by severity"><option value="">All severities</option><option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option><option value="Informational">Informational</option></select>
+      <select id="fDomain" aria-label="Filter by domain"><option value="">All domains</option><option value="AI">AI</option><option value="Attack Path">Attack Path</option><option value="Governance">Governance</option><option value="Identity">Identity</option><option value="Logging">Logging</option><option value="Network">Network</option><option value="RBAC">RBAC</option><option value="Storage">Storage</option><option value="Web">Web</option></select>
+      <select id="fAgent" aria-label="Filter by agent"><option value="">All agents</option><option value="ai-foundry">ai-foundry</option><option value="authorization-attack-path">authorization-attack-path</option><option value="data-protection">data-protection</option><option value="governance-posture">governance-posture</option><option value="identity-posture">identity-posture</option><option value="logging-coverage">logging-coverage</option><option value="network-exposure">network-exposure</option><option value="web-exposure">web-exposure</option></select>
+      <span class="filter-count" id="fCount"></span>
     </div>
-    <div class="result-count no-print" id="resultCount"></div>
-    <div class="finding-list-headrow">
-      <span>Sev</span><span>ID</span><span>Title</span><span>Domain</span><span>Resource</span><span>Status</span><span></span>
-    </div>
-    <div id="findingList">
-      
-  <div class="finding" id="row-az-path-001"
+    <div class="findings" id="findingList">
+  <div class="finding" id="finding-az-path-001"
        data-severity="Critical"
        data-severity-rank="5"
        data-agent="authorization-attack-path"
@@ -352,7 +401,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>An internet-facing App Service has a system-assigned managed identity that can read a Key Vault holding a service principal credential. That principal holds roleAssignments/write at the subscription scope, enabling self-elevation to Owner.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Public web entry -&gt; SSRF/code exec -&gt; managed identity token -&gt; Key Vault secret -&gt; privileged SP -&gt; roleAssignments/write -&gt; subscription Owner</p></div><div class="detail-block"><h4>Attack path</h4><ol class="apsteps"><li>Public App Service (contoso-public-portal)</li><li>App managed identity token (IMDS)</li><li>Key Vault kv-web-prod secret read</li><li>Service principal sp-deploy-prod</li><li>roleAssignments/write self-elevation</li><li>Subscription Owner</li></ol></div><div class="detail-block"><h4>Risk</h4><p>Full administrative control of the production subscription, including all data stores and the ability to disable logging.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">Azure Resource Graph</div><div class="ev-summary">App Service contoso-public-portal exposes HTTPS publicly with system-assigned identity enabled.</div></li><li><div class="ev-source">az role assignment list</div><div class="ev-summary">SP 'sp-deploy-prod' holds a custom role with Microsoft.Authorization/roleAssignments/write at subscription scope.</div></li><li><div class="ev-source">az keyvault show</div><div class="ev-summary">Key Vault kv-web-prod grants get/list secrets to the app's managed identity via access policy.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Remove roleAssignments/write from the service principal (replace with PIM-eligible, time-bound assignment). Scope the managed identity's Key Vault access to only the secrets it needs and enable Key Vault RBAC with purge protection.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-mitre">T1548</span><span class="chip c-mitre">T1552.005</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-cis">CIS 8.4</span><span class="chip c-dfc">Managed identity with excessive permissions</span><span class="chip c-nist">AC-6</span><span class="chip c-nist">IA-5</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/role-based-access-control/best-practices" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/role-based-access-control/best-practices</a></li><li><a href="https://learn.microsoft.com/azure/key-vault/general/rbac-guide" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/key-vault/general/rbac-guide</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-auth-014"
+  <div class="finding" id="finding-az-auth-014"
        data-severity="High"
        data-severity-rank="4"
        data-agent="authorization-attack-path"
@@ -379,7 +428,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>The CI/CD service principal 'sp-deploy-prod' is assigned a custom role that includes Microsoft.Authorization/roleAssignments/write — an escalation primitive that lets the principal grant itself Owner.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Any compromise of the SP credential yields a one-step path to subscription Owner.</p></div><div class="detail-block"><h4>Attack path</h4><ol class="apsteps"><li>Compromised SP sp-deploy-prod</li><li>roleAssignments/write</li><li>Self-assign Owner</li></ol></div><div class="detail-block"><h4>Risk</h4><p>Privilege escalation to full subscription control; this is the pivot that turns the public-web entry point into a Critical chain.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az role definition list</div><div class="ev-summary">Custom role 'Deploy-Prod' includes Microsoft.Authorization/roleAssignments/write.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1098.003</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-nist">AC-6</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/role-based-access-control/role-definitions" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/role-based-access-control/role-definitions</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-net-007"
+  <div class="finding" id="finding-az-net-007"
        data-severity="High"
        data-severity-rank="4"
        data-agent="network-exposure"
@@ -406,7 +455,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>NSG 'nsg-jumpbox' has an inbound rule allowing TCP 3389 from source 0.0.0.0/0 (Any). The associated VM is directly reachable for RDP brute-force.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Internet-wide RDP brute force / credential stuffing against the jumpbox.</p></div><div class="detail-block"><h4>Risk</h4><p>Initial access foothold on a management host with line of sight to internal resources.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az network nsg rule list</div><div class="ev-summary">Rule 'allow-rdp' — protocol TCP, destPort 3389, source Any, access Allow.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Remove the 0.0.0.0/0 RDP rule. Use Azure Bastion or just-in-time VM access, and restrict management ports to known admin IP ranges.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1190</span><span class="chip c-mitre">T1110</span><span class="chip c-cis">CIS 6.1</span><span class="chip c-dfc">Management ports should be closed on your virtual machines</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/bastion/bastion-overview" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/bastion/bastion-overview</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-stor-001"
+  <div class="finding" id="finding-az-stor-001"
        data-severity="High"
        data-severity-rank="4"
        data-agent="data-protection"
@@ -433,7 +482,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>Storage account 'contosopublicdata' has allowBlobPublicAccess enabled and a container with an anonymous access level of 'container', allowing unauthenticated enumeration and download of all blobs.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Unauthenticated internet user lists and downloads blobs directly over HTTPS.</p></div><div class="detail-block"><h4>Risk</h4><p>Exposure of any sensitive data stored in the public container; reconnaissance aid for further attacks.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az storage account show</div><div class="ev-summary">allowBlobPublicAccess = true.</div></li><li><div class="ev-source">az storage container list</div><div class="ev-summary">Container 'public-assets' has publicAccess = container.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set allowBlobPublicAccess=false on the storage account and set every container's public access level to 'private'. Use SAS or Entra-authenticated access for legitimate sharing.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1530</span><span class="chip c-cis">CIS 3.7</span><span class="chip c-dfc">Storage account public access should be disallowed</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/storage/blobs/anonymous-read-access-prevent" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/storage/blobs/anonymous-read-access-prevent</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-iden-003"
+  <div class="finding" id="finding-az-iden-003"
        data-severity="High"
        data-severity-rank="4"
        data-agent="identity-posture"
@@ -460,7 +509,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>Three accounts holding the Global Administrator role have no registered MFA method and are not covered by a Conditional Access policy requiring MFA.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Password-only access to tenant-wide admin; phishing or credential stuffing yields Global Admin.</p></div><div class="detail-block"><h4>Risk</h4><p>Compromise of any one account grants full control of the Entra tenant and all subscriptions.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">msgraph-sdk (az rest)</div><div class="ev-summary">3 of 4 Global Administrators have no strong auth method registered.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Enforce phishing-resistant MFA for all privileged roles via Conditional Access, and make the roles PIM-eligible rather than permanently active.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-cis">CIS 1.1.1</span><span class="chip c-nist">IA-2(1)</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-admin-mfa" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-admin-mfa</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-ai-002"
+  <div class="finding" id="finding-az-ai-002"
        data-severity="Medium"
        data-severity-rank="3"
        data-agent="ai-foundry"
@@ -487,7 +536,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>The Azure OpenAI account 'contoso-openai' has publicNetworkAccess=Enabled with no IP restrictions, exposing the inference endpoint and any deployed models to the internet (key-based auth only).</p></div><div class="detail-block"><h4>Attack vector</h4><p>If an API key leaks (e.g. in client code), the endpoint is directly callable from anywhere.</p></div><div class="detail-block"><h4>Risk</h4><p>Model abuse, data exfiltration via prompts, and unbudgeted spend.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az cognitiveservices account show</div><div class="ev-summary">publicNetworkAccess = Enabled; networkAcls default action = Allow.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set publicNetworkAccess=Disabled and use a private endpoint, or restrict to known IP ranges. Prefer Entra ID (managed identity) auth over API keys and rotate keys.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1133</span><span class="chip c-dfc">Cognitive Services accounts should restrict network access</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-log-005"
+  <div class="finding" id="finding-az-log-005"
        data-severity="Medium"
        data-severity-rank="3"
        data-agent="logging-coverage"
@@ -514,7 +563,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>Key Vault 'kv-web-prod' (the vault on the Critical attack path) has no diagnostic setting sending AuditEvent logs anywhere, so secret-read activity is invisible.</p></div><div class="detail-block"><h4>Attack vector</h4><p>An attacker reading secrets through the managed identity leaves no audit trail.</p></div><div class="detail-block"><h4>Risk</h4><p>The most dangerous step in the Critical chain is undetectable — exploitable AND invisible.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az monitor diagnostic-settings list</div><div class="ev-summary">No diagnostic settings configured on kv-web-prod.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Add a diagnostic setting on the vault sending AuditEvent (and AllMetrics) to a Log Analytics workspace, and alert on anomalous secret reads.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1562.008</span><span class="chip c-cis">CIS 5.1.5</span><span class="chip c-nist">AU-12</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/key-vault/general/logging" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/key-vault/general/logging</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-web-009"
+  <div class="finding" id="finding-az-web-009"
        data-severity="Low"
        data-severity-rank="2"
        data-agent="web-exposure"
@@ -541,7 +590,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Description</h4><p>The public portal accepts TLS 1.0/1.1 and is not fronted by Azure Front Door or Application Gateway WAF.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Downgrade attacks and direct exploitation of the origin without a WAF inspection layer.</p></div><div class="detail-block"><h4>Risk</h4><p>Weak transport security and no edge protection for the most-exposed app.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az webapp config show</div><div class="ev-summary">minTlsVersion = 1.0; no WAF resource associated.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set minimum TLS to 1.2+, and place the app behind Front Door or App Gateway with WAF in Prevention mode.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1557</span><span class="chip c-cis">CIS 9.3</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/web-application-firewall/overview" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/web-application-firewall/overview</a></li></ul></div>
     </div>
   </div>
-  <div class="finding" id="row-az-gov-011"
+  <div class="finding" id="finding-az-gov-011"
        data-severity="Informational"
        data-severity-rank="1"
        data-agent="governance-posture"
@@ -567,167 +616,422 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod</code></div>
       <div class="detail-block"><h4>Description</h4><p>Production resource groups have no CanNotDelete or ReadOnly locks, so a compromised or mistaken Contributor can delete production resources.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Destructive action (resource deletion) by any Contributor.</p></div><div class="detail-block"><h4>Risk</h4><p>Availability impact; not a confidentiality issue on its own.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az lock list</div><div class="ev-summary">No management locks found on rg-web-prod.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Apply CanNotDelete locks to production resource groups and critical resources.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-nist">CP-2</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources</a></li></ul></div>
     </div>
-  </div>
-    </div>
-    <p class="empty" id="noResults" hidden>No findings match the current filters.</p>
+  </div></div>
   </section>
 
-  <section id="coverage" class="panel">
-    <h2>Coverage &amp; Control Mapping</h2>
-    <div class="cov-grid">
-      <div>
-        <h4>By domain</h4>
-        <table class="cov-table">
-          <thead><tr><th>Domain agent</th><th>Findings</th></tr></thead>
-          <tbody>
-            <tr><td>ai-foundry</td><td>1</td></tr><tr><td>authorization-attack-path</td><td>2</td></tr><tr><td>data-protection</td><td>1</td></tr><tr><td>governance-posture</td><td>1</td></tr><tr><td>identity-posture</td><td>1</td></tr><tr><td>logging-coverage</td><td>1</td></tr><tr><td>network-exposure</td><td>1</td></tr><tr><td>web-exposure</td><td>1</td></tr>
-          </tbody>
-        </table>
+  <section id="recommendations" class="section">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Recommendations</h2></div>
+    <p class="sec-intro">Findings consolidated into prioritized, actionable remediations. Items flagged <em>breaks attack path</em> sever a modeled chain and are weighted higher.</p>
+    
+    <div class="rec-tier tier-1">
+      <div class="tier-head"><span class="tier-badge">Immediate</span><span class="tier-sub">Critical exposure or active attack-path participation</span></div>
+      <div class="rec-list">
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-critical">Critical</span><span class="rec-cat">Attack Path</span><span class="tag tag-chain">breaks attack path</span></div>
+        <p class="rec-text">Remove roleAssignments/write from the service principal (replace with PIM-eligible, time-bound assignment). Scope the managed identity's Key Vault access to only the secrets it needs and enable Key Vault RBAC with purge protection.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-path-001">AZ-PATH-001</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1078.004</span><span class="chip c-mitre">T1548</span><span class="chip c-mitre">T1552.005</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-cis">CIS 8.4</span><span class="chip c-dfc">Managed identity with excessive permissions</span><span class="chip c-nist">AC-6</span><span class="chip c-nist">IA-5</span></div>
+        </div>
       </div>
-      <div>
-        <h4>By status</h4>
-        <table class="cov-table">
-          <thead><tr><th>Status</th><th>Findings</th></tr></thead>
-          <tbody>
-            <tr><td>accepted risk</td><td>1</td></tr><tr><td>confirmed</td><td>2</td></tr><tr><td>open</td><td>6</td></tr>
-          </tbody>
-        </table>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-high">High</span><span class="rec-cat">RBAC</span><span class="tag tag-chain">breaks attack path</span></div>
+        <p class="rec-text">Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-auth-014">AZ-AUTH-014</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1098.003</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-nist">AC-6</span></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="rec-tier tier-2">
+      <div class="tier-head"><span class="tier-badge">Short-term</span><span class="tier-sub">Material risk to address in the current remediation cycle</span></div>
+      <div class="rec-list">
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-high">High</span><span class="rec-cat">Network</span></div>
+        <p class="rec-text">Remove the 0.0.0.0/0 RDP rule. Use Azure Bastion or just-in-time VM access, and restrict management ports to known admin IP ranges.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-net-007">AZ-NET-007</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1110</span><span class="chip c-mitre">T1190</span><span class="chip c-cis">CIS 6.1</span><span class="chip c-dfc">Management ports should be closed on your virtual machines</span></div>
+        </div>
       </div>
-      <div>
-        <h4>MITRE ATT&amp;CK techniques (10)</h4>
-        <div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-mitre">T1098.003</span><span class="chip c-mitre">T1110</span><span class="chip c-mitre">T1133</span><span class="chip c-mitre">T1190</span><span class="chip c-mitre">T1530</span><span class="chip c-mitre">T1548</span><span class="chip c-mitre">T1552.005</span><span class="chip c-mitre">T1557</span><span class="chip c-mitre">T1562.008</span></div>
-        <h4 style="margin-top:14px">CIS Azure controls (7)</h4>
-        <div class="chips"><span class="chip c-cis">CIS 1.1.1</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-cis">CIS 3.7</span><span class="chip c-cis">CIS 5.1.5</span><span class="chip c-cis">CIS 6.1</span><span class="chip c-cis">CIS 8.4</span><span class="chip c-cis">CIS 9.3</span></div>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-high">High</span><span class="rec-cat">Storage</span></div>
+        <p class="rec-text">Set allowBlobPublicAccess=false on the storage account and set every container's public access level to 'private'. Use SAS or Entra-authenticated access for legitimate sharing.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-stor-001">AZ-STOR-001</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1530</span><span class="chip c-cis">CIS 3.7</span><span class="chip c-dfc">Storage account public access should be disallowed</span></div>
+        </div>
       </div>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-high">High</span><span class="rec-cat">Identity</span></div>
+        <p class="rec-text">Enforce phishing-resistant MFA for all privileged roles via Conditional Access, and make the roles PIM-eligible rather than permanently active.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-iden-003">AZ-IDEN-003</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1078.004</span><span class="chip c-cis">CIS 1.1.1</span><span class="chip c-nist">IA-2(1)</span></div>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-medium">Medium</span><span class="rec-cat">Logging</span><span class="tag tag-chain">breaks attack path</span></div>
+        <p class="rec-text">Add a diagnostic setting on the vault sending AuditEvent (and AllMetrics) to a Log Analytics workspace, and alert on anomalous secret reads.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-log-005">AZ-LOG-005</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1562.008</span><span class="chip c-cis">CIS 5.1.5</span><span class="chip c-nist">AU-12</span></div>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-medium">Medium</span><span class="rec-cat">AI</span></div>
+        <p class="rec-text">Set publicNetworkAccess=Disabled and use a private endpoint, or restrict to known IP ranges. Prefer Entra ID (managed identity) auth over API keys and rotate keys.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-ai-002">AZ-AI-002</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1133</span><span class="chip c-dfc">Cognitive Services accounts should restrict network access</span></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="rec-tier tier-3">
+      <div class="tier-head"><span class="tier-badge">Hardening</span><span class="tier-sub">Lower-severity posture and defense-in-depth improvements</span></div>
+      <div class="rec-list">
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-low">Low</span><span class="rec-cat">Web</span><span class="tag tag-chain">breaks attack path</span></div>
+        <p class="rec-text">Set minimum TLS to 1.2+, and place the app behind Front Door or App Gateway with WAF in Prevention mode.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-web-009">AZ-WEB-009</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-mitre">T1557</span><span class="chip c-cis">CIS 9.3</span></div>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-top"><span class="pill sev sev-informational">Informational</span><span class="rec-cat">Governance</span></div>
+        <p class="rec-text">Apply CanNotDelete locks to production resource groups and critical resources.</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> <button class="linkbtn rec-fid" data-target="finding-az-gov-011">AZ-GOV-011</button></div>
+          <div class="chips rec-ctrls"><span class="chip c-nist">CP-2</span></div>
+        </div>
+      </div></div>
     </div>
   </section>
 
-  <section id="about" class="panel about">
-    <h2>About this report</h2>
-    <div class="about-grid">
-      <div><span class="muted">Engagement</span><div>Contoso Cloud — Sample Assessment</div></div>
-      <div><span class="muted">Engagement ID</span><div>sample-acme-2026-q2</div></div>
-      <div><span class="muted">Mode</span><div>read-only-assessment</div></div>
-      <div><span class="muted">Generated</span><div>2026-06-09 15:41:51Z</div></div>
-      <div><span class="muted">Generator</span><div>generate-report.mjs v1.0.0</div></div>
-      <div><span class="muted">Evidence window</span><div>2026-06-09T09:10:00Z — 2026-06-09T09:18:00Z</div></div>
-      <div class="about-wide"><span class="muted">Subscriptions in scope</span><div><code>00000000-0000-0000-0000-000000000000</code> <code>00000000-0000-0000-0000-000000000001</code></div></div>
-      <div class="about-wide"><span class="muted">Inputs</span><div><code>tools/report/sample/findings.json</code> <code>tools/report/sample/attack-paths.json</code> <code>tools/report/sample/engagement.yaml</code></div></div>
+  <section id="resources" class="section">
+    <div class="sec-head"><span class="sec-num">5</span><h2>Resources &amp; Scope</h2></div>
+    <p class="sec-intro">Assets referenced by findings, deduplicated and ranked by worst observed severity, with a roll-up of in-scope tenants and subscriptions.</p>
+    <div class="scope-strip"><div class="scope-chip"><span class="scope-label">Subscription 00000000-0000-0000-0000-000000000000</span><span class="scope-nums">6 assets · 7 findings</span></div><div class="scope-chip"><span class="scope-label">Tenant 00000000-0000-0000-0000-0000000000aa</span><span class="scope-nums">1 asset · 1 finding</span></div><div class="scope-chip"><span class="scope-label">Subscription 00000000-0000-0000-0000-000000000001</span><span class="scope-nums">1 asset · 1 finding</span></div></div>
+    <table class="restable">
+      <thead><tr><th>Severity</th><th>Asset</th><th>Type</th><th>Scope</th><th>Findings</th></tr></thead>
+      <tbody><tr>
+      <td><span class="pill sev sev-critical">Critical</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal">contoso-public-portal</span></td>
+      <td><code class="asset-type">Microsoft.Web/sites</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-path-001">AZ-PATH-001</button> <button class="linkbtn rec-fid" data-target="finding-az-web-009">AZ-WEB-009</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-high">High</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleAssignments/sp-deploy-prod">sp-deploy-prod</span></td>
+      <td><code class="asset-type">Microsoft.Authorization/roleAssignments</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-auth-014">AZ-AUTH-014</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-high">High</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-infra/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox">nsg-jumpbox</span></td>
+      <td><code class="asset-type">Microsoft.Network/networkSecurityGroups</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-net-007">AZ-NET-007</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-high">High</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/contosopublicdata">contosopublicdata</span></td>
+      <td><code class="asset-type">Microsoft.Storage/storageAccounts</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-stor-001">AZ-STOR-001</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-high">High</span></td>
+      <td><span class="asset-name" title="/tenants/00000000-0000-0000-0000-0000000000aa/directoryRoles/GlobalAdministrator">GlobalAdministrator</span></td>
+      <td><code class="asset-type">tenant/directoryRoles</code></td>
+      <td class="asset-scope">tenant:00000000-0000-0000-0000-0000000000aa</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-iden-003">AZ-IDEN-003</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-medium">Medium</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai">contoso-openai</span></td>
+      <td><code class="asset-type">Microsoft.CognitiveServices/accounts</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000001</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-ai-002">AZ-AI-002</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-medium">Medium</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod">kv-web-prod</span></td>
+      <td><code class="asset-type">Microsoft.KeyVault/vaults</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-log-005">AZ-LOG-005</button></td>
+    </tr><tr>
+      <td><span class="pill sev sev-informational">Informational</span></td>
+      <td><span class="asset-name" title="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod">rg-web-prod</span></td>
+      <td><code class="asset-type">resourceGroups</code></td>
+      <td class="asset-scope">00000000-0000-0000-0000-000000000000</td>
+      <td><button class="linkbtn rec-fid" data-target="finding-az-gov-011">AZ-GOV-011</button></td>
+    </tr></tbody>
+    </table>
+  </section>
+
+  <section id="attack-graph" class="section">
+    <div class="sec-head"><span class="sec-num">6</span><h2>Consolidated Attack Graph</h2></div>
+    <p class="sec-intro">All modeled attack paths merged into a single graph. Shared assets are deduplicated so cross-path pivots are visible at a glance.</p>
+    <div class="cg-controls no-print">
+        <button id="cgZoomIn" class="ab-btn" aria-label="Zoom in">+</button>
+        <button id="cgZoomOut" class="ab-btn" aria-label="Zoom out">−</button>
+        <button id="cgFit" class="ab-btn">Fit</button>
+        <button id="cgReset" class="ab-btn">Reset</button>
+        <span class="cg-hint">Drag to pan · scroll to zoom · click a node to open its finding</span>
+      </div>
+    <div class="cg-legend"><span class="cg-leg sev-critical">Critical</span><span class="cg-leg sev-high">High</span><span class="cg-leg sev-medium">Medium</span><span class="cg-leg sev-low">Low</span><span class="cg-leg sev-informational">Informational</span><span class="cg-leg cg-leg-back">back-edge (loop)</span></div>
+    <div class="cg-frame" id="cgFrame"><svg id="cgSvg" class="cgraph" viewBox="0 0 1284 168" width="1284" height="168" role="img" aria-label="Consolidated attack graph"><defs><marker id="cg-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="cg-arrowhead"/></marker></defs><g class="cg-viewport"><line x1="204" y1="84" x2="290" y2="84" class="cg-edge" data-paths="AZ-PATH-001" marker-end="url(#cg-arrow)"/><text x="249" y="78" text-anchor="middle" class="cg-edge-label">IMDS token · T1552.…</text><line x1="466" y1="84" x2="552" y2="84" class="cg-edge" data-paths="AZ-PATH-001" marker-end="url(#cg-arrow)"/><text x="511" y="78" text-anchor="middle" class="cg-edge-label">secret read · T1555…</text><line x1="728" y1="84" x2="814" y2="84" class="cg-edge" data-paths="AZ-PATH-001" marker-end="url(#cg-arrow)"/><text x="773" y="78" text-anchor="middle" class="cg-edge-label">SP credential</text><line x1="990" y1="84" x2="1076" y2="84" class="cg-edge" data-paths="AZ-PATH-001" marker-end="url(#cg-arrow)"/><text x="1035" y="78" text-anchor="middle" class="cg-edge-label">roleAssignments/wri…</text><g class="cg-node sev-low cg-clickable" data-paths="AZ-PATH-001" data-finding="AZ-WEB-009" tabindex="0" role="button"><title>Public App Service
+/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal
+Finding AZ-WEB-009 (Low)</title><rect x="32" y="53" width="172" height="62" rx="10"/><text x="44" y="75" class="cg-node-type">ENTRY</text><text x="44" y="93" class="cg-node-label">Public App Service</text><text x="44" y="108" class="cg-node-fid">AZ-WEB-009</text></g><g class="cg-node sev-none" data-paths="AZ-PATH-001"><title>App managed identity</title><rect x="294" y="53" width="172" height="62" rx="10"/><text x="306" y="75" class="cg-node-type">PIVOT</text><text x="306" y="93" class="cg-node-label">App managed identity</text></g><g class="cg-node sev-medium cg-clickable" data-paths="AZ-PATH-001" data-finding="AZ-LOG-005" tabindex="0" role="button"><title>Key Vault secret
+/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod
+Finding AZ-LOG-005 (Medium)</title><rect x="556" y="53" width="172" height="62" rx="10"/><text x="568" y="75" class="cg-node-type">PIVOT</text><text x="568" y="93" class="cg-node-label">Key Vault secret</text><text x="568" y="108" class="cg-node-fid">AZ-LOG-005</text></g><g class="cg-node sev-high cg-clickable" data-paths="AZ-PATH-001" data-finding="AZ-AUTH-014" tabindex="0" role="button"><title>sp-deploy-prod
+Finding AZ-AUTH-014 (High)</title><rect x="818" y="53" width="172" height="62" rx="10"/><text x="830" y="75" class="cg-node-type">PIVOT</text><text x="830" y="93" class="cg-node-label">sp-deploy-prod</text><text x="830" y="108" class="cg-node-fid">AZ-AUTH-014</text></g><g class="cg-node sev-critical cg-clickable" data-paths="AZ-PATH-001" data-finding="AZ-PATH-001" tabindex="0" role="button"><title>Subscription Owner
+Finding AZ-PATH-001 (Critical)</title><rect x="1080" y="53" width="172" height="62" rx="10"/><text x="1092" y="75" class="cg-node-type">TARGET</text><text x="1092" y="93" class="cg-node-label">Subscription Owner</text><text x="1092" y="108" class="cg-node-fid">AZ-PATH-001</text></g></g></svg></div>
+  </section>
+
+  <section id="appendix-coverage" class="section appendix">
+    <div class="sec-head"><span class="sec-num">A</span><h2>Appendix A · Coverage &amp; Controls</h2></div>
+    <p class="sec-intro">Finding distribution across security domains and the control frameworks referenced by the findings.</p>
+    
+    <table class="restable cov">
+      <thead><tr><th>Domain</th><th class="num">Findings</th><th class="num">Crit</th><th class="num">High</th><th class="num">Medi</th><th class="num">Low</th><th class="num">Info</th></tr></thead>
+      <tbody><tr><td>AI</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Attack Path</td><td class="num">1</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Governance</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num">1</td></tr><tr><td>Identity</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Logging</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Network</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>RBAC</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Storage</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td></tr><tr><td>Web</td><td class="num">1</td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num"><span class="muted">·</span></td><td class="num">1</td><td class="num"><span class="muted">·</span></td></tr></tbody>
+    </table>
+    <div class="fw-grid"><div class="fw"><h4>MITRE ATT&amp;CK</h4><div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-mitre">T1098.003</span><span class="chip c-mitre">T1110</span><span class="chip c-mitre">T1133</span><span class="chip c-mitre">T1190</span><span class="chip c-mitre">T1530</span><span class="chip c-mitre">T1548</span><span class="chip c-mitre">T1552.005</span><span class="chip c-mitre">T1557</span><span class="chip c-mitre">T1562.008</span></div></div><div class="fw"><h4>CIS Azure</h4><div class="chips"><span class="chip c-cis">CIS 1.1.1</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-cis">CIS 3.7</span><span class="chip c-cis">CIS 5.1.5</span><span class="chip c-cis">CIS 6.1</span><span class="chip c-cis">CIS 8.4</span><span class="chip c-cis">CIS 9.3</span></div></div><div class="fw"><h4>Defender for Cloud</h4><div class="chips"><span class="chip c-dfc">Cognitive Services accounts should restrict network access</span><span class="chip c-dfc">Managed identity with excessive permissions</span><span class="chip c-dfc">Management ports should be closed on your virtual machines</span><span class="chip c-dfc">Storage account public access should be disallowed</span></div></div><div class="fw"><h4>NIST 800-53</h4><div class="chips"><span class="chip c-nist">AC-6</span><span class="chip c-nist">AU-12</span><span class="chip c-nist">CP-2</span><span class="chip c-nist">IA-2(1)</span><span class="chip c-nist">IA-5</span></div></div></div>
+  </section>
+
+  <section id="appendix-methodology" class="section appendix">
+    <div class="sec-head"><span class="sec-num">B</span><h2>Appendix B · Methodology &amp; Limitations</h2></div>
+    <div class="prose">
+      <p>This assessment was produced by a coordinated team of read-only Azure security agents. Each agent specializes in a domain (identity, network, storage, RBAC, logging, AI, web, and governance) and contributes structured findings to a shared evidence model. An orchestrator deduplicates overlapping observations and an attack-path analyst correlates findings into multi-step chains.</p>
+      <h3>Scope</h3>
+      <p>Only resources and configurations represented in the supplied findings dataset are in scope. Tenants and subscriptions listed on the cover define the engagement boundary.</p>
+      <h3>Approach</h3>
+      <p>The methodology is read-only and evidence-driven: configuration and posture are evaluated against documented control baselines and known attack techniques. No exploitation, write operations, or live credential use is performed, and no exploit payloads are included.</p>
+      <h3>Limitations</h3>
+      <p>Absence of a finding is not proof of security; it reflects only what was evaluated with the supplied inputs. Severity and confidence are analytical judgments. Attack paths are models intended to prioritize remediation, not guarantees of exploitability. Findings should be validated against the live environment before remediation is finalized.</p>
     </div>
-    <div class="provenance">
-      <p><strong>Read-only assessment.</strong> All findings are derived from read-only configuration analysis of the target Azure environment. This report is rendered entirely from structured findings (the canonical <code>findings.json</code>); it is never hand-authored, so it always matches the evidence. Absence of a finding is not proof of absence of risk — see assessment coverage &amp; limitations.</p>
-      <p class="muted small">This file is fully self-contained and offline: no external scripts, styles, fonts, or network calls. A restrictive Content-Security-Policy and <code>referrer: no-referrer</code> are enforced. Finding text is HTML-escaped per context and non-http references are rendered inert.</p>
+  </section>
+
+  <section id="appendix-about" class="section appendix">
+    <div class="sec-head"><span class="sec-num">C</span><h2>Appendix C · About This Report</h2></div>
+    <div class="prose">
+      <p>This document is a self-contained HTML report. It loads no external scripts, styles, fonts, or network resources, and is safe to open offline or archive as evidence. Use <em>Print / Save PDF</em> to produce a paginated copy.</p>
+      <table class="restable about">
+        <tbody>
+          <tr><td>Generated</td><td>2026-06-09T18:55:20.966Z</td></tr>
+          <tr><td>Generator version</td><td>2.0.0</td></tr>
+          <tr><td>Findings</td><td>9</td></tr>
+          <tr><td>Attack paths</td><td>2 (1 modeled, 1 derived)</td></tr>
+        </tbody>
+      </table>
       
     </div>
   </section>
 </main>
-
-<footer class="foot">
-  <span>Generated by the Azure Red Team Agent Orchestration template · 2026-06-09 15:41:51Z</span>
-</footer>
-
-<script type="application/json" id="report-meta">{"generator":"1.0.0","total":9,"counts":{"Critical":1,"High":4,"Medium":2,"Low":1,"Informational":1}}</script>
+</div>
+<script type="application/json" id="report-meta">{"generator":"2.0.0","generated":"2026-06-09T18:55:20.966Z","title":"Contoso Cloud — Sample Assessment","total":9,"counts":{"Critical":1,"High":4,"Medium":2,"Low":1,"Informational":1},"openRisk":9,"chainFindings":4}</script>
 <script>
-
 (function(){
-  "use strict";
-  var list = document.getElementById('findingList');
-  var rows = Array.prototype.slice.call(document.querySelectorAll('.finding'));
-  var search = document.getElementById('search');
-  var agentF = document.getElementById('agentFilter');
-  var statusF = document.getElementById('statusFilter');
-  var sevBoxes = Array.prototype.slice.call(document.querySelectorAll('.sevtoggle input'));
-  var countEl = document.getElementById('resultCount');
-  var noRes = document.getElementById('noResults');
+  'use strict';
+  var findingsEl = document.getElementById('findingList');
 
-  function setExpanded(row, open){
-    var head = row.querySelector('.finding-head');
-    var detail = row.querySelector('.finding-detail');
-    row.classList.toggle('open', open);
-    head.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if(open){ detail.removeAttribute('hidden'); } else { detail.setAttribute('hidden',''); }
+  function setOpen(finding, open){
+    var btn = finding.querySelector('.finding-head');
+    var detail = finding.querySelector('.finding-detail');
+    if(!btn || !detail) return;
+    if(open){ finding.classList.add('open'); detail.hidden = false; btn.setAttribute('aria-expanded','true'); }
+    else { finding.classList.remove('open'); detail.hidden = true; btn.setAttribute('aria-expanded','false'); }
   }
 
-  rows.forEach(function(row){
-    var head = row.querySelector('.finding-head');
-    head.addEventListener('click', function(){
-      setExpanded(row, !row.classList.contains('open'));
+  if(findingsEl){
+    findingsEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.finding-head');
+      if(!btn) return;
+      var finding = btn.closest('.finding');
+      setOpen(finding, !finding.classList.contains('open'));
     });
-  });
+  }
 
-  var activeSevs = {};
-  function readSevs(){ activeSevs = {}; sevBoxes.forEach(function(b){ if(b.checked) activeSevs[b.value]=1; }); }
-  readSevs();
+  var btnExpand = document.getElementById('btnExpand');
+  var btnCollapse = document.getElementById('btnCollapse');
+  var btnPrint = document.getElementById('btnPrint');
+  function allFindings(){ return document.querySelectorAll('.finding'); }
+  if(btnExpand) btnExpand.addEventListener('click', function(){ allFindings().forEach(function(f){ setOpen(f, true); }); });
+  if(btnCollapse) btnCollapse.addEventListener('click', function(){ allFindings().forEach(function(f){ setOpen(f, false); }); });
+  if(btnPrint) btnPrint.addEventListener('click', function(){ window.print(); });
 
-  function apply(){
-    var q = (search && search.value || '').trim().toLowerCase();
-    var ag = agentF && agentF.value || '';
-    var st = statusF && statusF.value || '';
+  // Filtering
+  var fSearch = document.getElementById('fSearch');
+  var fSeverity = document.getElementById('fSeverity');
+  var fDomain = document.getElementById('fDomain');
+  var fAgent = document.getElementById('fAgent');
+  var fCount = document.getElementById('fCount');
+
+  function applyFilters(){
+    var q = (fSearch && fSearch.value ? fSearch.value : '').trim().toLowerCase();
+    var sev = fSeverity && fSeverity.value ? fSeverity.value : '';
+    var dom = fDomain && fDomain.value ? fDomain.value : '';
+    var agent = fAgent && fAgent.value ? fAgent.value : '';
     var shown = 0;
-    rows.forEach(function(row){
+    var list = allFindings();
+    for(var i=0;i<list.length;i++){
+      var f = list[i];
       var ok = true;
-      if(!activeSevs[row.getAttribute('data-severity')]) ok = false;
-      if(ok && ag && row.getAttribute('data-agent') !== ag) ok = false;
-      if(ok && st && row.getAttribute('data-status') !== st) ok = false;
-      if(ok && q && row.getAttribute('data-search').indexOf(q) === -1) ok = false;
-      row.classList.toggle('hidden-by-filter', !ok);
+      if(sev && f.getAttribute('data-severity') !== sev) ok = false;
+      if(ok && dom && f.getAttribute('data-category') !== dom) ok = false;
+      if(ok && agent && f.getAttribute('data-agent') !== agent) ok = false;
+      if(ok && q && (f.getAttribute('data-search')||'').indexOf(q) < 0) ok = false;
+      f.style.display = ok ? '' : 'none';
       if(ok) shown++;
-    });
-    if(countEl) countEl.textContent = 'Showing ' + shown + ' of ' + rows.length + ' findings';
-    if(noRes) noRes.hidden = shown !== 0;
-  }
-
-  var t;
-  function debApply(){ clearTimeout(t); t = setTimeout(apply, 120); }
-  if(search) search.addEventListener('input', debApply);
-  if(agentF) agentF.addEventListener('change', apply);
-  if(statusF) statusF.addEventListener('change', apply);
-  sevBoxes.forEach(function(b){ b.addEventListener('change', function(){ readSevs(); apply(); }); });
-
-  document.querySelectorAll('.sevcard').forEach(function(card){
-    card.addEventListener('click', function(){
-      var sev = card.getAttribute('data-filter-severity');
-      sevBoxes.forEach(function(b){ b.checked = (b.value === sev); });
-      readSevs(); apply();
-      document.getElementById('findings').scrollIntoView({behavior:'smooth'});
-    });
-  });
-
-  function revealFinding(id){
-    var row = document.querySelector('.finding[data-finding-id="'+ (window.CSS && CSS.escape ? CSS.escape(id) : id) +'"]');
-    if(!row){ return; }
-    // If filters hide it, clear them so the click never silently fails.
-    if(row.classList.contains('hidden-by-filter')){
-      sevBoxes.forEach(function(b){ b.checked = true; });
-      if(agentF) agentF.value = '';
-      if(statusF) statusF.value = '';
-      if(search) search.value = '';
-      readSevs(); apply();
     }
-    setExpanded(row, true);
-    row.scrollIntoView({behavior:'smooth', block:'center'});
-    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+    if(fCount) fCount.textContent = shown + ' of ' + list.length + ' shown';
+    syncSevCards(sev);
+  }
+  if(fSearch) fSearch.addEventListener('input', applyFilters);
+  if(fSeverity) fSeverity.addEventListener('change', applyFilters);
+  if(fDomain) fDomain.addEventListener('change', applyFilters);
+  if(fAgent) fAgent.addEventListener('change', applyFilters);
+
+  function syncSevCards(sev){
+    var cards = document.querySelectorAll('.sevcard');
+    for(var i=0;i<cards.length;i++){
+      if(sev && cards[i].getAttribute('data-severity') === sev) cards[i].classList.add('active');
+      else cards[i].classList.remove('active');
+    }
+  }
+  function toggleSevCard(card){
+    if(!fSeverity) return;
+    var s = card.getAttribute('data-severity');
+    fSeverity.value = (fSeverity.value === s) ? '' : s;
+    applyFilters();
+    var anchor = document.getElementById('findings');
+    if(anchor) anchor.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.querySelectorAll('.sevcard').forEach(function(c){
+    c.addEventListener('click', function(){ toggleSevCard(c); });
+    c.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleSevCard(c); } });
+  });
+
+  // Reveal a specific finding (clearing filters so it is never hidden).
+  function clearFilters(){
+    if(fSearch) fSearch.value='';
+    if(fSeverity) fSeverity.value='';
+    if(fDomain) fDomain.value='';
+    if(fAgent) fAgent.value='';
+    applyFilters();
+  }
+  function revealById(domId){
+    var el = document.getElementById(domId);
+    if(!el) return;
+    clearFilters();
+    if(el.classList.contains('finding')) setOpen(el, true);
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.classList.add('flash');
+    window.setTimeout(function(){ el.classList.remove('flash'); }, 1200);
+  }
+  function revealByFindingId(fid){
+    var el = document.querySelector('.finding[data-finding-id="' + (window.CSS && CSS.escape ? CSS.escape(fid) : fid) + '"]');
+    if(el) revealById(el.id);
   }
 
-  document.querySelectorAll('[data-goto-finding]').forEach(function(el){
-    el.addEventListener('click', function(e){ e.preventDefault(); revealFinding(el.getAttribute('data-goto-finding')); });
+  document.addEventListener('click', function(e){
+    var lb = e.target.closest('.linkbtn[data-target]');
+    if(lb){ e.preventDefault(); revealById(lb.getAttribute('data-target')); return; }
+    var node = e.target.closest('.ap-clickable[data-finding]');
+    if(node){ revealByFindingId(node.getAttribute('data-finding')); }
   });
-  document.querySelectorAll('.ap-clickable').forEach(function(node){
-    function go(){ revealFinding(node.getAttribute('data-finding')); }
-    node.addEventListener('click', go);
-    node.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var node = e.target.closest('.ap-clickable[data-finding]');
+    if(node){ e.preventDefault(); revealByFindingId(node.getAttribute('data-finding')); }
   });
 
-  var ea = document.getElementById('expandAll');
-  var ca = document.getElementById('collapseAll');
-  if(ea) ea.addEventListener('click', function(){ rows.forEach(function(r){ if(!r.classList.contains('hidden-by-filter')) setExpanded(r,true); }); });
-  if(ca) ca.addEventListener('click', function(){ rows.forEach(function(r){ setExpanded(r,false); }); });
-  var pb = document.getElementById('printBtn');
-  if(pb) pb.addEventListener('click', function(){ window.print(); });
+  // Consolidated graph: pan / zoom / hover-highlight / click-to-reveal.
+  (function(){
+    var svg = document.getElementById('cgSvg');
+    if(!svg) return;
+    var vp = svg.querySelector('.cg-viewport');
+    if(!vp) return;
+    var scale = 1, tx = 0, ty = 0;
+    function apply(){ vp.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + scale + ')'); }
+    function reset(){ scale = 1; tx = 0; ty = 0; apply(); }
+    function zoom(factor, cx, cy){
+      var ns = Math.min(2.5, Math.max(0.4, scale * factor));
+      if(ns === scale) return;
+      if(typeof cx === 'number'){ tx = cx - (cx - tx) * (ns/scale); ty = cy - (cy - ty) * (ns/scale); }
+      scale = ns; apply();
+    }
+    var zi = document.getElementById('cgZoomIn');
+    var zo = document.getElementById('cgZoomOut');
+    var zf = document.getElementById('cgFit');
+    var zr = document.getElementById('cgReset');
+    if(zi) zi.addEventListener('click', function(){ zoom(1.2); });
+    if(zo) zo.addEventListener('click', function(){ zoom(1/1.2); });
+    if(zf) zf.addEventListener('click', reset);
+    if(zr) zr.addEventListener('click', reset);
 
-  apply();
+    var dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    svg.addEventListener('pointerdown', function(e){
+      dragging = true; moved = false; sx = e.clientX; sy = e.clientY; ox = tx; oy = ty;
+      svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      tx = ox + dx; ty = oy + dy; apply();
+    });
+    function endDrag(e){ if(dragging){ dragging = false; try{ svg.releasePointerCapture(e.pointerId); }catch(_e){} } }
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+    svg.addEventListener('wheel', function(e){
+      e.preventDefault();
+      var rect = svg.getBoundingClientRect();
+      zoom(e.deltaY < 0 ? 1.1 : 1/1.1, e.clientX - rect.left, e.clientY - rect.top);
+    }, {passive:false});
+
+    function paths(el){ return (el.getAttribute('data-paths')||'').split(' ').filter(Boolean); }
+    function highlight(on, ps){
+      var els = svg.querySelectorAll('[data-paths]');
+      for(var i=0;i<els.length;i++){
+        var match = false, mine = paths(els[i]);
+        for(var j=0;j<ps.length;j++){ if(mine.indexOf(ps[j]) >= 0){ match = true; break; } }
+        if(on && match) els[i].classList.add('cg-hi'); else els[i].classList.remove('cg-hi');
+      }
+    }
+    svg.querySelectorAll('.cg-node').forEach(function(n){
+      n.addEventListener('mouseenter', function(){ highlight(true, paths(n)); });
+      n.addEventListener('mouseleave', function(){ highlight(false, paths(n)); });
+      n.addEventListener('click', function(){
+        if(moved) return;
+        var fid = n.getAttribute('data-finding');
+        if(fid) revealByFindingId(fid);
+      });
+      n.addEventListener('keydown', function(e){
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); var fid = n.getAttribute('data-finding'); if(fid) revealByFindingId(fid); }
+      });
+    });
+    window.addEventListener('beforeprint', reset);
+  })();
+
+  // Scroll-spy TOC (fails silently if unsupported).
+  try{
+    var links = document.querySelectorAll('.toc a[data-section]');
+    var map = {};
+    links.forEach(function(a){ map[a.getAttribute('data-section')] = a; });
+    function setActive(id){
+      links.forEach(function(a){ a.classList.remove('active'); });
+      if(map[id]) map[id].classList.add('active');
+    }
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(entries){
+        for(var i=0;i<entries.length;i++){ if(entries[i].isIntersecting){ setActive(entries[i].target.id); } }
+      }, {rootMargin:'-40% 0px -55% 0px', threshold:0});
+      document.querySelectorAll('main.doc .section').forEach(function(s){ io.observe(s); });
+    }
+  }catch(_e){}
+
+  applyFilters();
 })();
-
 </script>
 </body>
 </html>

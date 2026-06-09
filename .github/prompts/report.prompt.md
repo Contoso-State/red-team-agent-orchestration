@@ -27,7 +27,9 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
      separators, one idea per slide). See `/deck` for the standalone flow and conversion commands.
    - `engagements/<session>/reports/findings.json` (normalized canonical set)
    - `engagements/<session>/reports/report.html` — the interactive HTML report, generated **from
-     `findings.json`** (clickable attack-path node graphs + expandable findings):
+     `findings.json`** (a print-first consulting deliverable: cover, contents, executive summary, attack
+     paths, findings, prioritized recommendations, asset/scope inventory, a consolidated pan/zoom attack
+     graph, and appendices):
 
      ```bash
      node tools/report/generate-report.mjs \
@@ -44,8 +46,9 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
 
 - A leadership-ready executive summary led by attack paths and business risk
 - A complete technical report with per-finding remediation
-- An **interactive HTML report** (`report.html`) — clickable attack-path node
-  graphs and expandable findings; self-contained and offline (open in a browser)
+- An **interactive HTML report** (`report.html`) — a print-first consulting deliverable with a
+  consolidated pan/zoom attack graph, clickable attack-path nodes, and expandable findings;
+  self-contained and offline (open in a browser, or Save as PDF)
 - A PowerPoint-ready deck (`assessment-deck.md`) — convert with
   `npx @marp-team/marp-cli engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx`
   or `pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2`

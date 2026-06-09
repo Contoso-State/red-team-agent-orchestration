@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * generate-report.mjs — Interactive Azure red-team HTML report generator.
+ * generate-report.mjs — Professional Azure red-team HTML report generator.
  *
  * Dependency-free (Node stdlib only). Reads the normalized findings.json (the
  * canonical source of truth) plus an optional explicit attack-path graph and
- * engagement metadata, and emits ONE self-contained, offline report.html:
- * embedded CSS/JS, an inline hand-rolled SVG attack-path graph, expandable
- * findings, severity/domain/status/text filtering, and print/PDF support.
+ * engagement metadata, and emits ONE self-contained, offline report.html laid
+ * out as a print-first consulting deliverable: cover page, table of contents,
+ * executive summary, attack paths, findings, prioritized recommendations, an
+ * asset/scope inventory, a consolidated interactive attack graph, and method
+ * appendices. All embedded CSS/JS, all SVG hand-rolled, no external assets.
  *
  * Security posture (this is a pentest deliverable opened in a browser, and
  * finding text can originate from an attacker-controlled Azure environment):
@@ -18,7 +20,7 @@
  *   - references[] are rendered as links ONLY when http(s); anything else is
  *     shown as inert escaped text (blocks javascript:/data:/file: etc.).
  *   - All content is server-side rendered so the report works with JS disabled;
- *     JS only toggles CSS classes for progressive enhancement.
+ *     JS only adds progressive enhancements (filtering, graph pan/zoom).
  *
  * Usage:
  *   node tools/report/generate-report.mjs \
@@ -33,7 +35,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { argv } from 'node:process';
 
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '2.0.0';
 
 const SEVERITY_RANK = {
   Critical: 5,
@@ -396,7 +398,7 @@ function buildAttackPaths(findings, explicitGraph) {
 }
 
 // ---------------------------------------------------------------------------
-// SVG attack-path graph rendering (inline, hand-rolled, no libraries)
+// SVG per-path graph rendering (inline, hand-rolled, no libraries)
 // ---------------------------------------------------------------------------
 
 const NODE_W = 168;
@@ -423,7 +425,6 @@ function renderPathSvg(path) {
   let svg = `<svg class="apgraph" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${escAttr('Attack path: ' + path.title)}">`;
   svg += `<defs><marker id="arrow-${slugId(path.id)}" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" class="ap-arrow"/></marker></defs>`;
 
-  // Edges first (under nodes).
   for (const e of path.edges) {
     const a = pos.get(e.from);
     const b = pos.get(e.to);
@@ -435,12 +436,11 @@ function renderPathSvg(path) {
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2 - 4}" y2="${y2}" class="ap-edge" marker-end="url(#arrow-${slugId(path.id)})"/>`;
     if (e.label || e.technique) {
       const mx = (x1 + x2) / 2;
-      const lbl = truncate([e.label, e.technique].filter(Boolean).join(' · '), 22);
+      const lbl = truncate([e.label, e.technique].filter(Boolean).join(' \u00b7 '), 22);
       svg += `<text x="${mx}" y="${y1 - 8}" text-anchor="middle" class="ap-edge-label">${escText(lbl)}</text>`;
     }
   }
 
-  // Nodes.
   path.nodes.forEach((node) => {
     const p = pos.get(node.id);
     const clickable = node.finding_id ? ' ap-clickable' : '';
@@ -522,13 +522,15 @@ function controlsSummary(controls) {
   return `<div class="detail-block"><h4>Control mapping</h4><div class="chips">${out.join('')}</div></div>`;
 }
 
-function renderFindingRow(f) {
+/** Render one finding row. `anchor` is a precomputed, collision-safe DOM id. */
+function renderFindingRow(f, anchor) {
   const searchCorpus = [
     f.id, f.title, f.category, f.agent, f.severity, f.status,
     shortResource(f.resource_id), f.resource_id, f.check_id, f.description,
   ].join(' ').toLowerCase();
 
   const resShort = shortResource(f.resource_id);
+  const rowId = anchor || `finding-${slugId(f.id)}`;
   const detailId = `detail-${slugId(f.id)}`;
 
   let detail = '';
@@ -555,7 +557,7 @@ function renderFindingRow(f) {
     : '';
 
   return `
-  <div class="finding" id="row-${escAttr(slugId(f.id))}"
+  <div class="finding" id="${escAttr(rowId)}"
        data-severity="${escAttr(f.severity)}"
        data-severity-rank="${f.severityRank}"
        data-agent="${escAttr(f.agent)}"
@@ -585,7 +587,6 @@ function renderFindingRow(f) {
 }
 
 function donut(counts, total) {
-  // Inline SVG severity donut. No libraries.
   const size = 132;
   const r = 52;
   const cx = size / 2;
@@ -612,572 +613,1466 @@ function donut(counts, total) {
 }
 
 // ---------------------------------------------------------------------------
-// Page assembly
+// Resource / scope parsing + asset inventory
 // ---------------------------------------------------------------------------
 
-function buildHtml({ findings, paths, engagement, title, generatedAt, inputs }) {
-  const counts = {};
-  for (const sev of SEVERITY_ORDER) counts[sev] = 0;
-  let openRisk = 0;
-  for (const f of findings) {
-    counts[f.severity] = (counts[f.severity] || 0) + 1;
-    if (OPEN_STATUSES.has(f.status)) openRisk++;
+/**
+ * Tolerant, non-throwing ARM resource-id parser. Handles subscription,
+ * resource-group-only, provider resources (incl. nested type/name pairs),
+ * tenant-scoped ids (no providers segment), and management-group scope. Falls
+ * back to the finding's subscription/resource-group; truly unparseable ids are
+ * bucketed under "Unparsed / non-ARM scope". Never throws.
+ */
+function parseResourceId(resourceId, finding) {
+  const raw = String(resourceId || '').trim();
+  const fallbackSub = finding && finding.subscription_id ? String(finding.subscription_id) : '';
+  const fallbackRg = finding && finding.resource_group ? String(finding.resource_group) : '';
+  const result = {
+    raw,
+    scope: 'unknown',
+    subscriptionId: fallbackSub,
+    resourceGroup: fallbackRg,
+    tenantId: '',
+    provider: '',
+    resourceType: '',
+    displayType: '',
+    name: '',
+    bucket: 'Unparsed / non-ARM scope',
+  };
+  if (!raw) {
+    result.name = finding && finding.id ? String(finding.id) : '(unscoped)';
+    result.displayType = 'finding';
+    result.scope = 'finding';
+    result.bucket = result.name;
+    return result;
   }
+  const parts = raw.split('/').filter(Boolean);
+  const lower = parts.map((p) => p.toLowerCase());
+  const idxOf = (kw) => lower.indexOf(kw);
+
+  const subIdx = idxOf('subscriptions');
+  if (subIdx !== -1 && parts[subIdx + 1]) result.subscriptionId = parts[subIdx + 1];
+  const rgIdx = idxOf('resourcegroups');
+  if (rgIdx !== -1 && parts[rgIdx + 1]) result.resourceGroup = parts[rgIdx + 1];
+  const tenantIdx = idxOf('tenants');
+  if (tenantIdx !== -1 && parts[tenantIdx + 1]) result.tenantId = parts[tenantIdx + 1];
+  const mgIdx = idxOf('managementgroups');
+  const provIdx = idxOf('providers');
+
+  if (provIdx !== -1 && parts[provIdx + 1]) {
+    result.provider = parts[provIdx + 1];
+    const rest = parts.slice(provIdx + 2);
+    if (rest.length) {
+      const typeParts = [];
+      let lastName = '';
+      for (let i = 0; i < rest.length; i++) {
+        if (i % 2 === 0) typeParts.push(rest[i]);
+        else lastName = rest[i];
+      }
+      result.resourceType = typeParts.join('/');
+      result.displayType = result.resourceType ? result.provider + '/' + result.resourceType : result.provider;
+      result.name = lastName || rest[rest.length - 1];
+    } else {
+      result.displayType = result.provider;
+      result.name = parts[parts.length - 1];
+    }
+    result.scope = 'resource';
+    result.bucket = result.displayType;
+    return result;
+  }
+
+  // Tenant-scoped (no providers segment), e.g. /tenants/{id}/directoryRoles/{name}
+  if (tenantIdx !== -1) {
+    const rest = parts.slice(tenantIdx + 2);
+    if (rest.length >= 2) {
+      result.resourceType = rest[0];
+      result.name = rest[rest.length - 1];
+    } else if (rest.length === 1) {
+      result.resourceType = rest[0];
+      result.name = rest[0];
+    }
+    result.scope = 'tenant';
+    result.displayType = result.resourceType ? 'tenant/' + result.resourceType : 'tenant';
+    result.bucket = result.displayType;
+    return result;
+  }
+
+  if (mgIdx !== -1) {
+    result.scope = 'managementGroup';
+    result.name = parts[mgIdx + 1] || '';
+    result.displayType = 'managementGroups';
+    result.bucket = 'managementGroups';
+    return result;
+  }
+
+  if (rgIdx !== -1) {
+    result.scope = 'resourceGroup';
+    result.displayType = 'resourceGroups';
+    result.name = result.resourceGroup;
+    result.bucket = 'resourceGroups';
+    return result;
+  }
+
+  if (subIdx !== -1) {
+    result.scope = 'subscription';
+    result.displayType = 'subscriptions';
+    result.name = result.subscriptionId;
+    result.bucket = 'subscriptions';
+    return result;
+  }
+
+  result.name = parts[parts.length - 1];
+  result.displayType = 'other';
+  return result;
+}
+
+/**
+ * Build the asset/scope inventory: dedupe assets by normalized resource_id
+ * (findings with no resource_id become their own row), aggregate finding ids
+ * and the worst severity per asset, and roll up per-scope counts.
+ */
+function buildAssetInventory(findings) {
+  const assets = new Map();
+  const scopeMap = new Map();
+  for (const f of findings) {
+    const parsed = parseResourceId(f.resource_id, f);
+    const key = f.resource_id ? f.resource_id.toLowerCase() : 'finding:' + f.id;
+    let a = assets.get(key);
+    if (!a) {
+      a = {
+        key,
+        name: parsed.name || shortResource(f.resource_id) || f.id,
+        displayType: parsed.displayType || 'other',
+        scope: parsed.scope,
+        subscriptionId: parsed.subscriptionId,
+        resourceGroup: parsed.resourceGroup,
+        tenantId: parsed.tenantId,
+        resourceId: f.resource_id,
+        findingIds: [],
+        maxSevRank: 0,
+        maxSev: 'Informational',
+      };
+      assets.set(key, a);
+    }
+    a.findingIds.push(f.id);
+    if (f.severityRank > a.maxSevRank) {
+      a.maxSevRank = f.severityRank;
+      a.maxSev = f.severity;
+    }
+    const scopeLabel = parsed.tenantId
+      ? 'Tenant ' + parsed.tenantId
+      : parsed.subscriptionId
+        ? 'Subscription ' + parsed.subscriptionId
+        : '(unscoped)';
+    let s = scopeMap.get(scopeLabel);
+    if (!s) {
+      s = { label: scopeLabel, assets: new Set(), findings: 0 };
+      scopeMap.set(scopeLabel, s);
+    }
+    s.assets.add(key);
+    s.findings++;
+  }
+  const assetList = [...assets.values()].sort((a, b) => {
+    if (b.maxSevRank !== a.maxSevRank) return b.maxSevRank - a.maxSevRank;
+    if (a.displayType !== b.displayType) return a.displayType.localeCompare(b.displayType);
+    return a.name.localeCompare(b.name);
+  });
+  const scopes = [...scopeMap.values()]
+    .map((s) => ({ label: s.label, assets: s.assets.size, findings: s.findings }))
+    .sort((a, b) => b.findings - a.findings);
+  return { assets: assetList, scopes };
+}
+
+// ---------------------------------------------------------------------------
+// Prioritized recommendations
+// ---------------------------------------------------------------------------
+
+function normRecText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[.;:,]+$/, '');
+}
+
+/**
+ * Group findings into actionable recommendations keyed by check_id (preferred)
+ * or normalized recommendation text, then bucket into priority tiers.
+ * chainFindingIds carries the ids that participate in an explicit attack path.
+ */
+function buildRecommendations(findings, chainFindingIds) {
+  const groups = new Map();
+  for (const f of findings) {
+    if (!f.recommendation) continue;
+    const key = f.check_id ? 'check:' + f.check_id.toLowerCase() : 'rec:' + normRecText(f.recommendation);
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        key,
+        recommendation: f.recommendation,
+        category: f.category,
+        findingIds: [],
+        maxSevRank: 0,
+        maxSev: 'Informational',
+        chainRelevant: false,
+        controls: { mitre: new Set(), cis_azure: new Set(), defender_for_cloud: new Set(), nist_800_53: new Set() },
+      };
+      groups.set(key, g);
+    }
+    g.findingIds.push(f.id);
+    if (f.severityRank > g.maxSevRank) {
+      g.maxSevRank = f.severityRank;
+      g.maxSev = f.severity;
+      g.recommendation = f.recommendation;
+      g.category = f.category;
+    }
+    if (chainFindingIds.has(f.id)) g.chainRelevant = true;
+    for (const k of Object.keys(g.controls)) {
+      (f.controls[k] || []).forEach((c) => g.controls[k].add(c));
+    }
+  }
+  const all = [...groups.values()];
+  const tierOf = (g) => {
+    if (g.maxSev === 'Critical' || (g.maxSev === 'High' && g.chainRelevant)) return 1;
+    if (g.maxSev === 'High' || g.maxSev === 'Medium') return 2;
+    return 3;
+  };
+  for (const g of all) g.tier = tierOf(g);
+  const sortFn = (a, b) => {
+    if (b.maxSevRank !== a.maxSevRank) return b.maxSevRank - a.maxSevRank;
+    if (a.chainRelevant !== b.chainRelevant) return a.chainRelevant ? -1 : 1;
+    return b.findingIds.length - a.findingIds.length;
+  };
+  return [1, 2, 3].map((t) => ({ tier: t, items: all.filter((g) => g.tier === t).sort(sortFn) }));
+}
+
+// ---------------------------------------------------------------------------
+// Executive summary (safe, evidence-bounded sentences only)
+// ---------------------------------------------------------------------------
+
+function buildExecSummary(findings, paths, counts, total, openRisk, chainFindingIds) {
+  const out = [];
+  if (total === 0) {
+    out.push('No findings were present in the supplied dataset. This does not prove absence of risk; it reflects only what the assessment evaluated.');
+    return out;
+  }
+  const sevParts = SEVERITY_ORDER.filter((s) => counts[s]).map((s) => counts[s] + ' ' + s);
+  out.push('The assessment recorded ' + total + ' finding' + (total === 1 ? '' : 's') +
+    ' in the in-scope environment' + (sevParts.length ? ' (' + sevParts.join(', ') + ')' : '') + '.');
+
+  const explicit = paths.filter((p) => !p.derived);
+  const modeled = explicit.length ? explicit : paths;
+  if (modeled.length) {
+    const p = modeled[0];
+    out.push('The highest-severity modeled attack path, ' + p.id + ' (' + p.severity + '), ' +
+      (p.title ? '\u201c' + p.title + ',\u201d ' : '') + 'traces a route' +
+      (p.end_state ? ' ending in ' + p.end_state : '') + '.');
+  }
+
+  const byDomain = new Map();
+  for (const f of findings) byDomain.set(f.category, (byDomain.get(f.category) || 0) + 1);
+  let topDomain = null;
+  let topN = 0;
+  let tie = false;
+  for (const [d, count] of byDomain) {
+    if (count > topN) { topN = count; topDomain = d; tie = false; }
+    else if (count === topN) tie = true;
+  }
+  if (topDomain && !tie) {
+    out.push('The ' + topDomain + ' domain accounts for the largest share of findings (' + topN + ').');
+  }
+
+  out.push(openRisk + ' of ' + total + ' findings are in an open or unresolved state and warrant remediation tracking.');
+
+  if (chainFindingIds.size) {
+    out.push(chainFindingIds.size + ' finding' + (chainFindingIds.size === 1 ? '' : 's') +
+      ' participate in at least one modeled attack path and should be prioritized to break those chains.');
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Consolidated attack-graph model + layered layout + SVG rendering
+// ---------------------------------------------------------------------------
+
+const CG_NODE_W = 172;
+const CG_NODE_H = 62;
+const CG_GAP_X = 90;
+const CG_LANE = 104;
+const CG_PAD = 32;
+
+/**
+ * Merge EXPLICIT (non-derived) attack paths into a single deduplicated graph.
+ * Nodes are keyed canonically by resource_id, else finding_id, else a
+ * path-local synthetic id. Edges are deduped; both nodes and edges accumulate
+ * the set of path ids they belong to. Applies a size cap for readability.
+ */
+function buildGraphModel(paths, findingsById) {
+  const explicit = paths.filter((p) => !p.derived);
+  const nodeMap = new Map();
+  const edgeMap = new Map();
+
+  for (const p of explicit) {
+    const localToKey = new Map();
+    for (const node of p.nodes) {
+      let key;
+      if (node.resource_id) key = 'res:' + node.resource_id.toLowerCase();
+      else if (node.finding_id) key = 'find:' + node.finding_id;
+      else key = 'pn:' + p.id + ':' + node.id;
+      localToKey.set(node.id, key);
+      let n = nodeMap.get(key);
+      if (!n) {
+        n = {
+          key,
+          label: node.label,
+          type: node.type,
+          resourceId: node.resource_id,
+          findingId: node.finding_id,
+          severity: '',
+          severityRank: 0,
+          paths: new Set(),
+          x: 0, y: 0, rank: 0, order: 0,
+        };
+        nodeMap.set(key, n);
+      }
+      if (node.finding_id && !n.findingId) n.findingId = node.finding_id;
+      const fid = n.findingId;
+      if (fid && findingsById.has(fid)) {
+        const f = findingsById.get(fid);
+        if (f.severityRank > n.severityRank) {
+          n.severityRank = f.severityRank;
+          n.severity = f.severity;
+        }
+      }
+      n.paths.add(p.id);
+    }
+    for (const e of p.edges) {
+      const fromKey = localToKey.get(e.from);
+      const toKey = localToKey.get(e.to);
+      if (!fromKey || !toKey || fromKey === toKey) continue;
+      const ekey = fromKey + '\u0000' + toKey;
+      let edge = edgeMap.get(ekey);
+      if (!edge) {
+        edge = { from: fromKey, to: toKey, label: e.label, technique: e.technique, paths: new Set(), back: false };
+        edgeMap.set(ekey, edge);
+      } else if (!edge.label && e.label) {
+        edge.label = e.label;
+      }
+      edge.paths.add(p.id);
+    }
+  }
+
+  const nodes = [...nodeMap.values()];
+  const edges = [...edgeMap.values()];
+  const capped = nodes.length > 50 || edges.length > 90;
+  return { nodes, edges, capped, pathCount: explicit.length };
+}
+
+/**
+ * Deterministic layered DAG layout. Ranks nodes by longest path (topological),
+ * detects back-edges via DFS coloring, then runs barycenter sweeps to reduce
+ * crossings. Mutates node x/y/rank/order. Returns canvas dimensions.
+ */
+function layoutGraph(model) {
+  const { nodes, edges } = model;
+  if (!nodes.length) return { width: CG_PAD * 2, height: CG_PAD * 2 };
+  const byKey = new Map(nodes.map((n) => [n.key, n]));
+  const adj = new Map(nodes.map((n) => [n.key, []]));
+  const indeg = new Map(nodes.map((n) => [n.key, 0]));
+  for (const e of edges) {
+    if (adj.has(e.from)) adj.get(e.from).push(e.to);
+  }
+
+  // DFS back-edge detection (white=0, gray=1, black=2).
+  const color = new Map(nodes.map((n) => [n.key, 0]));
+  const edgeByPair = new Map(edges.map((e) => [e.from + '\u0000' + e.to, e]));
+  function dfs(key) {
+    color.set(key, 1);
+    for (const to of adj.get(key) || []) {
+      const c = color.get(to);
+      if (c === 1) {
+        const e = edgeByPair.get(key + '\u0000' + to);
+        if (e) e.back = true;
+      } else if (c === 0) {
+        dfs(to);
+      }
+    }
+    color.set(key, 2);
+  }
+  for (const n of nodes) if (color.get(n.key) === 0) dfs(n.key);
+
+  // Forward edges only for ranking.
+  const fwd = edges.filter((e) => !e.back);
+  for (const e of fwd) indeg.set(e.to, (indeg.get(e.to) || 0) + 1);
+  const rank = new Map(nodes.map((n) => [n.key, 0]));
+  const queue = nodes.filter((n) => (indeg.get(n.key) || 0) === 0).map((n) => n.key);
+  const fadj = new Map(nodes.map((n) => [n.key, []]));
+  for (const e of fwd) fadj.get(e.from).push(e.to);
+  const indegWork = new Map(indeg);
+  while (queue.length) {
+    const k = queue.shift();
+    for (const to of fadj.get(k)) {
+      rank.set(to, Math.max(rank.get(to), rank.get(k) + 1));
+      indegWork.set(to, indegWork.get(to) - 1);
+      if (indegWork.get(to) === 0) queue.push(to);
+    }
+  }
+  for (const n of nodes) n.rank = rank.get(n.key) || 0;
+
+  const layers = [];
+  for (const n of nodes) {
+    (layers[n.rank] || (layers[n.rank] = [])).push(n);
+  }
+  for (const layer of layers) {
+    if (!layer) continue;
+    layer.sort((a, b) => (b.severityRank - a.severityRank) || a.label.localeCompare(b.label));
+    layer.forEach((n, i) => { n.order = i; });
+  }
+
+  // Barycenter sweeps using forward-edge predecessors.
+  const preds = new Map(nodes.map((n) => [n.key, []]));
+  for (const e of fwd) preds.get(e.to).push(e.from);
+  for (let sweep = 0; sweep < 2; sweep++) {
+    for (let r = 1; r < layers.length; r++) {
+      const layer = layers[r];
+      if (!layer) continue;
+      for (const n of layer) {
+        const ps = preds.get(n.key);
+        if (ps.length) {
+          const avg = ps.reduce((s, k) => s + (byKey.get(k).order || 0), 0) / ps.length;
+          n._bary = avg;
+        } else {
+          n._bary = n.order;
+        }
+      }
+      layer.sort((a, b) => (a._bary - b._bary) || (b.severityRank - a.severityRank));
+      layer.forEach((n, i) => { n.order = i; });
+    }
+  }
+
+  const maxRows = Math.max(...layers.filter(Boolean).map((l) => l.length));
+  const height = CG_PAD * 2 + maxRows * CG_LANE;
+  layers.forEach((layer, r) => {
+    if (!layer) return;
+    const totalH = layer.length * CG_LANE;
+    const top = CG_PAD + (height - CG_PAD * 2 - totalH) / 2;
+    layer.forEach((n, i) => {
+      n.x = CG_PAD + r * (CG_NODE_W + CG_GAP_X);
+      n.y = top + i * CG_LANE + (CG_LANE - CG_NODE_H) / 2;
+    });
+  });
+  const width = CG_PAD * 2 + layers.length * CG_NODE_W + (layers.length - 1) * CG_GAP_X;
+  return { width, height };
+}
+
+function renderConsolidatedGraph(model, layout) {
+  if (!model.pathCount) {
+    return '<p class="empty">No explicit attack paths were supplied, so no consolidated graph is available. Derived single-finding chains are shown in the Attack Paths section.</p>';
+  }
+  const byKey = new Map(model.nodes.map((n) => [n.key, n]));
+  if (model.capped) {
+    const rows = model.nodes
+      .slice()
+      .sort((a, b) => b.severityRank - a.severityRank)
+      .map((n) => `<tr><td>${escText(n.label)}</td><td>${n.findingId ? escText(n.findingId) : '<span class="muted">\u2014</span>'}</td><td>${n.severity ? sevPill(n.severity) : '<span class="muted">\u2014</span>'}</td></tr>`)
+      .join('');
+    return `<p class="note">The consolidated graph is large (${model.nodes.length} nodes, ${model.edges.length} edges) and is shown as a node table for readability.</p>
+    <table class="restable"><thead><tr><th>Node</th><th>Finding</th><th>Severity</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  let svg = `<svg id="cgSvg" class="cgraph" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="Consolidated attack graph">`;
+  svg += `<defs><marker id="cg-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="cg-arrowhead"/></marker></defs>`;
+  svg += `<g class="cg-viewport">`;
+
+  for (const e of model.edges) {
+    const a = byKey.get(e.from);
+    const b = byKey.get(e.to);
+    if (!a || !b) continue;
+    const pathsAttr = escAttr([...e.paths].join(' '));
+    if (e.back) {
+      const x1 = a.x;
+      const y1 = a.y + CG_NODE_H / 2;
+      const x2 = b.x + CG_NODE_W;
+      const y2 = b.y + CG_NODE_H / 2;
+      const my = Math.min(y1, y2) - 30;
+      svg += `<path d="M${x1},${y1} C${x1 - 50},${my} ${x2 + 50},${my} ${x2},${y2}" class="cg-edge cg-back" data-paths="${pathsAttr}" marker-end="url(#cg-arrow)"/>`;
+    } else {
+      const x1 = a.x + CG_NODE_W;
+      const y1 = a.y + CG_NODE_H / 2;
+      const x2 = b.x;
+      const y2 = b.y + CG_NODE_H / 2;
+      svg += `<line x1="${x1}" y1="${y1}" x2="${x2 - 4}" y2="${y2}" class="cg-edge" data-paths="${pathsAttr}" marker-end="url(#cg-arrow)"/>`;
+      if (e.label || e.technique) {
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2 - 6;
+        svg += `<text x="${mx}" y="${my}" text-anchor="middle" class="cg-edge-label">${escText(truncate([e.label, e.technique].filter(Boolean).join(' \u00b7 '), 20))}</text>`;
+      }
+    }
+  }
+
+  for (const n of model.nodes) {
+    const sevClass = n.severity ? ' sev-' + slugId(n.severity) : ' sev-none';
+    const clickable = n.findingId ? ' cg-clickable' : '';
+    const attrs = n.findingId
+      ? ` data-finding="${escAttr(n.findingId)}" tabindex="0" role="button"`
+      : '';
+    const pathsAttr = escAttr([...n.paths].join(' '));
+    const tip = [n.label];
+    if (n.resourceId) tip.push(n.resourceId);
+    if (n.findingId) tip.push('Finding ' + n.findingId + (n.severity ? ' (' + n.severity + ')' : ''));
+    svg += `<g class="cg-node${sevClass}${clickable}" data-paths="${pathsAttr}"${attrs}>`;
+    svg += `<title>${escText(tip.join('\n'))}</title>`;
+    svg += `<rect x="${n.x}" y="${n.y}" width="${CG_NODE_W}" height="${CG_NODE_H}" rx="10"/>`;
+    svg += `<text x="${n.x + 12}" y="${n.y + 22}" class="cg-node-type">${escText(String(n.type || 'node').toUpperCase())}</text>`;
+    svg += `<text x="${n.x + 12}" y="${n.y + 40}" class="cg-node-label">${escText(truncate(n.label, 22))}</text>`;
+    if (n.findingId) {
+      svg += `<text x="${n.x + 12}" y="${n.y + 55}" class="cg-node-fid">${escText(n.findingId)}</text>`;
+    }
+    svg += `</g>`;
+  }
+
+  svg += `</g></svg>`;
+  return svg;
+}
+
+// ---------------------------------------------------------------------------
+// Document assembly
+// ---------------------------------------------------------------------------
+
+const SECTIONS = [
+  { id: 'exec-summary', num: '1', label: 'Executive Summary' },
+  { id: 'attack-paths', num: '2', label: 'Attack Paths' },
+  { id: 'findings', num: '3', label: 'Findings' },
+  { id: 'recommendations', num: '4', label: 'Recommendations' },
+  { id: 'resources', num: '5', label: 'Resources & Scope' },
+  { id: 'attack-graph', num: '6', label: 'Consolidated Attack Graph' },
+  { id: 'appendix-coverage', num: 'A', label: 'Appendix A · Coverage & Controls' },
+  { id: 'appendix-methodology', num: 'B', label: 'Appendix B · Methodology & Limitations' },
+  { id: 'appendix-about', num: 'C', label: 'Appendix C · About This Report' },
+];
+
+const TIER_META = {
+  1: { label: 'Immediate', sub: 'Critical exposure or active attack-path participation', cls: 'tier-1' },
+  2: { label: 'Short-term', sub: 'Material risk to address in the current remediation cycle', cls: 'tier-2' },
+  3: { label: 'Hardening', sub: 'Lower-severity posture and defense-in-depth improvements', cls: 'tier-3' },
+};
+
+function buildAnchors(findings) {
+  const used = new Set();
+  const map = new Map();
+  for (const f of findings) {
+    let base = 'finding-' + slugId(f.id);
+    let candidate = base;
+    let i = 2;
+    while (used.has(candidate)) {
+      candidate = base + '-' + i;
+      i++;
+    }
+    used.add(candidate);
+    map.set(f.id, candidate);
+  }
+  return map;
+}
+
+function buildChainFindingIds(paths) {
+  const ids = new Set();
+  for (const p of paths) {
+    if (p.derived) continue;
+    if (p.finding_id) ids.add(p.finding_id);
+    for (const n of p.nodes) if (n.finding_id) ids.add(n.finding_id);
+    for (const e of p.edges) if (e.finding_id) ids.add(e.finding_id);
+  }
+  return ids;
+}
+
+function renderCoverage(findings) {
+  const byDomain = new Map();
+  for (const f of findings) {
+    let d = byDomain.get(f.category);
+    if (!d) { d = { category: f.category, total: 0, counts: {} }; byDomain.set(f.category, d); }
+    d.total++;
+    d.counts[f.severity] = (d.counts[f.severity] || 0) + 1;
+  }
+  const rows = [...byDomain.values()]
+    .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category))
+    .map((d) => {
+      const sevCells = SEVERITY_ORDER.map((s) => `<td class="num">${d.counts[s] ? d.counts[s] : '<span class="muted">\u00b7</span>'}</td>`).join('');
+      return `<tr><td>${escText(d.category)}</td><td class="num">${d.total}</td>${sevCells}</tr>`;
+    })
+    .join('');
+  const sevHead = SEVERITY_ORDER.map((s) => `<th class="num">${escText(s.slice(0, 4))}</th>`).join('');
+
+  const fw = { mitre: new Set(), cis_azure: new Set(), defender_for_cloud: new Set(), nist_800_53: new Set() };
+  for (const f of findings) {
+    for (const k of Object.keys(fw)) (f.controls[k] || []).forEach((c) => fw[k].add(c));
+  }
+  const fwBlocks = [];
+  if (fw.mitre.size) fwBlocks.push(`<div class="fw"><h4>MITRE ATT&amp;CK</h4><div class="chips">${chips([...fw.mitre].sort(), 'c-mitre')}</div></div>`);
+  if (fw.cis_azure.size) fwBlocks.push(`<div class="fw"><h4>CIS Azure</h4><div class="chips">${chips([...fw.cis_azure].sort(), 'c-cis')}</div></div>`);
+  if (fw.defender_for_cloud.size) fwBlocks.push(`<div class="fw"><h4>Defender for Cloud</h4><div class="chips">${chips([...fw.defender_for_cloud].sort(), 'c-dfc')}</div></div>`);
+  if (fw.nist_800_53.size) fwBlocks.push(`<div class="fw"><h4>NIST 800-53</h4><div class="chips">${chips([...fw.nist_800_53].sort(), 'c-nist')}</div></div>`);
+
+  return `
+    <table class="restable cov">
+      <thead><tr><th>Domain</th><th class="num">Findings</th>${sevHead}</tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" class="muted">No findings.</td></tr>'}</tbody>
+    </table>
+    ${fwBlocks.length ? `<div class="fw-grid">${fwBlocks.join('')}</div>` : '<p class="muted">No control-framework mappings were supplied.</p>'}`;
+}
+
+function buildHtml(findings, paths, meta, title) {
   const total = findings.length;
-  const topRisk = findings[0];
+  const counts = {};
+  for (const s of SEVERITY_ORDER) counts[s] = 0;
+  for (const f of findings) counts[f.severity] = (counts[f.severity] || 0) + 1;
+  const openRisk = findings.filter((f) => OPEN_STATUSES.has(String(f.status).toLowerCase())).length;
 
-  const agents = [...new Set(findings.map((f) => f.agent))].sort();
-  const statuses = [...new Set(findings.map((f) => f.status))].sort();
+  const findingsById = new Map(findings.map((f) => [f.id, f]));
+  const chainFindingIds = buildChainFindingIds(paths);
+  const anchors = buildAnchors(findings);
 
-  // Severity summary cards.
-  const sevCards = SEVERITY_ORDER.map(
-    (sev) => `<button class="sevcard sev-${slugId(sev)}" data-filter-severity="${escAttr(sev)}">
-      <span class="sevcard-n">${counts[sev]}</span>
-      <span class="sevcard-l">${escText(sev)}</span>
-    </button>`
-  ).join('');
+  const inventory = buildAssetInventory(findings);
+  const recs = buildRecommendations(findings, chainFindingIds);
+  const summary = buildExecSummary(findings, paths, counts, total, openRisk, chainFindingIds);
+  const graphModel = buildGraphModel(paths, findingsById);
+  const graphLayout = graphModel.capped ? { width: 0, height: 0 } : layoutGraph(graphModel);
 
-  // Date range from first/last seen.
-  const seen = findings.flatMap((f) => [f.first_seen, f.last_seen]).filter(Boolean).sort();
-  const dataRange = seen.length ? `${seen[0]} \u2014 ${seen[seen.length - 1]}` : '';
+  const genDate = new Date().toISOString();
+  const docTitle = meta.name || title || 'Azure Cloud Security Assessment';
+  const subs = Array.isArray(meta.subscriptions) ? meta.subscriptions : [];
 
-  const subList = Array.isArray(engagement.subscriptions)
-    ? engagement.subscriptions
-    : engagement.subscriptions
-      ? [engagement.subscriptions]
-      : [...new Set(findings.map((f) => f.subscription_id).filter(Boolean))];
+  // ---- Cover -------------------------------------------------------------
+  const sevChipsCover = SEVERITY_ORDER
+    .filter((s) => counts[s])
+    .map((s) => `<span class="cover-sev sev-${slugId(s)}">${counts[s]} ${escText(s)}</span>`)
+    .join('');
+  const coverMetaRows = [
+    meta.client ? ['Client', meta.client] : null,
+    meta.id ? ['Engagement ID', meta.id] : null,
+    meta.mode ? ['Mode', meta.mode] : ['Mode', 'read-only-assessment'],
+    meta.date ? ['Assessment date', meta.date] : null,
+    subs.length ? ['Subscriptions', subs.join('  ·  ')] : null,
+  ].filter(Boolean)
+    .map(([k, v]) => `<div class="cm-row"><span class="cm-k">${escText(k)}</span><span class="cm-v">${escText(v)}</span></div>`)
+    .join('');
 
-  // Attack-paths section.
-  const pathsHtml = paths.length
-    ? paths.map((p) => {
-        const fid = p.finding_id ? ` data-finding="${escAttr(p.finding_id)}"` : '';
-        return `<article class="appath" id="path-${escAttr(slugId(p.id))}">
-        <header class="appath-head">
-          <div class="appath-titles">
-            <h3>${sevPill(p.severity)} ${escText(p.id)} — ${escText(p.title)}</h3>
-            <div class="appath-meta">
-              ${p.entry ? `<span><span class="muted">Entry</span> ${escText(p.entry)}</span>` : ''}
-              ${p.end_state ? `<span><span class="muted">End state</span> ${escText(p.end_state)}</span>` : ''}
-              ${p.derived ? `<span class="derived-tag" title="Linearized from the finding's attack_path text; nodes are narrative steps, not validated topology">derived</span>` : ''}
-            </div>
-          </div>
-          ${p.finding_id ? `<button class="link-btn" data-goto-finding="${escAttr(p.finding_id)}">View finding \u2192</button>` : ''}
-        </header>
-        <div class="appath-graph"${fid}>${renderPathSvg(p)}</div>
-        ${p.break_chain ? `<div class="break-chain"><strong>Break the chain:</strong> ${escText(p.break_chain)}</div>` : ''}
+  const printToc = SECTIONS
+    .map((s) => `<li><span class="pt-num">${escText(s.num)}</span><span class="pt-label">${escText(s.label)}</span></li>`)
+    .join('');
+
+  const cover = `
+  <header class="cover">
+    <div class="cover-top">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">\u26ca</span><span class="brand-name">Azure Red Team</span></div>
+      <span class="confidential">CONFIDENTIAL</span>
+    </div>
+    <div class="cover-main">
+      <p class="cover-kicker">Cloud Security Assessment</p>
+      <h1 class="cover-title">${escText(docTitle)}</h1>
+      <div class="cover-meta">${coverMetaRows}</div>
+      <div class="cover-sevs">${sevChipsCover || '<span class="muted">No findings recorded.</span>'}</div>
+    </div>
+    <div class="cover-foot">
+      <div class="cover-toc">
+        <h2>Contents</h2>
+        <ol class="print-toc">${printToc}</ol>
+      </div>
+      <p class="disclaimer">Read-only assessment. This report is generated from supplied, read-only findings and methodology output; it performs no live scanning and contains no exploit payloads. Distribution is restricted to authorized recipients.</p>
+    </div>
+  </header>`;
+
+  // ---- Action bar + sidebar TOC -----------------------------------------
+  const actionbar = `
+  <div class="actionbar no-print">
+    <button id="btnExpand" class="ab-btn">Expand all</button>
+    <button id="btnCollapse" class="ab-btn">Collapse all</button>
+    <button id="btnPrint" class="ab-btn ab-primary">Print / Save PDF</button>
+  </div>`;
+
+  const tocLinks = SECTIONS
+    .map((s) => `<li><a href="#${escAttr(s.id)}" data-section="${escAttr(s.id)}"><span class="toc-num">${escText(s.num)}</span><span class="toc-label">${escText(s.label)}</span></a></li>`)
+    .join('');
+  const toc = `<nav class="toc no-print" aria-label="Table of contents"><div class="toc-inner"><h2>Contents</h2><ol>${tocLinks}</ol></div></nav>`;
+
+  // ---- §1 Executive summary ---------------------------------------------
+  const sevCards = SEVERITY_ORDER
+    .map((s) => `<div class="sevcard sev-${slugId(s)}" data-severity="${escAttr(s)}" role="button" tabindex="0"><span class="sc-n">${counts[s] || 0}</span><span class="sc-l">${escText(s)}</span></div>`)
+    .join('');
+  const summaryHtml = summary.map((p) => `<p>${escText(p)}</p>`).join('');
+  const sec1 = `
+  <section id="exec-summary" class="section">
+    <div class="sec-head"><span class="sec-num">1</span><h2>Executive Summary</h2></div>
+    <div class="exec-grid">
+      <div class="exec-prose">${summaryHtml}</div>
+      <aside class="exec-stats">
+        ${donut(counts, total)}
+        <div class="kpis">
+          <div class="kpi"><span class="kpi-n">${total}</span><span class="kpi-l">Total findings</span></div>
+          <div class="kpi"><span class="kpi-n">${openRisk}</span><span class="kpi-l">Open / unresolved</span></div>
+          <div class="kpi"><span class="kpi-n">${chainFindingIds.size}</span><span class="kpi-l">In attack paths</span></div>
+        </div>
+      </aside>
+    </div>
+    <div class="sevcards">${sevCards}</div>
+  </section>`;
+
+  // ---- §2 Attack paths ---------------------------------------------------
+  let pathsHtml;
+  if (!paths.length) {
+    pathsHtml = '<p class="empty">No attack paths were supplied or derived from the findings.</p>';
+  } else {
+    pathsHtml = paths.map((p) => {
+      const fid = p.finding_id && anchors.has(p.finding_id) ? anchors.get(p.finding_id) : '';
+      const jump = fid ? `<button class="linkbtn ap-jump" data-target="${escAttr(fid)}">View finding ${escText(p.finding_id)} \u203a</button>` : '';
+      const tags = [
+        p.derived ? '<span class="tag tag-derived">derived</span>' : '<span class="tag tag-explicit">modeled</span>',
+        p.entry ? `<span class="kv"><span class="muted">Entry</span> ${escText(truncate(p.entry, 48))}</span>` : '',
+        p.end_state ? `<span class="kv"><span class="muted">End state</span> ${escText(truncate(p.end_state, 48))}</span>` : '',
+      ].filter(Boolean).join('');
+      const breakChain = p.break_chain ? `<div class="ap-break"><span class="muted">Break the chain:</span> ${escText(p.break_chain)}</div>` : '';
+      return `
+      <article class="appath">
+        <div class="appath-head">
+          <span class="ap-sev">${sevPill(p.severity)}</span>
+          <span class="ap-id">${escText(p.id)}</span>
+          <span class="ap-title">${escText(p.title)}</span>
+          ${jump}
+        </div>
+        <div class="ap-tags">${tags}</div>
+        <div class="ap-scroll">${renderPathSvg(p)}</div>
+        ${breakChain}
       </article>`;
-      }).join('')
-    : `<p class="empty">No attack paths were correlated for this engagement.</p>`;
-
-  const findingsHtml = findings.length
-    ? findings.map(renderFindingRow).join('')
-    : `<p class="empty">No findings in this dataset.</p>`;
-
-  // Control coverage rollup.
-  const mitre = new Set();
-  const cis = new Set();
-  for (const f of findings) {
-    (f.controls.mitre || []).forEach((c) => mitre.add(c));
-    (f.controls.cis_azure || []).forEach((c) => cis.add(c));
+    }).join('');
   }
+  const sec2 = `
+  <section id="attack-paths" class="section">
+    <div class="sec-head"><span class="sec-num">2</span><h2>Attack Paths</h2></div>
+    <p class="sec-intro">Modeled routes an adversary could take through the environment. Nodes linked to a finding are clickable and jump to the detailed finding.</p>
+    ${pathsHtml}
+  </section>`;
 
-  const warnHtml = warnings.length
-    ? `<details class="warnings"><summary>${warnings.length} data warning(s)</summary><ul>${warnings
-        .map((w) => `<li>${escText(w)}</li>`)
-        .join('')}</ul></details>`
+  // ---- §3 Findings -------------------------------------------------------
+  const agents = [...new Set(findings.map((f) => f.agent))].sort();
+  const domains = [...new Set(findings.map((f) => f.category))].sort();
+  const agentOpts = agents.map((a) => `<option value="${escAttr(a)}">${escText(a)}</option>`).join('');
+  const domainOpts = domains.map((d) => `<option value="${escAttr(d)}">${escText(d)}</option>`).join('');
+  const findingRows = findings.map((f) => renderFindingRow(f, anchors.get(f.id))).join('');
+  const sec3 = `
+  <section id="findings" class="section">
+    <div class="sec-head"><span class="sec-num">3</span><h2>Findings</h2></div>
+    <div class="filters no-print">
+      <input type="search" id="fSearch" placeholder="Search findings\u2026" aria-label="Search findings">
+      <select id="fSeverity" aria-label="Filter by severity"><option value="">All severities</option>${SEVERITY_ORDER.map((s) => `<option value="${escAttr(s)}">${escText(s)}</option>`).join('')}</select>
+      <select id="fDomain" aria-label="Filter by domain"><option value="">All domains</option>${domainOpts}</select>
+      <select id="fAgent" aria-label="Filter by agent"><option value="">All agents</option>${agentOpts}</select>
+      <span class="filter-count" id="fCount"></span>
+    </div>
+    <div class="findings" id="findingList">${findingRows || '<p class="empty">No findings.</p>'}</div>
+  </section>`;
+
+  // ---- §4 Recommendations ------------------------------------------------
+  const recTiers = recs.map((tier) => {
+    const tm = TIER_META[tier.tier];
+    if (!tier.items.length) return '';
+    const items = tier.items.map((g) => {
+      const fids = g.findingIds.map((id) => {
+        const anc = anchors.get(id);
+        return anc ? `<button class="linkbtn rec-fid" data-target="${escAttr(anc)}">${escText(id)}</button>` : `<span class="rec-fid-static">${escText(id)}</span>`;
+      }).join('');
+      const ctrlChips = [
+        chips([...g.controls.mitre].sort(), 'c-mitre'),
+        chips([...g.controls.cis_azure].sort(), 'c-cis'),
+        chips([...g.controls.defender_for_cloud].sort(), 'c-dfc'),
+        chips([...g.controls.nist_800_53].sort(), 'c-nist'),
+      ].join('');
+      const chainTag = g.chainRelevant ? '<span class="tag tag-chain">breaks attack path</span>' : '';
+      return `
+      <div class="rec">
+        <div class="rec-top">${sevPill(g.maxSev)}<span class="rec-cat">${escText(g.category)}</span>${chainTag}</div>
+        <p class="rec-text">${escText(g.recommendation)}</p>
+        <div class="rec-foot">
+          <div class="rec-fids"><span class="muted">Addresses:</span> ${fids}</div>
+          ${ctrlChips ? `<div class="chips rec-ctrls">${ctrlChips}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return `
+    <div class="rec-tier ${tm.cls}">
+      <div class="tier-head"><span class="tier-badge">${escText(tm.label)}</span><span class="tier-sub">${escText(tm.sub)}</span></div>
+      <div class="rec-list">${items}</div>
+    </div>`;
+  }).join('');
+  const sec4 = `
+  <section id="recommendations" class="section">
+    <div class="sec-head"><span class="sec-num">4</span><h2>Recommendations</h2></div>
+    <p class="sec-intro">Findings consolidated into prioritized, actionable remediations. Items flagged <em>breaks attack path</em> sever a modeled chain and are weighted higher.</p>
+    ${recTiers || '<p class="empty">No recommendations were derived from the findings.</p>'}
+  </section>`;
+
+  // ---- §5 Resources & scope ---------------------------------------------
+  const scopeChips = inventory.scopes
+    .map((s) => `<div class="scope-chip"><span class="scope-label">${escText(s.label)}</span><span class="scope-nums">${s.assets} asset${s.assets === 1 ? '' : 's'} · ${s.findings} finding${s.findings === 1 ? '' : 's'}</span></div>`)
+    .join('');
+  const assetRows = inventory.assets.map((a) => {
+    const fids = a.findingIds.map((id) => {
+      const anc = anchors.get(id);
+      return anc ? `<button class="linkbtn rec-fid" data-target="${escAttr(anc)}">${escText(id)}</button>` : escText(id);
+    }).join(' ');
+    const scopeText = a.tenantId ? 'tenant:' + a.tenantId : a.subscriptionId ? a.subscriptionId : '\u2014';
+    return `<tr>
+      <td>${sevPill(a.maxSev)}</td>
+      <td><span class="asset-name" title="${escAttr(a.resourceId)}">${escText(a.name)}</span></td>
+      <td><code class="asset-type">${escText(a.displayType)}</code></td>
+      <td class="asset-scope">${escText(scopeText)}</td>
+      <td>${fids}</td>
+    </tr>`;
+  }).join('');
+  const sec5 = `
+  <section id="resources" class="section">
+    <div class="sec-head"><span class="sec-num">5</span><h2>Resources &amp; Scope</h2></div>
+    <p class="sec-intro">Assets referenced by findings, deduplicated and ranked by worst observed severity, with a roll-up of in-scope tenants and subscriptions.</p>
+    <div class="scope-strip">${scopeChips || '<span class="muted">No scope information available.</span>'}</div>
+    <table class="restable">
+      <thead><tr><th>Severity</th><th>Asset</th><th>Type</th><th>Scope</th><th>Findings</th></tr></thead>
+      <tbody>${assetRows || '<tr><td colspan="5" class="muted">No assets.</td></tr>'}</tbody>
+    </table>
+  </section>`;
+
+  // ---- §6 Consolidated attack graph -------------------------------------
+  const graphSvg = renderConsolidatedGraph(graphModel, graphLayout);
+  const graphControls = (graphModel.pathCount && !graphModel.capped)
+    ? `<div class="cg-controls no-print">
+        <button id="cgZoomIn" class="ab-btn" aria-label="Zoom in">+</button>
+        <button id="cgZoomOut" class="ab-btn" aria-label="Zoom out">\u2212</button>
+        <button id="cgFit" class="ab-btn">Fit</button>
+        <button id="cgReset" class="ab-btn">Reset</button>
+        <span class="cg-hint">Drag to pan · scroll to zoom · click a node to open its finding</span>
+      </div>`
     : '';
+  const legend = (graphModel.pathCount && !graphModel.capped)
+    ? `<div class="cg-legend">${SEVERITY_ORDER.map((s) => `<span class="cg-leg sev-${slugId(s)}">${escText(s)}</span>`).join('')}<span class="cg-leg cg-leg-back">back-edge (loop)</span></div>`
+    : '';
+  const sec6 = `
+  <section id="attack-graph" class="section">
+    <div class="sec-head"><span class="sec-num">6</span><h2>Consolidated Attack Graph</h2></div>
+    <p class="sec-intro">All modeled attack paths merged into a single graph. Shared assets are deduplicated so cross-path pivots are visible at a glance.</p>
+    ${graphControls}
+    ${legend}
+    <div class="cg-frame" id="cgFrame">${graphSvg}</div>
+  </section>`;
 
-  const csp = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+  // ---- Appendices --------------------------------------------------------
+  const appA = `
+  <section id="appendix-coverage" class="section appendix">
+    <div class="sec-head"><span class="sec-num">A</span><h2>Appendix A · Coverage &amp; Controls</h2></div>
+    <p class="sec-intro">Finding distribution across security domains and the control frameworks referenced by the findings.</p>
+    ${renderCoverage(findings)}
+  </section>`;
 
-  return `<!doctype html>
+  const appB = `
+  <section id="appendix-methodology" class="section appendix">
+    <div class="sec-head"><span class="sec-num">B</span><h2>Appendix B · Methodology &amp; Limitations</h2></div>
+    <div class="prose">
+      <p>This assessment was produced by a coordinated team of read-only Azure security agents. Each agent specializes in a domain (identity, network, storage, RBAC, logging, AI, web, and governance) and contributes structured findings to a shared evidence model. An orchestrator deduplicates overlapping observations and an attack-path analyst correlates findings into multi-step chains.</p>
+      <h3>Scope</h3>
+      <p>Only resources and configurations represented in the supplied findings dataset are in scope. Tenants and subscriptions listed on the cover define the engagement boundary.</p>
+      <h3>Approach</h3>
+      <p>The methodology is read-only and evidence-driven: configuration and posture are evaluated against documented control baselines and known attack techniques. No exploitation, write operations, or live credential use is performed, and no exploit payloads are included.</p>
+      <h3>Limitations</h3>
+      <p>Absence of a finding is not proof of security; it reflects only what was evaluated with the supplied inputs. Severity and confidence are analytical judgments. Attack paths are models intended to prioritize remediation, not guarantees of exploitability. Findings should be validated against the live environment before remediation is finalized.</p>
+    </div>
+  </section>`;
+
+  const appC = `
+  <section id="appendix-about" class="section appendix">
+    <div class="sec-head"><span class="sec-num">C</span><h2>Appendix C · About This Report</h2></div>
+    <div class="prose">
+      <p>This document is a self-contained HTML report. It loads no external scripts, styles, fonts, or network resources, and is safe to open offline or archive as evidence. Use <em>Print / Save PDF</em> to produce a paginated copy.</p>
+      <table class="restable about">
+        <tbody>
+          <tr><td>Generated</td><td>${escText(genDate)}</td></tr>
+          <tr><td>Generator version</td><td>${escText(GENERATOR_VERSION)}</td></tr>
+          <tr><td>Findings</td><td>${total}</td></tr>
+          <tr><td>Attack paths</td><td>${paths.length} (${paths.filter((p) => !p.derived).length} modeled, ${paths.filter((p) => p.derived).length} derived)</td></tr>
+        </tbody>
+      </table>
+      ${warnings.length ? `<div class="warnbox"><h4>Generation notes (${warnings.length})</h4><ul>${warnings.map((w) => `<li>${escText(w)}</li>`).join('')}</ul></div>` : ''}
+    </div>
+  </section>`;
+
+  const metaJson = jsonForScript({
+    generator: GENERATOR_VERSION,
+    generated: genDate,
+    title: docTitle,
+    total,
+    counts,
+    openRisk,
+    chainFindings: chainFindingIds.size,
+  });
+
+  const favicon = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="13" font-size="13">\u26ca</text></svg>'
+  );
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${escAttr(csp)}">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%9B%8A%3C/text%3E%3C/svg%3E">
-<title>${escText(title)}</title>
-<style>
-${CSS}
-</style>
+<title>${escText(docTitle)}</title>
+<link rel="icon" href="${escAttr(favicon)}">
+<style>${CSS}</style>
+<noscript><style>
+  .finding-detail{display:block !important}
+  .fh-caret,.filters,.actionbar,.cg-controls,.cg-hint{display:none !important}
+</style></noscript>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">⛊</span>
-    <div>
-      <div class="brand-title">${escText(title)}</div>
-      <div class="brand-sub">Azure Red Team — interactive assessment report</div>
-    </div>
-  </div>
-  <div class="topbar-actions no-print">
-    <button id="expandAll" class="ghost">Expand all</button>
-    <button id="collapseAll" class="ghost">Collapse all</button>
-    <button id="printBtn" class="ghost">Print / PDF</button>
-  </div>
-</header>
-
-<main>
-  <section class="summary panel">
-    <div class="summary-grid">
-      <div class="summary-donut">${donut(counts, total)}</div>
-      <div class="summary-sevs">${sevCards}</div>
-      <div class="summary-kpis">
-        <div class="kpi"><span class="kpi-n">${total}</span><span class="kpi-l">Findings</span></div>
-        <div class="kpi"><span class="kpi-n">${openRisk}</span><span class="kpi-l">Open risk</span></div>
-        <div class="kpi"><span class="kpi-n">${paths.length}</span><span class="kpi-l">Attack paths</span></div>
-        <div class="kpi"><span class="kpi-n">${counts.Critical + counts.High}</span><span class="kpi-l">Critical + High</span></div>
-      </div>
-    </div>
-    ${topRisk ? `<div class="toprisk">
-      <span class="muted">Top risk</span>
-      ${sevPill(topRisk.severity)}
-      <a href="#row-${escAttr(slugId(topRisk.id))}" data-goto-finding="${escAttr(topRisk.id)}" class="toprisk-link">${escText(topRisk.id)} — ${escText(topRisk.title)}</a>
-    </div>` : ''}
-  </section>
-
-  <nav class="tabs no-print" role="tablist">
-    <a href="#attack-paths">Attack paths</a>
-    <a href="#findings">Findings</a>
-    <a href="#coverage">Coverage</a>
-    <a href="#about">About</a>
-  </nav>
-
-  <section id="attack-paths" class="panel">
-    <h2>Attack Paths</h2>
-    <p class="section-note">Chained findings represent real, walkable compromise paths and are featured first. Severity reflects the end state. Click a node with a finding badge to jump to its detail.</p>
-    ${pathsHtml}
-  </section>
-
-  <section id="findings" class="panel">
-    <div class="findings-head">
-      <h2>Findings</h2>
-      <div class="filters no-print">
-        <input type="search" id="search" placeholder="Search id, title, resource, domain…" aria-label="Search findings">
-        <select id="agentFilter" aria-label="Filter by domain agent">
-          <option value="">All domains</option>
-          ${agents.map((a) => `<option value="${escAttr(a)}">${escText(a)}</option>`).join('')}
-        </select>
-        <select id="statusFilter" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          ${statuses.map((s) => `<option value="${escAttr(s)}">${escText(s.replace(/_/g, ' '))}</option>`).join('')}
-        </select>
-        <div class="sevtoggles">
-          ${SEVERITY_ORDER.map((s) => `<label class="sevtoggle sev-${slugId(s)}"><input type="checkbox" value="${escAttr(s)}" checked> ${escText(s[0])}</label>`).join('')}
-        </div>
-      </div>
-    </div>
-    <div class="result-count no-print" id="resultCount"></div>
-    <div class="finding-list-headrow">
-      <span>Sev</span><span>ID</span><span>Title</span><span>Domain</span><span>Resource</span><span>Status</span><span></span>
-    </div>
-    <div id="findingList">
-      ${findingsHtml}
-    </div>
-    <p class="empty" id="noResults" hidden>No findings match the current filters.</p>
-  </section>
-
-  <section id="coverage" class="panel">
-    <h2>Coverage &amp; Control Mapping</h2>
-    <div class="cov-grid">
-      <div>
-        <h4>By domain</h4>
-        <table class="cov-table">
-          <thead><tr><th>Domain agent</th><th>Findings</th></tr></thead>
-          <tbody>
-            ${agents.map((a) => `<tr><td>${escText(a)}</td><td>${findings.filter((f) => f.agent === a).length}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div>
-        <h4>By status</h4>
-        <table class="cov-table">
-          <thead><tr><th>Status</th><th>Findings</th></tr></thead>
-          <tbody>
-            ${statuses.map((s) => `<tr><td>${escText(s.replace(/_/g, ' '))}</td><td>${findings.filter((f) => f.status === s).length}</td></tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div>
-        <h4>MITRE ATT&amp;CK techniques (${mitre.size})</h4>
-        <div class="chips">${chips([...mitre].sort(), 'c-mitre') || '<span class="muted">none mapped</span>'}</div>
-        <h4 style="margin-top:14px">CIS Azure controls (${cis.size})</h4>
-        <div class="chips">${chips([...cis].sort(), 'c-cis') || '<span class="muted">none mapped</span>'}</div>
-      </div>
-    </div>
-  </section>
-
-  <section id="about" class="panel about">
-    <h2>About this report</h2>
-    <div class="about-grid">
-      <div><span class="muted">Engagement</span><div>${escText(engagement.name || title)}</div></div>
-      ${engagement.id ? `<div><span class="muted">Engagement ID</span><div>${escText(engagement.id)}</div></div>` : ''}
-      ${engagement.mode ? `<div><span class="muted">Mode</span><div>${escText(engagement.mode)}</div></div>` : ''}
-      <div><span class="muted">Generated</span><div>${escText(generatedAt)}</div></div>
-      <div><span class="muted">Generator</span><div>generate-report.mjs v${escText(GENERATOR_VERSION)}</div></div>
-      ${dataRange ? `<div><span class="muted">Evidence window</span><div>${escText(dataRange)}</div></div>` : ''}
-      ${subList.length ? `<div class="about-wide"><span class="muted">Subscriptions in scope</span><div>${subList.map((s) => `<code>${escText(s)}</code>`).join(' ')}</div></div>` : ''}
-      <div class="about-wide"><span class="muted">Inputs</span><div>${inputs.map((i) => `<code>${escText(i)}</code>`).join(' ')}</div></div>
-    </div>
-    <div class="provenance">
-      <p><strong>Read-only assessment.</strong> All findings are derived from read-only configuration analysis of the target Azure environment. This report is rendered entirely from structured findings (the canonical <code>findings.json</code>); it is never hand-authored, so it always matches the evidence. Absence of a finding is not proof of absence of risk — see assessment coverage &amp; limitations.</p>
-      <p class="muted small">This file is fully self-contained and offline: no external scripts, styles, fonts, or network calls. A restrictive Content-Security-Policy and <code>referrer: no-referrer</code> are enforced. Finding text is HTML-escaped per context and non-http references are rendered inert.</p>
-      ${warnHtml}
-    </div>
-  </section>
+${cover}
+${actionbar}
+<div class="layout">
+${toc}
+<main class="doc">
+${sec1}
+${sec2}
+${sec3}
+${sec4}
+${sec5}
+${sec6}
+${appA}
+${appB}
+${appC}
 </main>
-
-<footer class="foot">
-  <span>Generated by the Azure Red Team Agent Orchestration template · ${escText(generatedAt)}</span>
-</footer>
-
-<script type="application/json" id="report-meta">${jsonForScript({ generator: GENERATOR_VERSION, total, counts })}</script>
-<script>
-${JS}
-</script>
+</div>
+<script type="application/json" id="report-meta">${metaJson}</script>
+<script>${JS}</script>
 </body>
 </html>`;
 }
 
 // ---------------------------------------------------------------------------
-// Embedded CSS
+// Styles (light, print-first consulting theme)
 // ---------------------------------------------------------------------------
 
 const CSS = `
 :root{
-  --bg:#0b0e14; --panel:#121722; --panel2:#0f1420; --line:#222b3a;
-  --txt:#e6ebf2; --muted:#8a97ab; --accent:#ff3b52; --accent2:#ff6b3d;
-  --crit:#ff2d55; --high:#ff7a18; --med:#ffc043; --low:#3da5ff; --info:#7c8aa3;
-  --ok:#22c55e;
+  --page:#f4f6f9; --panel:#fff; --panel2:#f8fafc; --line:#e2e8f0; --line2:#cbd5e1;
+  --txt:#0f172a; --txt2:#1a2230; --muted:#5b6b80; --navy:#16365c; --navy2:#1e3a5f;
+  --crit:#b91c1c; --high:#c2410c; --med:#b45309; --low:#1d4ed8; --info:#475569; --ok:#15803d;
+  --radius:10px; --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.05);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:linear-gradient(180deg,#080a0f,#0b0e14 240px);color:var(--txt);
-  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.86em;
-  background:#0a0d13;border:1px solid var(--line);border-radius:4px;padding:1px 5px;
-  overflow-wrap:anywhere;word-break:break-word;}
-h2{font-size:18px;margin:0 0 4px;letter-spacing:.2px}
-h3{font-size:15px;margin:0}
-h4{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 6px}
-.muted{color:var(--muted)} .small{font-size:12px}
-a{color:#7db5ff;text-decoration:none} a:hover{text-decoration:underline}
+body{
+  margin:0; background:var(--page); color:var(--txt);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{color:var(--txt2); line-height:1.25; margin:0}
+a{color:var(--navy2); text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.85em}
+.muted{color:var(--muted)}
+.num{text-align:right; font-variant-numeric:tabular-nums}
+.empty,.note{color:var(--muted); background:var(--panel2); border:1px dashed var(--line2); border-radius:var(--radius); padding:14px 16px}
 
-.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;
-  padding:14px 24px;background:rgba(10,13,19,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-mark{font-size:26px;color:var(--accent);filter:drop-shadow(0 0 8px rgba(255,59,82,.5))}
-.brand-title{font-weight:700;font-size:16px}
-.brand-sub{color:var(--muted);font-size:12px}
-.topbar-actions{display:flex;gap:8px}
-button.ghost,.link-btn{background:#161c28;border:1px solid var(--line);color:var(--txt);
-  padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
-button.ghost:hover,.link-btn:hover{border-color:var(--accent);color:#fff}
+/* Cover */
+.cover{
+  max-width:920px; margin:28px auto 0; background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 60%,#27496e 100%);
+  color:#eef3f9; border-radius:16px; padding:34px 40px 30px; box-shadow:var(--shadow);
+}
+.cover-top{display:flex; justify-content:space-between; align-items:center}
+.brand{display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:.02em}
+.brand-mark{font-size:22px}
+.confidential{font-size:11px; font-weight:700; letter-spacing:.16em; border:1px solid rgba(255,255,255,.45); padding:4px 10px; border-radius:6px}
+.cover-main{margin:30px 0 26px}
+.cover-kicker{margin:0 0 8px; text-transform:uppercase; letter-spacing:.18em; font-size:12px; color:#a9c2e0}
+.cover-title{font-size:34px; font-weight:700; margin:0 0 22px; color:#fff}
+.cover-meta{display:grid; grid-template-columns:1fr 1fr; gap:6px 28px; max-width:720px}
+.cm-row{display:flex; gap:10px; font-size:13.5px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,.12)}
+.cm-k{color:#a9c2e0; min-width:118px}
+.cm-v{color:#fff}
+.cover-sevs{margin-top:20px; display:flex; flex-wrap:wrap; gap:8px}
+.cover-sev{font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2)}
+.cover-foot{display:grid; grid-template-columns:1fr 1.1fr; gap:28px; margin-top:8px; padding-top:22px; border-top:1px solid rgba(255,255,255,.18)}
+.cover-toc h2{color:#cfe0f2; font-size:13px; text-transform:uppercase; letter-spacing:.12em; margin-bottom:8px}
+.print-toc{list-style:none; margin:0; padding:0; columns:1}
+.print-toc li{display:flex; gap:10px; font-size:13px; padding:3px 0; color:#dbe7f4}
+.pt-num{color:#9fc; opacity:.8; min-width:18px; color:#a9c2e0}
+.disclaimer{font-size:12px; line-height:1.5; color:#c4d4e6; margin:0}
 
-main{max-width:1180px;margin:0 auto;padding:22px 24px 60px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:0 0 20px;
-  box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
-.section-note{color:var(--muted);margin:2px 0 16px;max-width:74ch}
+/* Action bar */
+.actionbar{max-width:1180px; margin:18px auto 0; display:flex; gap:8px; justify-content:flex-end; padding:0 24px}
+.ab-btn{background:var(--panel); color:var(--txt2); border:1px solid var(--line2); border-radius:7px; padding:7px 13px; font-size:13px; cursor:pointer}
+.ab-btn:hover{background:var(--panel2); border-color:var(--navy2)}
+.ab-primary{background:var(--navy2); color:#fff; border-color:var(--navy2)}
+.ab-primary:hover{background:var(--navy)}
 
-/* summary */
-.summary-grid{display:grid;grid-template-columns:auto 1fr auto;gap:26px;align-items:center}
-.summary-sevs{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.sevcard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--panel2);
-  border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;cursor:pointer;color:var(--txt)}
-.sevcard:hover{border-color:var(--accent)}
-.sevcard-n{font-size:24px;font-weight:700}
-.sevcard-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.sevcard.sev-critical{border-left-color:var(--crit)} .sevcard.sev-high{border-left-color:var(--high)}
-.sevcard.sev-medium{border-left-color:var(--med)} .sevcard.sev-low{border-left-color:var(--low)}
-.sevcard.sev-informational{border-left-color:var(--info)}
-.summary-kpis{display:grid;grid-template-columns:repeat(2,auto);gap:10px 22px}
-.kpi{display:flex;flex-direction:column}
-.kpi-n{font-size:22px;font-weight:700} .kpi-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.toprisk{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
-.toprisk-link{font-weight:600}
+/* Layout */
+.layout{max-width:1180px; margin:18px auto 60px; padding:0 24px; display:grid; grid-template-columns:228px 1fr; gap:30px; align-items:start}
+.toc{position:sticky; top:18px}
+.toc-inner{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 14px; box-shadow:var(--shadow)}
+.toc-inner h2{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:10px}
+.toc ol{list-style:none; margin:0; padding:0}
+.toc li a{display:flex; gap:9px; align-items:baseline; padding:6px 8px; border-radius:6px; color:var(--txt2); font-size:13.5px; border-left:2px solid transparent}
+.toc li a:hover{background:var(--panel2); text-decoration:none}
+.toc li a.active{background:#eaf1fa; border-left-color:var(--navy2); color:var(--navy2); font-weight:600}
+.toc-num{color:var(--muted); min-width:16px; font-variant-numeric:tabular-nums}
+.doc{min-width:0}
 
-.donut-total{font-size:26px;font-weight:700;fill:var(--txt)}
-.donut-label{font-size:10px;fill:var(--muted);text-transform:uppercase;letter-spacing:1px}
-.donut-seg{transition:opacity .2s} .donut-empty{stroke:#1b2330}
-.donut-critical{stroke:var(--crit)} .donut-high{stroke:var(--high)} .donut-medium{stroke:var(--med)}
-.donut-low{stroke:var(--low)} .donut-informational{stroke:var(--info)}
+/* Sections */
+.section{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px 26px; margin-bottom:22px; box-shadow:var(--shadow)}
+.sec-head{display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid var(--line)}
+.sec-num{display:grid; place-items:center; width:30px; height:30px; border-radius:8px; background:var(--navy2); color:#fff; font-weight:700; font-size:15px}
+.sec-head h2{font-size:21px}
+.sec-intro{color:var(--muted); margin:0 0 18px; max-width:78ch}
+.appendix .sec-num{background:#475569}
 
-.tabs{display:flex;gap:8px;margin:0 0 18px}
-.tabs a{padding:8px 14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--muted)}
-.tabs a:hover{color:#fff;border-color:var(--accent);text-decoration:none}
+/* Exec summary */
+.exec-grid{display:grid; grid-template-columns:1fr 280px; gap:26px; align-items:start}
+.exec-prose p{margin:0 0 12px}
+.exec-prose p:first-child{font-size:16px; color:var(--txt)}
+.exec-stats{display:flex; flex-direction:column; align-items:center; gap:14px; background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius); padding:18px}
+.kpis{display:flex; gap:10px; width:100%; justify-content:space-around}
+.kpi{display:flex; flex-direction:column; align-items:center}
+.kpi-n{font-size:22px; font-weight:700; color:var(--navy2)}
+.kpi-l{font-size:11px; color:var(--muted); text-align:center}
+.donut-total{font-size:26px; font-weight:700; fill:var(--txt2)}
+.donut-label{font-size:11px; fill:var(--muted)}
+.donut-empty{stroke:var(--line2)}
+.donut-critical{stroke:var(--crit)} .donut-high{stroke:var(--high)} .donut-medium{stroke:var(--med)} .donut-low{stroke:var(--low)} .donut-informational{stroke:var(--info)}
+.sevcards{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:20px}
+.sevcard{display:flex; flex-direction:column; align-items:center; gap:2px; padding:12px 8px; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel2); cursor:pointer; border-top:3px solid var(--line2)}
+.sevcard:hover{box-shadow:var(--shadow)}
+.sevcard.active{box-shadow:0 0 0 2px var(--navy2)}
+.sc-n{font-size:24px; font-weight:700}
+.sc-l{font-size:12px; color:var(--muted)}
+.sevcard.sev-critical{border-top-color:var(--crit)} .sevcard.sev-critical .sc-n{color:var(--crit)}
+.sevcard.sev-high{border-top-color:var(--high)} .sevcard.sev-high .sc-n{color:var(--high)}
+.sevcard.sev-medium{border-top-color:var(--med)} .sevcard.sev-medium .sc-n{color:var(--med)}
+.sevcard.sev-low{border-top-color:var(--low)} .sevcard.sev-low .sc-n{color:var(--low)}
+.sevcard.sev-informational{border-top-color:var(--info)} .sevcard.sev-informational .sc-n{color:var(--info)}
 
-/* pills + badges */
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px}
-.sev-critical{background:rgba(255,45,85,.16);color:#ff6b85;border:1px solid rgba(255,45,85,.5)}
-.sev-high{background:rgba(255,122,24,.15);color:#ff9b52;border:1px solid rgba(255,122,24,.5)}
-.sev-medium{background:rgba(255,192,67,.14);color:#ffd27a;border:1px solid rgba(255,192,67,.45)}
-.sev-low{background:rgba(61,165,255,.14);color:#7dc0ff;border:1px solid rgba(61,165,255,.45)}
-.sev-informational{background:rgba(124,138,163,.14);color:#aab6c8;border:1px solid rgba(124,138,163,.4)}
-.badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
-.status-open{color:#ff9b52;border-color:rgba(255,122,24,.4)}
-.status-confirmed{color:#ff6b85;border-color:rgba(255,45,85,.4)}
-.status-remediated{color:var(--ok);border-color:rgba(34,197,94,.4)}
-.status-false_positive{color:var(--muted)}
-.status-accepted_risk{color:#ffd27a;border-color:rgba(255,192,67,.4)}
+/* Pills / badges / chips */
+.pill{display:inline-block; font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap}
+.sev-critical{background:#fdeaea; color:var(--crit); border:1px solid #f3c4c4}
+.sev-high{background:#fdf0e7; color:var(--high); border:1px solid #f4cdb0}
+.sev-medium{background:#fdf6e3; color:var(--med); border:1px solid #efdca4}
+.sev-low{background:#e8f0fe; color:var(--low); border:1px solid #c3d6fb}
+.sev-informational{background:#eef2f6; color:var(--info); border:1px solid #d3dbe4}
+.badge{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; background:var(--panel2); border:1px solid var(--line2); color:var(--muted)}
+.status-open,.status-confirmed{background:#fdeaea; color:var(--crit); border-color:#f3c4c4}
+.status-remediated,.status-resolved,.status-closed{background:#e7f6ec; color:var(--ok); border-color:#bfe3cb}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid var(--line2); background:var(--panel2); color:var(--txt2)}
+.c-mitre{background:#f3eafc; border-color:#dcc6f2; color:#6b21a8}
+.c-cis{background:#e8f0fe; border-color:#c3d6fb; color:#1d4ed8}
+.c-dfc{background:#e7f6ec; border-color:#bfe3cb; color:#15803d}
+.c-nist{background:#fef4e6; border-color:#f0d8af; color:#b45309}
+.tag{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 8px; border-radius:6px}
+.tag-explicit{background:#e8f0fe; color:#1d4ed8} .tag-derived{background:#eef2f6; color:var(--info)}
+.tag-chain{background:#fdeaea; color:var(--crit)}
+.kv{font-size:12.5px; color:var(--txt2)}
+.linkbtn{background:none; border:none; color:var(--navy2); cursor:pointer; font:inherit; font-size:12.5px; padding:0}
+.linkbtn:hover{text-decoration:underline}
 
-/* attack paths */
-.appath{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;margin:0 0 16px}
-.appath-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
-.appath-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:6px}
-.derived-tag{background:#1a2230;border:1px dashed var(--line);border-radius:5px;padding:0 6px;color:var(--muted)}
-.appath-graph{overflow-x:auto;padding:6px 0}
-.break-chain{margin-top:10px;padding:9px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);
-  border-radius:8px;font-size:13px}
-.apgraph{display:block}
-.ap-node rect{fill:#19212f;stroke:#2b3a4f;stroke-width:1.5}
-.ap-entry rect{stroke:var(--accent);fill:rgba(255,59,82,.10)}
-.ap-target rect{stroke:var(--crit);fill:rgba(255,45,85,.14)}
-.ap-pivot rect{stroke:var(--med)} .ap-step rect{stroke:#3a4a60}
-.ap-node-type{fill:var(--muted);font-size:9px;font-weight:700;letter-spacing:1px}
-.ap-node-label{fill:var(--txt);font-size:12px;font-weight:600}
-.ap-node-fid{fill:#7db5ff;font-size:10px}
-.ap-edge{stroke:#3a4a60;stroke-width:2} .ap-arrow{fill:#3a4a60}
-.ap-edge-label{fill:var(--muted);font-size:10px}
-.ap-clickable{cursor:pointer}
-.ap-clickable:hover rect{filter:brightness(1.3)}
-.ap-clickable:focus{outline:none} .ap-clickable:focus rect{stroke:#7db5ff;stroke-width:2.5}
+/* Attack paths */
+.appath{border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px; background:var(--panel2)}
+.appath-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px}
+.ap-id{font-weight:700; font-size:13px; color:var(--navy2)}
+.ap-title{font-weight:600}
+.ap-jump{margin-left:auto}
+.ap-tags{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px}
+.ap-scroll{overflow-x:auto; padding:6px 2px}
+.ap-break{margin-top:10px; font-size:13px; background:#e7f6ec; border:1px solid #bfe3cb; border-radius:8px; padding:8px 12px}
+.apgraph,.cgraph{font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.ap-edge,.cg-edge{stroke:var(--line2); stroke-width:2; fill:none}
+.ap-arrow,.cg-arrowhead{fill:var(--line2)}
+.ap-edge-label,.cg-edge-label{fill:var(--muted); font-size:10px; font-weight:600}
+.ap-node rect,.cg-node rect{fill:#fff; stroke:var(--line2); stroke-width:1.5}
+.ap-node-type,.cg-node-type{fill:var(--muted); font-size:9px; font-weight:700; letter-spacing:.06em}
+.ap-node-label,.cg-node-label{fill:var(--txt2); font-size:11.5px; font-weight:600}
+.ap-node-fid,.cg-node-fid{fill:var(--navy2); font-size:10px; font-weight:600}
+.ap-entry rect{fill:#eaf1fa; stroke:var(--navy2)}
+.ap-target rect{fill:#fdeaea; stroke:var(--crit)}
+.ap-clickable,.cg-clickable{cursor:pointer}
+.ap-clickable:hover rect,.cg-clickable:hover rect{stroke-width:2.5; filter:drop-shadow(0 1px 3px rgba(15,23,42,.18))}
 
-/* findings */
-.findings-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.filters input[type=search],.filters select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
-  padding:7px 10px;border-radius:8px;font-size:12px}
-.filters input[type=search]{min-width:240px}
-.sevtoggles{display:flex;gap:4px}
-.sevtoggle{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:5px 8px;border-radius:7px;
-  border:1px solid var(--line);background:var(--panel2);cursor:pointer;user-select:none}
-.sevtoggle input{accent-color:var(--accent);margin:0}
-.result-count{color:var(--muted);font-size:12px;margin:12px 0 6px}
-.finding-list-headrow{display:grid;grid-template-columns:84px 108px 1fr 130px 160px 96px 20px;gap:10px;
-  padding:6px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
-.finding{border-bottom:1px solid var(--line)}
-.finding-head{display:grid;grid-template-columns:84px 108px 1fr 130px 160px 96px 20px;gap:10px;align-items:center;
-  width:100%;text-align:left;background:none;border:none;color:var(--txt);padding:11px 12px;cursor:pointer;font-size:13px}
-.finding-head:hover{background:rgba(255,255,255,.03)}
-.fh-id{font-family:Consolas,monospace;font-size:12px;color:#9fb2c9}
-.fh-title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fh-domain{color:var(--muted);font-size:12px}
-.fh-res{color:#9fb2c9;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fh-caret{color:var(--muted);transition:transform .15s;justify-self:end}
-.finding.open .fh-caret{transform:rotate(90deg);color:var(--accent)}
-.finding.open .finding-head{background:rgba(255,59,82,.05)}
-.finding-detail{padding:6px 16px 20px 16px;background:var(--panel2)}
-.detail-meta{display:flex;gap:18px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
-.kv{font-size:12px} .kv .muted{margin-right:4px}
-.detail-block{margin:0 0 14px;max-width:90ch}
-.detail-block p{margin:0;overflow-wrap:anywhere}
-.detail-block.rec{background:rgba(61,165,255,.06);border:1px solid rgba(61,165,255,.25);border-radius:8px;padding:12px 14px}
-.resfull{display:inline-block;max-width:100%;overflow-wrap:anywhere}
-.apsteps,.refs,.evidence{margin:0;padding-left:18px}
-.apsteps li,.evidence li{margin:4px 0}
-.evidence{list-style:none;padding:0}
-.evidence li{background:#0d1119;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0}
-.ev-source{font-size:11px;color:var(--med);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.ev-summary{margin-top:2px} .ev-ref{margin-top:4px;font-size:12px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;border:1px solid var(--line);background:#0d1119}
-.c-mitre{color:#ff9b8a;border-color:rgba(255,107,61,.4)}
-.c-cis{color:#8ad6ff;border-color:rgba(61,165,255,.4)}
-.c-dfc{color:#c4a6ff;border-color:rgba(150,120,255,.4)}
-.c-nist{color:#9fe6b4;border-color:rgba(34,197,94,.35)}
-.ref-inert{color:var(--muted);text-decoration:line-through dotted}
+/* Findings */
+.filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px}
+.filters input,.filters select{background:var(--panel); border:1px solid var(--line2); border-radius:7px; padding:7px 10px; font:inherit; font-size:13px; color:var(--txt)}
+.filters input[type=search]{flex:1; min-width:200px}
+.filter-count{font-size:12.5px; color:var(--muted); margin-left:auto}
+.finding{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; background:var(--panel)}
+.finding-head{display:grid; grid-template-columns:auto 92px 1fr 130px 150px 96px auto; gap:12px; align-items:center; width:100%; text-align:left; background:none; border:none; padding:12px 14px; cursor:pointer; font:inherit; color:var(--txt)}
+.finding-head:hover{background:var(--panel2)}
+.fh-id{font-weight:700; font-size:12.5px; color:var(--navy2)}
+.fh-title{font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-domain{font-size:12px; color:var(--muted)}
+.fh-res{font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-caret{justify-self:end; color:var(--muted); transition:transform .15s}
+.finding.open .fh-caret{transform:rotate(90deg)}
+.flash{animation:flash 1.2s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--navy2)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+.finding-detail{padding:4px 16px 18px; border-top:1px solid var(--line); background:var(--panel2)}
+.detail-meta{display:flex; flex-wrap:wrap; gap:14px; padding:12px 0; color:var(--txt2)}
+.detail-block{margin:12px 0}
+.detail-block h4{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px}
+.detail-block p{margin:0}
+.detail-block.rec{background:#e7f6ec; border:1px solid #bfe3cb; border-radius:8px; padding:10px 12px}
+.detail-block.rec h4{color:var(--ok)}
+.resfull{display:block; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:7px 9px; word-break:break-all}
+.apsteps,.refs,.evidence{margin:0; padding-left:18px}
+.evidence{list-style:none; padding-left:0}
+.evidence li{border-left:2px solid var(--line2); padding:4px 0 4px 12px; margin-bottom:8px}
+.ev-source{font-weight:600; font-size:13px}
+.ev-summary{font-size:13px}
+.ev-ref{font-size:12px; margin-top:2px}
+.ref-inert{color:var(--muted)}
 
-.cov-grid{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:24px}
-.cov-table{width:100%;border-collapse:collapse;font-size:13px}
-.cov-table th,.cov-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-.cov-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+/* Recommendations */
+.rec-tier{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; overflow:hidden}
+.tier-head{display:flex; align-items:baseline; gap:12px; padding:11px 16px; background:var(--panel2); border-bottom:1px solid var(--line)}
+.tier-badge{font-weight:700; font-size:13px; padding:3px 11px; border-radius:6px; color:#fff}
+.tier-1 .tier-badge{background:var(--crit)} .tier-2 .tier-badge{background:var(--high)} .tier-3 .tier-badge{background:var(--info)}
+.tier-sub{font-size:12.5px; color:var(--muted)}
+.rec-list{padding:12px 16px; display:grid; gap:10px}
+.rec{border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--panel)}
+.rec-top{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+.rec-cat{font-size:12.5px; color:var(--muted)}
+.rec-text{margin:0 0 8px; font-size:14px}
+.rec-foot{display:flex; flex-direction:column; gap:6px}
+.rec-fids{font-size:12.5px; display:flex; flex-wrap:wrap; gap:8px; align-items:baseline}
 
-.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 22px;margin-bottom:14px}
-.about-grid .muted{font-size:11px;text-transform:uppercase;letter-spacing:.5px}
-.about-wide{grid-column:1/-1}
-.provenance{border-top:1px solid var(--line);padding-top:14px;color:var(--txt);max-width:90ch}
-.provenance p{margin:0 0 8px}
-.warnings{margin-top:10px}
-.warnings summary{cursor:pointer;color:var(--med)}
-.warnings ul{margin:8px 0 0;color:var(--muted);font-size:12px}
+/* Resources */
+.scope-strip{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px}
+.scope-chip{border:1px solid var(--line2); border-radius:8px; padding:8px 12px; background:var(--panel2)}
+.scope-label{display:block; font-weight:600; font-size:13px}
+.scope-nums{font-size:12px; color:var(--muted)}
+.restable{width:100%; border-collapse:collapse; font-size:13px}
+.restable th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:2px solid var(--line)}
+.restable td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+.restable tbody tr:hover{background:var(--panel2)}
+.asset-name{font-weight:600}
+.asset-type{font-size:11.5px; color:var(--muted)}
+.asset-scope{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
+.cov td:first-child{font-weight:600}
 
-.empty{color:var(--muted);font-style:italic;padding:10px 0}
-.foot{max-width:1180px;margin:0 auto;padding:18px 24px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
-.hidden-by-filter{display:none !important}
-.flash{animation:flash 1.4s ease-out}
-@keyframes flash{0%{background:rgba(255,59,82,.25)}100%{background:transparent}}
+/* Consolidated graph */
+.cg-controls{display:flex; align-items:center; gap:8px; margin-bottom:10px}
+.cg-hint{font-size:12px; color:var(--muted); margin-left:6px}
+.cg-legend{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; font-size:12px}
+.cg-leg{display:inline-flex; align-items:center; gap:6px; color:var(--txt2)}
+.cg-leg::before{content:""; width:11px; height:11px; border-radius:3px; display:inline-block; background:var(--line2)}
+.cg-leg.sev-critical::before{background:var(--crit)} .cg-leg.sev-high::before{background:var(--high)} .cg-leg.sev-medium::before{background:var(--med)} .cg-leg.sev-low::before{background:var(--low)} .cg-leg.sev-informational::before{background:var(--info)}
+.cg-leg-back::before{background:repeating-linear-gradient(90deg,var(--muted) 0 3px,transparent 3px 6px)}
+.cg-frame{border:1px solid var(--line); border-radius:var(--radius); background:var(--panel2); overflow:hidden; touch-action:none}
+.cgraph{display:block; width:100%; height:auto; min-height:240px; cursor:grab}
+.cgraph:active{cursor:grabbing}
+.cg-node rect{fill:#fff}
+.cg-node.sev-critical rect{stroke:var(--crit); stroke-width:2}
+.cg-node.sev-high rect{stroke:var(--high); stroke-width:2}
+.cg-node.sev-medium rect{stroke:var(--med); stroke-width:2}
+.cg-node.sev-low rect{stroke:var(--low); stroke-width:2}
+.cg-node.sev-informational rect{stroke:var(--info)}
+.cg-node.sev-none rect{stroke:var(--line2); stroke-dasharray:4 3}
+.cg-back{stroke:var(--muted); stroke-width:1.6; stroke-dasharray:5 4}
+.cg-node.cg-hi rect{stroke-width:3; filter:drop-shadow(0 1px 4px rgba(15,23,42,.22))}
+.cg-edge.cg-hi{stroke:var(--navy2); stroke-width:3}
 
-@media (max-width:880px){
-  .summary-grid{grid-template-columns:1fr}
-  .cov-grid{grid-template-columns:1fr}
-  .finding-list-headrow,.finding-head{grid-template-columns:70px 1fr 84px 18px}
-  .finding-list-headrow span:nth-child(2),.fh-id,
-  .finding-list-headrow span:nth-child(4),.fh-domain,
-  .finding-list-headrow span:nth-child(5),.fh-res{display:none}
+/* Prose / appendix */
+.prose p{margin:0 0 12px; max-width:80ch}
+.prose h3{font-size:15px; margin:16px 0 6px}
+.restable.about td:first-child{font-weight:600; width:200px; color:var(--muted)}
+.fw-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:18px}
+.fw h4{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:6px}
+.warnbox{margin-top:18px; background:#fdf6e3; border:1px solid #efdca4; border-radius:8px; padding:12px 14px}
+.warnbox h4{color:var(--med); font-size:13px; margin-bottom:6px}
+.warnbox ul{margin:0; padding-left:18px; font-size:13px}
+
+/* Responsive */
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .toc{display:none}
+  .exec-grid{grid-template-columns:1fr}
+  .cover-meta{grid-template-columns:1fr}
+  .cover-foot{grid-template-columns:1fr}
+  .sevcards{grid-template-columns:repeat(2,1fr)}
+  .finding-head{grid-template-columns:auto 1fr auto; gap:8px}
+  .fh-domain,.fh-res,.fh-status{display:none}
 }
 
+/* Print */
 @media print{
-  :root{--bg:#fff;--panel:#fff;--panel2:#fff;--txt:#111;--muted:#555;--line:#ccc}
-  body{background:#fff;color:#111}
+  body{background:#fff}
   .no-print{display:none !important}
-  .panel{break-inside:avoid;box-shadow:none;border-color:#ccc}
-  .appath,.finding{break-inside:avoid}
+  .cover{box-shadow:none; border-radius:0; margin:0; color:#fff}
+  .layout{display:block; max-width:none; margin:0; padding:0}
+  .section{box-shadow:none; border-radius:0; border:none; border-top:1.5px solid var(--line); break-inside:avoid; page-break-inside:avoid; margin:0 0 14px}
+  .finding{break-inside:avoid}
+  .appath{break-inside:avoid}
+  .cg-viewport{transform:none !important}
+  .cg-frame{overflow:visible}
   .finding-detail{display:block !important}
-  .fh-caret{display:none}
-  section{page-break-before:auto}
-  #findings{page-break-before:always}
-  .ap-node rect{fill:#f3f5f8}
-  a{color:#0b57d0}
+  .finding .fh-caret{display:none}
+  a{color:var(--txt2)}
 }
 `;
 
 // ---------------------------------------------------------------------------
-// Embedded JS (progressive enhancement only — report works without it)
+// Client behavior (progressive enhancement). Embedded as a string, so it must
+// use ONLY single quotes + concatenation (no backticks, no ${}) and must never
+// contain the literal closing-script sequence.
 // ---------------------------------------------------------------------------
 
 const JS = `
 (function(){
-  "use strict";
-  var list = document.getElementById('findingList');
-  var rows = Array.prototype.slice.call(document.querySelectorAll('.finding'));
-  var search = document.getElementById('search');
-  var agentF = document.getElementById('agentFilter');
-  var statusF = document.getElementById('statusFilter');
-  var sevBoxes = Array.prototype.slice.call(document.querySelectorAll('.sevtoggle input'));
-  var countEl = document.getElementById('resultCount');
-  var noRes = document.getElementById('noResults');
+  'use strict';
+  var findingsEl = document.getElementById('findingList');
 
-  function setExpanded(row, open){
-    var head = row.querySelector('.finding-head');
-    var detail = row.querySelector('.finding-detail');
-    row.classList.toggle('open', open);
-    head.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if(open){ detail.removeAttribute('hidden'); } else { detail.setAttribute('hidden',''); }
+  function setOpen(finding, open){
+    var btn = finding.querySelector('.finding-head');
+    var detail = finding.querySelector('.finding-detail');
+    if(!btn || !detail) return;
+    if(open){ finding.classList.add('open'); detail.hidden = false; btn.setAttribute('aria-expanded','true'); }
+    else { finding.classList.remove('open'); detail.hidden = true; btn.setAttribute('aria-expanded','false'); }
   }
 
-  rows.forEach(function(row){
-    var head = row.querySelector('.finding-head');
-    head.addEventListener('click', function(){
-      setExpanded(row, !row.classList.contains('open'));
+  if(findingsEl){
+    findingsEl.addEventListener('click', function(e){
+      var btn = e.target.closest('.finding-head');
+      if(!btn) return;
+      var finding = btn.closest('.finding');
+      setOpen(finding, !finding.classList.contains('open'));
     });
-  });
+  }
 
-  var activeSevs = {};
-  function readSevs(){ activeSevs = {}; sevBoxes.forEach(function(b){ if(b.checked) activeSevs[b.value]=1; }); }
-  readSevs();
+  var btnExpand = document.getElementById('btnExpand');
+  var btnCollapse = document.getElementById('btnCollapse');
+  var btnPrint = document.getElementById('btnPrint');
+  function allFindings(){ return document.querySelectorAll('.finding'); }
+  if(btnExpand) btnExpand.addEventListener('click', function(){ allFindings().forEach(function(f){ setOpen(f, true); }); });
+  if(btnCollapse) btnCollapse.addEventListener('click', function(){ allFindings().forEach(function(f){ setOpen(f, false); }); });
+  if(btnPrint) btnPrint.addEventListener('click', function(){ window.print(); });
 
-  function apply(){
-    var q = (search && search.value || '').trim().toLowerCase();
-    var ag = agentF && agentF.value || '';
-    var st = statusF && statusF.value || '';
+  // Filtering
+  var fSearch = document.getElementById('fSearch');
+  var fSeverity = document.getElementById('fSeverity');
+  var fDomain = document.getElementById('fDomain');
+  var fAgent = document.getElementById('fAgent');
+  var fCount = document.getElementById('fCount');
+
+  function applyFilters(){
+    var q = (fSearch && fSearch.value ? fSearch.value : '').trim().toLowerCase();
+    var sev = fSeverity && fSeverity.value ? fSeverity.value : '';
+    var dom = fDomain && fDomain.value ? fDomain.value : '';
+    var agent = fAgent && fAgent.value ? fAgent.value : '';
     var shown = 0;
-    rows.forEach(function(row){
+    var list = allFindings();
+    for(var i=0;i<list.length;i++){
+      var f = list[i];
       var ok = true;
-      if(!activeSevs[row.getAttribute('data-severity')]) ok = false;
-      if(ok && ag && row.getAttribute('data-agent') !== ag) ok = false;
-      if(ok && st && row.getAttribute('data-status') !== st) ok = false;
-      if(ok && q && row.getAttribute('data-search').indexOf(q) === -1) ok = false;
-      row.classList.toggle('hidden-by-filter', !ok);
+      if(sev && f.getAttribute('data-severity') !== sev) ok = false;
+      if(ok && dom && f.getAttribute('data-category') !== dom) ok = false;
+      if(ok && agent && f.getAttribute('data-agent') !== agent) ok = false;
+      if(ok && q && (f.getAttribute('data-search')||'').indexOf(q) < 0) ok = false;
+      f.style.display = ok ? '' : 'none';
       if(ok) shown++;
-    });
-    if(countEl) countEl.textContent = 'Showing ' + shown + ' of ' + rows.length + ' findings';
-    if(noRes) noRes.hidden = shown !== 0;
-  }
-
-  var t;
-  function debApply(){ clearTimeout(t); t = setTimeout(apply, 120); }
-  if(search) search.addEventListener('input', debApply);
-  if(agentF) agentF.addEventListener('change', apply);
-  if(statusF) statusF.addEventListener('change', apply);
-  sevBoxes.forEach(function(b){ b.addEventListener('change', function(){ readSevs(); apply(); }); });
-
-  document.querySelectorAll('.sevcard').forEach(function(card){
-    card.addEventListener('click', function(){
-      var sev = card.getAttribute('data-filter-severity');
-      sevBoxes.forEach(function(b){ b.checked = (b.value === sev); });
-      readSevs(); apply();
-      document.getElementById('findings').scrollIntoView({behavior:'smooth'});
-    });
-  });
-
-  function revealFinding(id){
-    var row = document.querySelector('.finding[data-finding-id="'+ (window.CSS && CSS.escape ? CSS.escape(id) : id) +'"]');
-    if(!row){ return; }
-    // If filters hide it, clear them so the click never silently fails.
-    if(row.classList.contains('hidden-by-filter')){
-      sevBoxes.forEach(function(b){ b.checked = true; });
-      if(agentF) agentF.value = '';
-      if(statusF) statusF.value = '';
-      if(search) search.value = '';
-      readSevs(); apply();
     }
-    setExpanded(row, true);
-    row.scrollIntoView({behavior:'smooth', block:'center'});
-    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+    if(fCount) fCount.textContent = shown + ' of ' + list.length + ' shown';
+    syncSevCards(sev);
+  }
+  if(fSearch) fSearch.addEventListener('input', applyFilters);
+  if(fSeverity) fSeverity.addEventListener('change', applyFilters);
+  if(fDomain) fDomain.addEventListener('change', applyFilters);
+  if(fAgent) fAgent.addEventListener('change', applyFilters);
+
+  function syncSevCards(sev){
+    var cards = document.querySelectorAll('.sevcard');
+    for(var i=0;i<cards.length;i++){
+      if(sev && cards[i].getAttribute('data-severity') === sev) cards[i].classList.add('active');
+      else cards[i].classList.remove('active');
+    }
+  }
+  function toggleSevCard(card){
+    if(!fSeverity) return;
+    var s = card.getAttribute('data-severity');
+    fSeverity.value = (fSeverity.value === s) ? '' : s;
+    applyFilters();
+    var anchor = document.getElementById('findings');
+    if(anchor) anchor.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.querySelectorAll('.sevcard').forEach(function(c){
+    c.addEventListener('click', function(){ toggleSevCard(c); });
+    c.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleSevCard(c); } });
+  });
+
+  // Reveal a specific finding (clearing filters so it is never hidden).
+  function clearFilters(){
+    if(fSearch) fSearch.value='';
+    if(fSeverity) fSeverity.value='';
+    if(fDomain) fDomain.value='';
+    if(fAgent) fAgent.value='';
+    applyFilters();
+  }
+  function revealById(domId){
+    var el = document.getElementById(domId);
+    if(!el) return;
+    clearFilters();
+    if(el.classList.contains('finding')) setOpen(el, true);
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    el.classList.add('flash');
+    window.setTimeout(function(){ el.classList.remove('flash'); }, 1200);
+  }
+  function revealByFindingId(fid){
+    var el = document.querySelector('.finding[data-finding-id="' + (window.CSS && CSS.escape ? CSS.escape(fid) : fid) + '"]');
+    if(el) revealById(el.id);
   }
 
-  document.querySelectorAll('[data-goto-finding]').forEach(function(el){
-    el.addEventListener('click', function(e){ e.preventDefault(); revealFinding(el.getAttribute('data-goto-finding')); });
+  document.addEventListener('click', function(e){
+    var lb = e.target.closest('.linkbtn[data-target]');
+    if(lb){ e.preventDefault(); revealById(lb.getAttribute('data-target')); return; }
+    var node = e.target.closest('.ap-clickable[data-finding]');
+    if(node){ revealByFindingId(node.getAttribute('data-finding')); }
   });
-  document.querySelectorAll('.ap-clickable').forEach(function(node){
-    function go(){ revealFinding(node.getAttribute('data-finding')); }
-    node.addEventListener('click', go);
-    node.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var node = e.target.closest('.ap-clickable[data-finding]');
+    if(node){ e.preventDefault(); revealByFindingId(node.getAttribute('data-finding')); }
   });
 
-  var ea = document.getElementById('expandAll');
-  var ca = document.getElementById('collapseAll');
-  if(ea) ea.addEventListener('click', function(){ rows.forEach(function(r){ if(!r.classList.contains('hidden-by-filter')) setExpanded(r,true); }); });
-  if(ca) ca.addEventListener('click', function(){ rows.forEach(function(r){ setExpanded(r,false); }); });
-  var pb = document.getElementById('printBtn');
-  if(pb) pb.addEventListener('click', function(){ window.print(); });
+  // Consolidated graph: pan / zoom / hover-highlight / click-to-reveal.
+  (function(){
+    var svg = document.getElementById('cgSvg');
+    if(!svg) return;
+    var vp = svg.querySelector('.cg-viewport');
+    if(!vp) return;
+    var scale = 1, tx = 0, ty = 0;
+    function apply(){ vp.setAttribute('transform', 'translate(' + tx + ',' + ty + ') scale(' + scale + ')'); }
+    function reset(){ scale = 1; tx = 0; ty = 0; apply(); }
+    function zoom(factor, cx, cy){
+      var ns = Math.min(2.5, Math.max(0.4, scale * factor));
+      if(ns === scale) return;
+      if(typeof cx === 'number'){ tx = cx - (cx - tx) * (ns/scale); ty = cy - (cy - ty) * (ns/scale); }
+      scale = ns; apply();
+    }
+    var zi = document.getElementById('cgZoomIn');
+    var zo = document.getElementById('cgZoomOut');
+    var zf = document.getElementById('cgFit');
+    var zr = document.getElementById('cgReset');
+    if(zi) zi.addEventListener('click', function(){ zoom(1.2); });
+    if(zo) zo.addEventListener('click', function(){ zoom(1/1.2); });
+    if(zf) zf.addEventListener('click', reset);
+    if(zr) zr.addEventListener('click', reset);
 
-  apply();
+    var dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    svg.addEventListener('pointerdown', function(e){
+      dragging = true; moved = false; sx = e.clientX; sy = e.clientY; ox = tx; oy = ty;
+      svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      tx = ox + dx; ty = oy + dy; apply();
+    });
+    function endDrag(e){ if(dragging){ dragging = false; try{ svg.releasePointerCapture(e.pointerId); }catch(_e){} } }
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+    svg.addEventListener('wheel', function(e){
+      e.preventDefault();
+      var rect = svg.getBoundingClientRect();
+      zoom(e.deltaY < 0 ? 1.1 : 1/1.1, e.clientX - rect.left, e.clientY - rect.top);
+    }, {passive:false});
+
+    function paths(el){ return (el.getAttribute('data-paths')||'').split(' ').filter(Boolean); }
+    function highlight(on, ps){
+      var els = svg.querySelectorAll('[data-paths]');
+      for(var i=0;i<els.length;i++){
+        var match = false, mine = paths(els[i]);
+        for(var j=0;j<ps.length;j++){ if(mine.indexOf(ps[j]) >= 0){ match = true; break; } }
+        if(on && match) els[i].classList.add('cg-hi'); else els[i].classList.remove('cg-hi');
+      }
+    }
+    svg.querySelectorAll('.cg-node').forEach(function(n){
+      n.addEventListener('mouseenter', function(){ highlight(true, paths(n)); });
+      n.addEventListener('mouseleave', function(){ highlight(false, paths(n)); });
+      n.addEventListener('click', function(){
+        if(moved) return;
+        var fid = n.getAttribute('data-finding');
+        if(fid) revealByFindingId(fid);
+      });
+      n.addEventListener('keydown', function(e){
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); var fid = n.getAttribute('data-finding'); if(fid) revealByFindingId(fid); }
+      });
+    });
+    window.addEventListener('beforeprint', reset);
+  })();
+
+  // Scroll-spy TOC (fails silently if unsupported).
+  try{
+    var links = document.querySelectorAll('.toc a[data-section]');
+    var map = {};
+    links.forEach(function(a){ map[a.getAttribute('data-section')] = a; });
+    function setActive(id){
+      links.forEach(function(a){ a.classList.remove('active'); });
+      if(map[id]) map[id].classList.add('active');
+    }
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(entries){
+        for(var i=0;i<entries.length;i++){ if(entries[i].isIntersecting){ setActive(entries[i].target.id); } }
+      }, {rootMargin:'-40% 0px -55% 0px', threshold:0});
+      document.querySelectorAll('main.doc .section').forEach(function(s){ io.observe(s); });
+    }
+  }catch(_e){}
+
+  applyFilters();
 })();
 `;
 
 // ---------------------------------------------------------------------------
-// Main
+// Entry point
 // ---------------------------------------------------------------------------
 
 function main() {
   const args = parseArgs(argv.slice(2));
-  if (args.help || !args.findings) {
+  if (args.help) {
     console.log(usage());
-    process.exit(args.findings ? 0 : 1);
+    process.exit(0);
   }
-
-  const rawFindingsDoc = loadJson(args.findings, 'findings');
-  const rawFindings = asArray(rawFindingsDoc);
-  if (!rawFindings.length) warn('No findings found in the input — the report will be empty.');
-  const findings = normalizeFindings(rawFindings);
-
-  let explicitGraph = null;
-  if (args.attackPaths) explicitGraph = loadJson(args.attackPaths, 'attack-paths');
-  const paths = buildAttackPaths(findings, explicitGraph);
-
-  const engagement = args.engagement ? loadEngagement(args.engagement) : {};
-  if (!engagement.subscriptions) {
-    const subs = [...new Set(findings.map((f) => f.subscription_id).filter(Boolean))];
-    if (subs.length) engagement.subscriptions = subs;
+  if (!args.findings) {
+    console.error('Error: --findings is required.\n');
+    console.error(usage());
+    process.exit(1);
   }
-
-  const title = args.title || engagement.name || 'Azure Red Team Assessment';
-  const generatedAt = new Date().toISOString().replace('T', ' ').slice(0, 19) + 'Z';
-  const inputs = [args.findings, args.attackPaths, args.engagement].filter(Boolean);
-
-  const html = buildHtml({ findings, paths, engagement, title, generatedAt, inputs });
-
-  const out = args.out || args.findings.replace(/findings\.json$/i, 'report.html');
-  const outPath = out === args.findings ? args.findings + '.report.html' : out;
-  writeFileSync(outPath, html, 'utf8');
-
-  console.log(`Report written: ${outPath}`);
-  console.log(`  Findings: ${findings.length}  Attack paths: ${paths.length}`);
+  let findings;
+  let paths;
+  let meta;
+  try {
+    const rawFindings = asArray(loadJson(args.findings, 'findings'));
+    const explicitGraph = args.attackPaths ? loadJson(args.attackPaths, 'attack-paths') : null;
+    meta = args.engagement ? loadEngagement(args.engagement) : {};
+    findings = normalizeFindings(rawFindings);
+    paths = buildAttackPaths(findings, explicitGraph);
+  } catch (err) {
+    console.error('Error: ' + err.message);
+    process.exit(1);
+  }
+  const html = buildHtml(findings, paths, meta, args.title);
+  const outPath = args.out || 'report.html';
+  try {
+    writeFileSync(outPath, html, 'utf8');
+  } catch (err) {
+    console.error('Error: could not write "' + outPath + '": ' + err.message);
+    process.exit(1);
+  }
+  const sizeKb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
+  console.error('Report written to ' + outPath + ' (' + sizeKb + ' KB, ' + findings.length + ' findings, ' + paths.length + ' paths).');
   if (warnings.length) {
-    console.log(`  Warnings: ${warnings.length}`);
-    for (const w of warnings) console.log(`    - ${w}`);
+    console.error('Notes (' + warnings.length + '):');
+    for (const w of warnings) console.error('  - ' + w);
   }
 }
 

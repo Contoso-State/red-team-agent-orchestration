@@ -45,7 +45,10 @@ Write to `engagements/<session>/reports/`:
      --out engagements/<session>/reports/report.html
    ```
 
-   Attack paths render as clickable node graphs and findings expand in place. If
+   The report is a print-first consulting deliverable — cover, table of contents,
+   executive summary, attack paths, findings, prioritized recommendations, an
+   asset/scope inventory, a consolidated pan/zoom attack graph, and method
+   appendices. Attack-path nodes are clickable and findings expand in place. If
    you produced an explicit attack-path graph (`attack-paths.json`, see
    `schemas/attack-path.schema.json`), pass it with `--attack-paths`; otherwise
    the generator derives linear chains from each finding's `attack_path[]`. The

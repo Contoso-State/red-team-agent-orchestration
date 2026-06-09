@@ -228,12 +228,14 @@ Correlates findings across domains to identify multi-step compromise chains.
 Normalizes findings, deduplicates, reconciles severity, and generates the
 executive summary, technical report, normalized `findings.json`, and an
 **interactive HTML report** (`report.html`) in `engagements/<session>/reports/`.
-The HTML report is self-contained and offline — open it in a browser to explore
-**clickable attack-path node graphs** and findings that expand in place to show
-evidence, attack vector, remediation, and CIS/MITRE mappings. It is rendered
-straight from `findings.json` by `tools/report/generate-report.mjs` (see
-[`tools/report/README.md`](tools/report/README.md); a fictional rendered example
-lives at `tools/report/sample/report.sample.html`).
+The HTML report is a self-contained, offline, **print-first consulting
+deliverable** — cover page, table of contents, executive summary, attack paths,
+findings, prioritized recommendations, an asset/scope inventory, a
+**consolidated pan/zoom attack graph**, and method appendices. Attack-path
+nodes are clickable, findings expand in place, and it exports to PDF cleanly. It
+is rendered straight from `findings.json` by `tools/report/generate-report.mjs`
+(see [`tools/report/README.md`](tools/report/README.md); a fictional rendered
+example lives at `tools/report/sample/report.sample.html`).
 
 ### 7. Build the presentation deck
 
