@@ -37,9 +37,36 @@ The team ships as native **GitHub Copilot CLI** primitives, so once this repo is
 
 Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
 
+## 🤖 Agent Team
+
+<p align="center">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fourteen domain specialists" width="100%">
+</p>
+
+| Agent | Domain | Key Focus |
+|---|---|---|
+| **Orchestrator** | Coordination | Engagement lifecycle, task dispatch, finding aggregation |
+| **Inventory & Scope** | Preflight | Resource enumeration, permission validation, scope enforcement |
+| **Identity Posture** | Entra ID | MFA gaps, Conditional Access, app registrations, guest users, credential hygiene |
+| **Authorization & Attack Path** | RBAC / Privilege | Over-permissioned roles, custom role abuse, managed identity chains, priv esc paths |
+| **Network Exposure** | Networking | Public IPs, NSG rules, firewall gaps, VNet peering, DNS exposure, private endpoints |
+| **Compute Platform** | Compute / Kubernetes / Containers | VM patching, AKS & Kubernetes RBAC, Container Apps/Instances, ACR, Function Apps, App Service hardening |
+| **Data Protection** | Storage / Data / SQL | Storage account exposure, Key Vault policies, SQL & database firewall rules, encryption |
+| **Web & Static Sites** | Web edge / delivery | CDN/Front Door, WAF, TLS, Static Web Apps & storage static sites, API Management |
+| **AI & Foundry** | AI services | Azure AI Foundry, Azure OpenAI, Cognitive Services, Machine Learning workspace exposure |
+| **Attack Surface (EASM)** | External exposure | Outside-in footprint, dangling DNS / subdomain takeover, orphaned IPs, unknown assets |
+| **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
+| **Governance & Posture** | Governance / Posture | Azure Policy guardrails & exemptions, Defender for Cloud secure score, management-group hierarchy, resource locks |
+| **DevOps & Supply Chain** | CI/CD / Supply chain | Workload identity federation (OIDC), pipeline service principals, ACR admin/tasks, Automation Accounts, Logic Apps |
+| **Email Security** *(optional)* | Microsoft 365 | SPF/DKIM/DMARC, Exchange Online Protection, Defender for Office 365, mail-flow rules |
+| **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
+
+> The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only when M365 is in engagement scope. EntraID, RBAC, SQL/databases, and Kubernetes/containers are covered by the Identity, Authorization, Data, and Compute agents respectively.
+
 ## 🧭 How It Works
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#ffffff','primaryBorderColor':'#0078D4','primaryTextColor':'#0078D4','lineColor':'#0078D4','textColor':'#0078D4','titleColor':'#0078D4','clusterBkg':'#f4f8fd','clusterBorder':'#0078D4','edgeLabelBackground':'#ffffff','fontFamily':'Segoe UI, Helvetica, Arial, sans-serif'}}}%%
 graph TD
     User[Security Engineer] -->|/recon or /assess| Orchestrator
     Orchestrator -->|1. Preflight| Preflight[Inventory & Scope Agent]
@@ -67,32 +94,6 @@ graph TD
     Orchestrator -->|4. Report| Reporter[Reporting Agent]
     Reporter -->|Final report| User
 ```
-
-## 🤖 Agent Team
-
-<p align="center">
-  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fourteen domain specialists" width="100%">
-</p>
-
-| Agent | Domain | Key Focus |
-|---|---|---|
-| **Orchestrator** | Coordination | Engagement lifecycle, task dispatch, finding aggregation |
-| **Inventory & Scope** | Preflight | Resource enumeration, permission validation, scope enforcement |
-| **Identity Posture** | Entra ID | MFA gaps, Conditional Access, app registrations, guest users, credential hygiene |
-| **Authorization & Attack Path** | RBAC / Privilege | Over-permissioned roles, custom role abuse, managed identity chains, priv esc paths |
-| **Network Exposure** | Networking | Public IPs, NSG rules, firewall gaps, VNet peering, DNS exposure, private endpoints |
-| **Compute Platform** | Compute / Kubernetes / Containers | VM patching, AKS & Kubernetes RBAC, Container Apps/Instances, ACR, Function Apps, App Service hardening |
-| **Data Protection** | Storage / Data / SQL | Storage account exposure, Key Vault policies, SQL & database firewall rules, encryption |
-| **Web & Static Sites** | Web edge / delivery | CDN/Front Door, WAF, TLS, Static Web Apps & storage static sites, API Management |
-| **AI & Foundry** | AI services | Azure AI Foundry, Azure OpenAI, Cognitive Services, Machine Learning workspace exposure |
-| **Attack Surface (EASM)** | External exposure | Outside-in footprint, dangling DNS / subdomain takeover, orphaned IPs, unknown assets |
-| **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
-| **Governance & Posture** | Governance / Posture | Azure Policy guardrails & exemptions, Defender for Cloud secure score, management-group hierarchy, resource locks |
-| **DevOps & Supply Chain** | CI/CD / Supply chain | Workload identity federation (OIDC), pipeline service principals, ACR admin/tasks, Automation Accounts, Logic Apps |
-| **Email Security** *(optional)* | Microsoft 365 | SPF/DKIM/DMARC, Exchange Online Protection, Defender for Office 365, mail-flow rules |
-| **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
-
-> The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only when M365 is in engagement scope. EntraID, RBAC, SQL/databases, and Kubernetes/containers are covered by the Identity, Authorization, Data, and Compute agents respectively.
 
 ## 🧩 How the Team Is Packaged (Agents + Skills + Hooks)
 
