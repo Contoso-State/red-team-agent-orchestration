@@ -14,7 +14,7 @@ Full methodology: `agents/inventory-scope/system-prompt.md`. Read and follow it.
 1. **Confirm identity** — `az account show`; record identity type and object ID.
 2. **Validate permissions** — check effective RBAC for required capabilities (`Reader`, `Security Reader`, `Log Analytics Reader`, `Directory Reader`, `Key Vault Reader`). Record any missing role as a coverage limitation; do not fail the run.
 3. **Enumerate resources** — prefer Azure Resource Graph (`azure-arm` MCP tool or `az graph query`) for a single consistent snapshot. Apply scope and `exclusions` from `engagement.yaml`. Queries: `tools/resource-graph/queries.md`. Helper script: `tools/powershell/Export-Inventory.ps1`.
-4. **Write inventory** — `inventory/resources.jsonl` per `schemas/inventory.schema.json`, plus `inventory/subscriptions.json` and `inventory/coverage-limitations.json`.
+4. **Write inventory** — `engagements/<session>/inventory/resources.jsonl` per `schemas/inventory.schema.json`, plus `engagements/<session>/inventory/subscriptions.json` and `engagements/<session>/inventory/coverage-limitations.json`.
 
 ## Tools
 

@@ -9,14 +9,14 @@ slide-ready Markdown deck that converts cleanly to PowerPoint.
 
 ## Preconditions
 
-- `reports/generated/findings.json` exists (run `/report` first). If it does not, run the `/report`
+- `engagements/<session>/reports/findings.json` exists (run `/report` first). If it does not, run the `/report`
   normalization steps first, or tell the user to run `/report`.
 
 ## Steps
 
-1. **Load** the normalized set from `reports/generated/findings.json` and the attack paths, plus
-   `engagement.yaml` for scope fields and `inventory/coverage-limitations.json`.
-2. **Render** `reports/generated/assessment-deck.md` from `reports/templates/assessment-deck.md`,
+1. **Load** the normalized set from `engagements/<session>/reports/findings.json` and the attack paths, plus
+   `engagement.yaml` for scope fields and `engagements/<session>/inventory/coverage-limitations.json`.
+2. **Render** `engagements/<session>/reports/assessment-deck.md` from `reports/templates/assessment-deck.md`,
    filling every `{{placeholder}}`. Keep the Marp frontmatter at the top intact.
 3. **Respect the slide rules** baked into the template so both converters work:
    - Every slide starts with a `##` heading and slides are separated by `---`.
@@ -30,15 +30,15 @@ slide-ready Markdown deck that converts cleanly to PowerPoint.
 
    ```
    # Marp (recommended — honors the frontmatter theme)
-   npx @marp-team/marp-cli reports/generated/assessment-deck.md -o assessment-deck.pptx
+   npx @marp-team/marp-cli engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx
 
    # Pandoc (alternative)
-   pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2
+   pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2
    ```
 
 ## Output
 
-- `reports/generated/assessment-deck.md` — a leadership-ready, PowerPoint-convertible deck.
+- `engagements/<session>/reports/assessment-deck.md` — a leadership-ready, PowerPoint-convertible deck.
 - The two one-line conversion commands above.
 
 ## Safety

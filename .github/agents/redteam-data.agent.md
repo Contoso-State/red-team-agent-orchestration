@@ -18,7 +18,7 @@ Az CLI runners: `tools/az-cli/storage.md` and `tools/az-cli/database.md`. Playbo
 
 Run each check in the storage and database check files via the runners. A public/weakly-firewalled
 data store is often an attack-path endpoint — note it for the authorization agent. Emit findings to
-`findings/raw/data-protection.jsonl`, ID prefixes `AZ-STOR-`, `AZ-KV-`, `AZ-DB-`.
+`engagements/<session>/findings/raw/data-protection.jsonl`, ID prefixes `AZ-STOR-`, `AZ-KV-`, `AZ-DB-`.
 
 ## Safety
 

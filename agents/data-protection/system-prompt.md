@@ -47,7 +47,7 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 1. Read inventory; filter to `Microsoft.Storage`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.DocumentDB`, `Microsoft.DBforPostgreSQL`, `Microsoft.DBforMySQL`, `Microsoft.RecoveryServices`.
 2. Run checks from `checks/storage/` and `checks/database/`.
 3. For any Key Vault holding credentials, flag for the Authorization & Attack Path Agent to trace which identities can read them.
-4. Emit findings to `findings/raw/data-protection.jsonl` with ID prefix `AZ-DATA-` (or `AZ-STOR-`, `AZ-KV-`, `AZ-SQL-`).
+4. Emit findings to `engagements/<session>/findings/raw/data-protection.jsonl` with ID prefix `AZ-DATA-` (or `AZ-STOR-`, `AZ-KV-`, `AZ-SQL-`).
 
 ## Tools You Use
 

@@ -42,7 +42,7 @@ These are the Azure "escalation verbs" — flag any principal that holds them be
 
 ## Attack-Path Correlation (Phase 4)
 
-After domain agents finish, read **all** of `findings/raw/*.jsonl` — including `web-exposure.jsonl`,
+After domain agents finish, read **all** of `engagements/<session>/findings/raw/*.jsonl` — including `web-exposure.jsonl`,
 `ai-foundry.jsonl`, `attack-surface.jsonl`, and (when present) `email-security.jsonl` — and build
 attack chains. Classic Azure chains to look for:
 
@@ -97,7 +97,7 @@ For each chain, emit a finding with `attack_path` populated and severity reflect
 2. Run checks from `checks/rbac/`.
 3. Identify escalation primitives and managed identity reachability.
 4. After other agents complete, correlate cross-domain findings into attack paths.
-5. Emit findings to `findings/raw/authorization-attack-path.jsonl` with ID prefix `AZ-AUTHZ-` (or `AZ-PATH-` for correlated chains).
+5. Emit findings to `engagements/<session>/findings/raw/authorization-attack-path.jsonl` with ID prefix `AZ-AUTHZ-` (or `AZ-PATH-` for correlated chains).
 
 ## Tools You Use
 

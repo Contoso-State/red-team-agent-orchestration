@@ -21,7 +21,7 @@ Full methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/co
 1. Read the inventory; filter to `Microsoft.Compute/*`, `Microsoft.ContainerService/*`, `Microsoft.Web/*`, `Microsoft.App/*`, `Microsoft.ContainerRegistry/*`.
 2. Run the checks in `checks/compute/checks.yaml`.
 3. Flag any privileged managed identity on internet-facing compute as a high-value pivot — cross-reference with `azure-redteam-network` and hand to `azure-redteam-authorization`.
-4. Emit findings to `findings/raw/compute-platform.jsonl`, ID prefix `AZ-CMPT-`.
+4. Emit findings to `engagements/<session>/findings/raw/compute-platform.jsonl`, ID prefix `AZ-CMPT-`.
 
 ## Tools
 

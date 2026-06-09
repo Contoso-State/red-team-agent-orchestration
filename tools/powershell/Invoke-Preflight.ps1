@@ -11,15 +11,22 @@
 .PARAMETER EngagementFile
     Path to the engagement.yaml scope file. Defaults to .\engagement.yaml.
 
+.PARAMETER SessionPath
+    The per-assessment session folder all output is written under. Defaults to the
+    $env:REDTEAM_SESSION value, or a new ./engagements/<timestamp> folder if unset.
+    Reuse the same SessionPath for Export-Inventory.ps1 to keep one session together.
+
 .EXAMPLE
     pwsh ./tools/powershell/Invoke-Preflight.ps1 -EngagementFile ./engagement.yaml
 #>
 [CmdletBinding()]
 param(
-    [string]$EngagementFile = "./engagement.yaml"
+    [string]$EngagementFile = "./engagement.yaml",
+    [string]$SessionPath = $env:REDTEAM_SESSION
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $SessionPath) { $SessionPath = "./engagements/$(Get-Date -Format 'yyyy-MM-dd-HHmmss')" }
 
 function Write-Section($text) { Write-Host "`n=== $text ===" -ForegroundColor Cyan }
 
@@ -72,12 +79,13 @@ foreach ($role in $requiredRoles.Keys) {
 
 # --- Emit coverage limitations ---
 Write-Section "Coverage Limitations"
-$invDir = "./inventory"
-if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir | Out-Null }
+$invDir = Join-Path $SessionPath "inventory"
+if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir -Force | Out-Null }
+Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
 
 if ($limitations.Count -gt 0) {
     $limitations | ConvertTo-Json -Depth 4 | Set-Content "$invDir/coverage-limitations.json"
-    Write-Host "$($limitations.Count) limitation(s) written to inventory/coverage-limitations.json" -ForegroundColor Yellow
+    Write-Host "$($limitations.Count) limitation(s) written to engagements/<session>/inventory/coverage-limitations.json" -ForegroundColor Yellow
 } else {
     "[]" | Set-Content "$invDir/coverage-limitations.json"
     Write-Host "No permission gaps detected." -ForegroundColor Green

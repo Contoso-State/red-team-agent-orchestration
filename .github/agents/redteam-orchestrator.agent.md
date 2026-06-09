@@ -38,12 +38,12 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
    If missing, tell the user to run `/setup` (or copy `engagement.example.yaml`) and stop. Echo a one-line scope
    summary and the `mode` (default `read-only-assessment`). Track phases in the todo list.
 2. **Preflight (sequential).** Dispatch `Red Team Inventory & Scope` first. Do not proceed until
-   `inventory/resources.jsonl` exists and permissions are validated.
+   `engagements/<session>/inventory/resources.jsonl` exists and permissions are validated.
 3. **Domain assessment (parallel).** Dispatch the order-2 agents. Pass each: the engagement scope,
-   the inventory path, and its target resource types. Each writes `findings/raw/<agent>.jsonl`.
+   the inventory path, and its target resource types. Each writes `engagements/<session>/findings/raw/<agent>.jsonl`.
 4. **Correlation (sequential).** Dispatch `Red Team Authorization` to chain findings into attack paths.
 5. **Reporting (sequential).** Dispatch `Red Team Reporting` to dedupe, prioritize, and render
-   `reports/generated/`.
+   `engagements/<session>/reports/`.
 6. **Brief the user** with finding counts by severity and the top attack path.
 
 When you dispatch a sub-agent, give it complete context — it runs in its own context window and

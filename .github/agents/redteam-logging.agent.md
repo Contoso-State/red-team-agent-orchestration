@@ -17,7 +17,7 @@ Az CLI runner: `tools/az-cli/logging.md`. KQL: `tools/kql/detection-coverage.kql
 
 Run each check in `checks/logging/checks.yaml` via the runner. Cross-reference: for each high/critical
 finding from other agents, ask "would this be detected?" — undetected critical exposure raises
-severity. Emit findings to `findings/raw/logging-coverage.jsonl`, ID prefix `AZ-LOG-`.
+severity. Emit findings to `engagements/<session>/findings/raw/logging-coverage.jsonl`, ID prefix `AZ-LOG-`.
 
 ## Safety
 

@@ -18,7 +18,7 @@ Full methodology: `agents/authorization-attack-path/system-prompt.md`. Checks: `
 
 ## Attack-Path Correlation (Run After Domain Skills)
 
-Read all `findings/raw/*.jsonl` and build chains. Example:
+Read all `engagements/<session>/findings/raw/*.jsonl` and build chains. Example:
 ```
 Public web app (network) -> managed identity (compute) -> Key Vault secret (this skill)
   -> DB connection string (data) -> SQL firewall allows Azure (data)

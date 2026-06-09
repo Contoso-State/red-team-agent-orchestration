@@ -46,7 +46,7 @@ The web edge is the first thing an attacker touches. You assess the public deliv
 2. Run checks from `checks/web/`.
 3. Record whether each public edge has a WAF in Prevention mode; map origins behind each edge.
 4. Hand unauthenticated internet-facing endpoints to the Authorization & Attack Path Agent.
-5. Emit findings to `findings/raw/web-exposure.jsonl` with ID prefix `AZ-WEB-`.
+5. Emit findings to `engagements/<session>/findings/raw/web-exposure.jsonl` with ID prefix `AZ-WEB-`.
 
 ## Tools You Use
 

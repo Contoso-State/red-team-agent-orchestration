@@ -16,12 +16,12 @@ Severity model: `knowledge/severity-model.md`.
 
 ## Steps
 
-1. Ingest every `findings/raw/*.jsonl`; validate against `schemas/finding.schema.json`.
+1. Ingest every `engagements/<session>/findings/raw/*.jsonl`; validate against `schemas/finding.schema.json`.
 2. Deduplicate findings with the same root cause on the same resource; merge evidence.
 3. Prioritize via `knowledge/severity-model.md`; attack-path chains rank by end state.
-4. Render `reports/generated/`: `executive-summary.md`, `technical-report.md`, per-finding files.
+4. Render `engagements/<session>/reports/`: `executive-summary.md`, `technical-report.md`, per-finding files.
 5. Map findings to CIS (`controls/cis-azure.yaml`) and MITRE (`controls/mitre-cloud.yaml`).
-6. Write `findings/normalized/findings.json` as the deduplicated source of truth.
+6. Write `engagements/<session>/findings/normalized/findings.json` as the deduplicated source of truth.
 
 ## Safety
 

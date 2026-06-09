@@ -34,7 +34,7 @@ runner: `tools/az-cli/web.md`** — the read-only `az` commands you execute, key
 3. For a storage static website, assess the web-exposure angle and cross-reference the
    `azure-redteam-data` finding on the account; do not duplicate storage posture.
 4. Hand any unauthenticated internet-facing endpoint to `azure-redteam-authorization` for chaining.
-5. Emit findings to `findings/raw/web-exposure.jsonl`, ID prefix `AZ-WEB-`.
+5. Emit findings to `engagements/<session>/findings/raw/web-exposure.jsonl`, ID prefix `AZ-WEB-`.
 
 ## Tools
 

@@ -56,7 +56,7 @@
 
 ## Assessment Coverage & Limitations
 
-> What was and wasn't assessed. Any permission gaps or blind spots from `inventory/coverage-limitations.json`. Never let a blind spot read as "all clear."
+> What was and wasn't assessed. Any permission gaps or blind spots from `engagements/<session>/inventory/coverage-limitations.json`. Never let a blind spot read as "all clear."
 
 - {{coverage_note}}
 

@@ -106,7 +106,7 @@
           },
           "raw_ref": {
             "type": "string",
-            "description": "Optional pointer into evidence/raw/ (gitignored)"
+            "description": "Optional pointer into engagements/<session>/evidence/raw/ (gitignored)"
           }
         }
       }

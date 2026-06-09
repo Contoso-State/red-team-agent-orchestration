@@ -17,7 +17,7 @@ Az CLI runner: `tools/az-cli/rbac.md`. Playbook: `playbooks/privilege-path-analy
 ## Two Passes
 
 1. **RBAC checks.** Run `checks/rbac/checks.yaml` via the runner. Emit findings `AZ-AUTHZ-`.
-2. **Correlation.** Read all `findings/raw/*.jsonl` and build chains scored by end state, e.g.
+2. **Correlation.** Read all `engagements/<session>/findings/raw/*.jsonl` and build chains scored by end state, e.g.
    `public app (network) -> managed identity (compute) -> Key Vault secret -> DB (data)`.
    Emit chain findings `AZ-PATH-` with `attack_path` populated.
 

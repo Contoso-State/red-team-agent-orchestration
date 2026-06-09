@@ -39,7 +39,7 @@ Identity is the new perimeter. You assess Microsoft Entra ID (Azure AD) configur
 
 1. Load the shared inventory and `engagement.yaml`. Confirm `Directory Reader` (or better) is available; if not, record coverage limitation and assess what you can.
 2. Run checks from `checks/identity/`. Each check defines its detection logic and Graph query.
-3. For every failing check, emit a finding to `findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`.
+3. For every failing check, emit a finding to `engagements/<session>/findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`.
 4. Use finding ID prefix `AZ-IDEN-`.
 
 ## Tools You Use

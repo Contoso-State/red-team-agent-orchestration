@@ -45,7 +45,7 @@ Read (Graph security endpoints or Exchange Online PowerShell `Get-*` when connec
   **auto-forward externally**, or broadly **allow-list** senders/domains/IPs.
 
 ### 5. Report
-- Emit each finding to `findings/raw/email-security.jsonl` with ID prefix `AZ-MAIL-`, mapped to a
+- Emit each finding to `engagements/<session>/findings/raw/email-security.jsonl` with ID prefix `AZ-MAIL-`, mapped to a
   `checks/email/checks.yaml` check_id, with severity, evidence (redacted per `data_handling`), and a
   concrete remediation.
 - Return a concise summary to the orchestrator; do not write the final report yourself.

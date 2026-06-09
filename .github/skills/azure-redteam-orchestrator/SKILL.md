@@ -31,9 +31,9 @@ The full methodology lives in `agents/orchestrator/system-prompt.md`. Read it an
 1. **Validate scope.** Load `engagement.yaml` (the user copies `engagement.example.yaml`). Validate against `schemas/engagement.schema.json`. If missing, instruct the user to create it and stop. Echo a one-line scope summary and confirm.
 2. **Enforce mode.** The engagement `mode` (`read-only-assessment` default, `attack-path-analysis`, `controlled-validation`) gates what the team may do. Never exceed it.
 3. **Dispatch preflight.** Always run `azure-redteam-inventory` first. No domain skill runs until the inventory exists and permissions are validated.
-4. **Assign domain tasks.** Based on resource types in the inventory, dispatch the relevant domain skills. Each writes structured findings to `findings/raw/<agent>.jsonl` per `schemas/finding.schema.json`.
+4. **Assign domain tasks.** Based on resource types in the inventory, dispatch the relevant domain skills. Each writes structured findings to `engagements/<session>/findings/raw/<agent>.jsonl` per `schemas/finding.schema.json`.
 5. **Correlate.** Dispatch `azure-redteam-authorization` to chain findings into multi-step attack paths.
-6. **Report.** Dispatch `azure-redteam-reporting` to normalize and render `reports/generated/`.
+6. **Report.** Dispatch `azure-redteam-reporting` to normalize and render `engagements/<session>/reports/`.
 
 ## Dispatch in GitHub Copilot CLI
 

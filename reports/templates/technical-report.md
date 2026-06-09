@@ -5,7 +5,7 @@
 **Engagement:** {{engagement.name}} ({{engagement.id}})
 **Date:** {{report_date}}
 **Mode:** {{mode}}
-**Source of truth:** `reports/generated/findings.json`
+**Source of truth:** `engagements/<session>/reports/findings.json`
 
 ---
 

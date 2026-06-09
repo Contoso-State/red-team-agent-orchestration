@@ -7,10 +7,10 @@ title: "Azure Security Assessment — {{engagement.name}}"
 
 <!--
 PowerPoint-ready deck. Rendered by the Reporting Agent into
-reports/generated/assessment-deck.md, then converted to .pptx:
+engagements/<session>/reports/assessment-deck.md, then converted to .pptx:
 
-  Marp:    marp reports/generated/assessment-deck.md -o assessment-deck.pptx
-  Pandoc:  pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2
+  Marp:    marp engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx
+  Pandoc:  pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2
 
 Authoring rules so BOTH converters produce clean slides:
   • Every slide starts with a `##` heading and is separated by a `---` rule.
@@ -145,7 +145,7 @@ Split across two slides if more than ~8 rows. -->
 - {{coverage_note_2}}
 
 <!-- Be explicit about blind spots and permission gaps. Never let a gap read
-as "all clear." Source: inventory/coverage-limitations.json. -->
+as "all clear." Source: engagements/<session>/inventory/coverage-limitations.json. -->
 
 ---
 

@@ -50,12 +50,15 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
 8. **Validate** the result against `schemas/engagement.schema.json`. Fix anything that fails.
 
 9. **Confirm and hand off.** Echo a one-line scope summary (engagement ID, mode, target subscription,
-   exclusions) and tell the user the next step is `/recon`.
+   exclusions) and tell the user the next step is `/recon`. Note that `/recon` opens a fresh
+   per-run session folder `engagements/<engagement-id>-<timestamp>/` where **all** output (inventory,
+   findings, evidence, reports) is written and which is fully gitignored.
 
 ## Output
 
 - A populated, schema-valid `engagement.yaml` (gitignored — it contains target-specific data).
 - A one-line scope confirmation and the recommended next command (`/recon`).
+- No assessment output yet — that lands under `engagements/<session>/` once `/recon` runs.
 
 ## Safety
 

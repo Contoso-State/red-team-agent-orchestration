@@ -27,7 +27,7 @@ re-filing its finding.
 Run each check in `checks/easm/checks.yaml` via the runner. Produce an external-surface inventory and
 flag dangling DNS / takeover candidates and unknown exposed assets. Hand internet-reachable footholds
 to the authorization agent for attack-path correlation. Emit findings to
-`findings/raw/attack-surface.jsonl`, ID prefix `AZ-EASM-`.
+`engagements/<session>/findings/raw/attack-surface.jsonl`, ID prefix `AZ-EASM-`.
 
 ## Safety
 

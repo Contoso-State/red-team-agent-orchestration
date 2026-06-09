@@ -44,7 +44,7 @@ When your footprint reveals a specific misconfig, cross-reference the owning age
 2. Enumerate DNS zones and records; flag CNAME/A targets that no longer resolve to a live owned resource.
 3. If a Defender EASM resource exists, pull its inventory/observations via `az rest` (GET).
 4. Correlate every exposed asset to an owner; flag the unowned ones as unknown assets.
-5. Emit findings to `findings/raw/attack-surface.jsonl` with ID prefix `AZ-EASM-`.
+5. Emit findings to `engagements/<session>/findings/raw/attack-surface.jsonl` with ID prefix `AZ-EASM-`.
 
 ## Tools You Use
 

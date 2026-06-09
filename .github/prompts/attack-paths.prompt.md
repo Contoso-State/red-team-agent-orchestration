@@ -8,11 +8,11 @@ You are acting as the **Authorization & Attack Path Agent** (`agents/authorizati
 
 ## Preconditions
 
-- Domain agents have run; `findings/raw/*.jsonl` is populated.
+- Domain agents have run; `engagements/<session>/findings/raw/*.jsonl` is populated.
 
 ## Steps
 
-1. **Load all findings** from `findings/raw/*.jsonl` and the resource inventory.
+1. **Load all findings** from `engagements/<session>/findings/raw/*.jsonl` and the resource inventory.
 2. **Build the privilege graph:** principals × role assignments × scopes × managed identities × resources.
 3. **Trace chains.** Look for the classic Azure compromise patterns:
    - Public/internet-facing entry point → managed identity → secret store → privileged data or compute
@@ -20,7 +20,7 @@ You are acting as the **Authorization & Attack Path Agent** (`agents/authorizati
    - Cross-environment movement via VNet peering, shared identities, or shared Key Vaults
    - Contributor/Owner on a scope → modify workload → steal its identity token
 4. **Score by end state.** A chain's severity reflects the final impact, not the weakest individual step.
-5. **Emit chain findings** to `findings/raw/authorization-attack-path.jsonl` with `attack_path` populated and ID prefix `AZ-PATH-`.
+5. **Emit chain findings** to `engagements/<session>/findings/raw/authorization-attack-path.jsonl` with `attack_path` populated and ID prefix `AZ-PATH-`.
 
 ## Output
 

@@ -20,7 +20,7 @@ Full methodology: `agents/network-exposure/system-prompt.md`. Checks: `checks/ne
 
 1. Read the inventory; filter to `Microsoft.Network/*`, public IPs, NSGs, and resources with network controls.
 2. Run the checks in `checks/network/checks.yaml`. For each public IP, trace the inbound path: Public IP -> NIC/LB -> NSG -> resource.
-3. Emit findings to `findings/raw/network-exposure.jsonl`, ID prefix `AZ-NET-`.
+3. Emit findings to `engagements/<session>/findings/raw/network-exposure.jsonl`, ID prefix `AZ-NET-`.
 
 ## Tools
 

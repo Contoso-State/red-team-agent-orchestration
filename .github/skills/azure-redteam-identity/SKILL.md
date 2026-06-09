@@ -20,7 +20,7 @@ Full methodology: `agents/identity-posture/system-prompt.md`. Checks: `checks/id
 
 1. Read the inventory and `engagement.yaml`. Confirm `Directory Reader`; if absent, record a coverage limitation.
 2. Run the checks in `checks/identity/checks.yaml`.
-3. Emit findings to `findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`, ID prefix `AZ-IDEN-`.
+3. Emit findings to `engagements/<session>/findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`, ID prefix `AZ-IDEN-`.
 
 ## Tools
 

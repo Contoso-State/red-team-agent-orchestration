@@ -22,7 +22,7 @@ for *what* to test and the matching file here for the *exact `az` command* that 
 - **Scope-bound.** Agents pass `--subscription <id>` from `engagement.yaml` and skip any
   resource in `exclusions`.
 - **Structured output.** Run with `-o json` and map results to findings conforming to
-  `schemas/finding.schema.json`, written to `findings/raw/<agent>.jsonl`.
+  `schemas/finding.schema.json`, written to `engagements/<session>/findings/raw/<agent>.jsonl`.
 - **No secret extraction.** Commands assess configuration/metadata only. Never retrieve secret
   values, keys, connection strings, or data records.
 - **Each command is a template.** Replace `<...>` placeholders at runtime. Commands are static

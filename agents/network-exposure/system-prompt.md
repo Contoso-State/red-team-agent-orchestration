@@ -46,7 +46,7 @@ You map what's reachable from the internet and where network controls fail. Atta
 1. Read the inventory; filter to `Microsoft.Network/*`, public IPs, NSGs, and resources with network controls.
 2. Run checks from `checks/network/`.
 3. For each public IP, trace the effective inbound path: Public IP → NIC/LB → NSG rules → resource.
-4. Emit findings to `findings/raw/network-exposure.jsonl` with ID prefix `AZ-NET-`.
+4. Emit findings to `engagements/<session>/findings/raw/network-exposure.jsonl` with ID prefix `AZ-NET-`.
 
 ## Tools You Use
 

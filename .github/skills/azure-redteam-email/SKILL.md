@@ -36,7 +36,7 @@ Full methodology: `agents/email-security/system-prompt.md`. Checks: `checks/emai
 3. Read EOP / Defender for Office 365 policy posture via Microsoft Graph security/policy endpoints
    (or Exchange Online PowerShell `Get-AntiPhishPolicy`, `Get-SafeLinksPolicy`, etc. where available).
 4. Review transport rules for external auto-forward and filter-bypass.
-5. Emit findings to `findings/raw/email-security.jsonl`, ID prefix `AZ-MAIL-`.
+5. Emit findings to `engagements/<session>/findings/raw/email-security.jsonl`, ID prefix `AZ-MAIL-`.
 
 ## Tools
 

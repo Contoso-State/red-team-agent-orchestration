@@ -36,7 +36,7 @@ runner: `tools/az-cli/ai.md`** — the read-only `az` commands you execute, keye
    data-protection resource — do not duplicate the storage/search/Key Vault finding.
 4. Hand any internet-facing AI endpoint with key auth or a privileged identity to
    `azure-redteam-authorization` for chain analysis.
-5. Emit findings to `findings/raw/ai-foundry.jsonl`, ID prefix `AZ-AI-`.
+5. Emit findings to `engagements/<session>/findings/raw/ai-foundry.jsonl`, ID prefix `AZ-AI-`.
 
 ## Tools
 

@@ -1,6 +1,6 @@
 # Finding Template
 
-> A single finding. The canonical structured form is `schemas/finding.schema.json`; this is the human-readable view. Agents emit JSONL to `findings/raw/<agent>.jsonl`.
+> A single finding. The canonical structured form is `schemas/finding.schema.json`; this is the human-readable view. Agents emit JSONL to `engagements/<session>/findings/raw/<agent>.jsonl`.
 
 ```json
 {
@@ -23,7 +23,7 @@
     {
       "source": "azure-storage container list",
       "summary": "Container 'backups' publicAccess = Blob",
-      "raw_ref": "evidence/raw/stor-001.json"
+      "raw_ref": "engagements/<session>/evidence/raw/stor-001.json"
     }
   ],
   "attack_path": [],

@@ -64,7 +64,7 @@ When working in this repo:
 - Each skill (`.github/skills/azure-redteam-<name>/SKILL.md`) delegates to its detailed methodology in `agents/<name>/system-prompt.md`
 - Checks are in `checks/<domain>/` — agents execute these, not ad-hoc queries
 - The `redteam-guardrails` hook enforces read-only as an allowlist across `az`/`azd` and Azure PowerShell — only recognized read/query operations pass (it is wrapper-aware and tool-scoped). In `controlled-validation` mode a mutation triggers a human-approval prompt instead of being allowed
-- All output goes to `findings/raw/<agent-name>.jsonl` as structured JSON lines
+- All output goes to `engagements/<session>/findings/raw/<agent-name>.jsonl` as structured JSON lines
 
 ## Coding Conventions
 

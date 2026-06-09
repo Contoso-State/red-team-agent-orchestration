@@ -16,7 +16,7 @@ Az CLI runner: `tools/az-cli/network.md`. Playbook: `playbooks/exposure-assessme
 ## Output
 
 Run each check in `checks/network/checks.yaml` via the runner. For each public IP, trace the inbound
-path (Public IP -> NIC/LB -> NSG -> resource). Emit findings to `findings/raw/network-exposure.jsonl`,
+path (Public IP -> NIC/LB -> NSG -> resource). Emit findings to `engagements/<session>/findings/raw/network-exposure.jsonl`,
 ID prefix `AZ-NET-`.
 
 ## Safety

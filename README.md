@@ -186,6 +186,7 @@ This launches the Orchestrator (Pentest Manager), which dispatches the domain su
 ```
 
 The orchestrator will:
+- Open a fresh per-run session folder `engagements/<session>/` (where `<session>` = `<engagement-id>-<timestamp>`) that holds **all** output for this run and is gitignored
 - Validate your Azure permissions (preflight)
 - Enumerate all resources in scope
 - Build a resource inventory
@@ -197,7 +198,7 @@ The orchestrator will:
 /assess
 ```
 
-Dispatches all domain agents against the inventory. Each agent produces structured findings in `findings/raw/`.
+Dispatches all domain agents against the inventory. Each agent produces structured findings in `engagements/<session>/findings/raw/`.
 
 ### 5. Analyze attack paths
 
@@ -213,7 +214,7 @@ Correlates findings across domains to identify multi-step compromise chains.
 /report
 ```
 
-Normalizes findings, deduplicates, reconciles severity, and generates executive + technical reports in `reports/generated/`.
+Normalizes findings, deduplicates, reconciles severity, and generates executive + technical reports in `engagements/<session>/reports/`.
 
 ### 7. Build the presentation deck
 
@@ -221,9 +222,9 @@ Normalizes findings, deduplicates, reconciles severity, and generates executive 
 /deck
 ```
 
-Renders `reports/generated/assessment-deck.md` — a PowerPoint-convertible slide deck. Convert it to
-`.pptx` with Marp (`npx @marp-team/marp-cli reports/generated/assessment-deck.md -o assessment-deck.pptx`)
-or Pandoc (`pandoc reports/generated/assessment-deck.md -o assessment-deck.pptx --slide-level=2`).
+Renders `engagements/<session>/reports/assessment-deck.md` — a PowerPoint-convertible slide deck. Convert it to
+`.pptx` with Marp (`npx @marp-team/marp-cli engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx`)
+or Pandoc (`pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2`).
 `/report` also emits this deck automatically.
 
 ## 🎚️ Operating Modes
@@ -265,10 +266,13 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell
-├── reports/templates/           # Report templates
-├── findings/                    # Assessment output (gitignored: raw/)
-├── evidence/                    # Evidence artifacts (gitignored: raw/)
-└── inventory/                   # Resource inventory cache (gitignored)
+├── reports/templates/           # Report templates (tracked)
+└── engagements/                 # Per-session output — one folder per run (gitignored)
+    └── <session>/               # <engagement-id>-<YYYY-MM-DD-HHMMSS>
+        ├── inventory/           # Resource inventory + coverage limitations
+        ├── findings/            # raw/<agent>.jsonl + normalized findings
+        ├── evidence/            # raw + sanitized evidence artifacts
+        └── reports/             # executive-summary, technical-report, deck, findings.json
 ```
 
 ## 🧾 Findings Model

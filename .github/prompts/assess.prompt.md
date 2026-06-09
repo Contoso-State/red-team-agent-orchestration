@@ -9,12 +9,12 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 ## Preconditions
 
 - `engagement.yaml` exists and is valid.
-- `inventory/resources.jsonl` exists (run `/recon` first if not).
+- `engagements/<session>/inventory/resources.jsonl` exists (run `/recon` first if not).
 
 ## Steps
 
 1. **Confirm inventory** is present and current. If missing, run reconnaissance first.
-2. **Dispatch domain agents** based on resource types in the inventory. Each agent runs its checks from `checks/<domain>/` and writes findings to `findings/raw/<agent>.jsonl`:
+2. **Dispatch domain agents** based on resource types in the inventory. Each agent runs its checks from `checks/<domain>/` and writes findings to `engagements/<session>/findings/raw/<agent>.jsonl`:
 
    | Condition | Agent | Prompt |
    |---|---|---|
@@ -35,7 +35,7 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 
 ## Output
 
-- `findings/raw/*.jsonl` populated by each dispatched agent
+- `engagements/<session>/findings/raw/*.jsonl` populated by each dispatched agent
 - An assessment summary table (agent × findings × severity)
 - Recommended next step: `/attack-paths` then `/report`
 

@@ -11,7 +11,7 @@ Before any domain agent touches a resource, you confirm the caller is authorized
 1. **Scope validation** — Load `engagement.yaml`, validate against `schemas/engagement.schema.json`.
 2. **Identity preflight** — Determine the current Azure identity and its effective RBAC.
 3. **Permission gap analysis** — Identify what the caller can and cannot enumerate.
-4. **Resource inventory** — Enumerate all in-scope resources into `inventory/resources.jsonl`.
+4. **Resource inventory** — Enumerate all in-scope resources into `engagements/<session>/inventory/resources.jsonl`.
 5. **Coverage limitations** — Record every scope/type the caller could not inspect.
 
 ## Workflow
@@ -47,10 +47,10 @@ Filter to in-scope subscriptions/resource groups from `engagement.yaml`. Apply `
 Fall back to `azure-group_resource_list` per resource group only if Resource Graph is unavailable.
 
 ### Step 4 — Write inventory
-Write `inventory/resources.jsonl` (one JSON object per line) conforming to `schemas/inventory.schema.json`. Also write `inventory/subscriptions.json` and a summary count by resource type.
+Write `engagements/<session>/inventory/resources.jsonl` (one JSON object per line) conforming to `schemas/inventory.schema.json`. Also write `engagements/<session>/inventory/subscriptions.json` and a summary count by resource type.
 
 ### Step 5 — Report coverage
-Emit `inventory/coverage-limitations.json` listing anything you couldn't enumerate and why. The Reporting Agent surfaces these in the final report's "Assessment Coverage" section.
+Emit `engagements/<session>/inventory/coverage-limitations.json` listing anything you couldn't enumerate and why. The Reporting Agent surfaces these in the final report's "Assessment Coverage" section.
 
 ## Tools You Use
 
@@ -62,9 +62,11 @@ Emit `inventory/coverage-limitations.json` listing anything you couldn't enumera
 
 ## Output
 
-- `inventory/resources.jsonl` — the shared inventory
-- `inventory/subscriptions.json` — subscription metadata
-- `inventory/coverage-limitations.json` — known blind spots
+The orchestrator gives you the active session folder `engagements/<session>/` (where `<session>` is `<engagement.id>-<YYYY-MM-DD-HHMMSS>`). Write everything under it — never to the repo root:
+
+- `engagements/<session>/inventory/resources.jsonl` — the shared inventory
+- `engagements/<session>/inventory/subscriptions.json` — subscription metadata
+- `engagements/<session>/inventory/coverage-limitations.json` — known blind spots
 
 ## Safety
 

@@ -35,7 +35,7 @@ Full methodology: `agents/attack-surface/system-prompt.md`. Checks: `checks/easm
 3. If a Defender EASM resource exists, pull its inventory/observations via `az rest` (GET).
 4. Correlate each exposed asset to an owner; flag assets with **no** owner as unknown.
 5. Cross-reference specific misconfigs to the owning agent (network/web/compute/data) instead of duplicating.
-6. Emit findings to `findings/raw/attack-surface.jsonl`, ID prefix `AZ-EASM-`.
+6. Emit findings to `engagements/<session>/findings/raw/attack-surface.jsonl`, ID prefix `AZ-EASM-`.
 
 ## Tools
 

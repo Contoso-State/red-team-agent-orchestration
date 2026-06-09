@@ -17,7 +17,7 @@ Az CLI runner: `tools/az-cli/compute.md`.
 
 Run each check in `checks/compute/checks.yaml` via the runner. Flag any privileged managed identity
 on internet-facing compute as a high-value pivot and note it for the authorization agent. Emit
-findings to `findings/raw/compute-platform.jsonl`, ID prefix `AZ-CMPT-`.
+findings to `engagements/<session>/findings/raw/compute-platform.jsonl`, ID prefix `AZ-CMPT-`.
 
 ## Safety
 

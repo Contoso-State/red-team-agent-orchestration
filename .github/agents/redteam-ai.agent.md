@@ -26,7 +26,7 @@ data-protection resource** rather than duplicating its finding.
 
 Run each check in `checks/ai/checks.yaml` via the runner. Flag any internet-reachable AI endpoint with
 key-based auth or a privileged managed identity as a high-value target and hand it to the
-authorization agent for attack-path correlation. Emit findings to `findings/raw/ai-foundry.jsonl`,
+authorization agent for attack-path correlation. Emit findings to `engagements/<session>/findings/raw/ai-foundry.jsonl`,
 ID prefix `AZ-AI-`.
 
 ## Safety

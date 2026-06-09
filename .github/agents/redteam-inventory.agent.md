@@ -19,8 +19,8 @@ Skill (domain knowledge): `.github/skills/azure-redteam-inventory/SKILL.md`.
    `Directory Reader`, `Key Vault Reader`. Record any gap as a coverage limitation (don't fail).
 3. Enumerate resources via Resource Graph: `az graph query -q "Resources | project id,type,name,location,resourceGroup" -o json`.
    Apply scope + `exclusions` from `engagement.yaml`.
-4. Write `inventory/resources.jsonl` (per `schemas/inventory.schema.json`),
-   `inventory/subscriptions.json`, and `inventory/coverage-limitations.json`.
+4. Write `engagements/<session>/inventory/resources.jsonl` (per `schemas/inventory.schema.json`),
+   `engagements/<session>/inventory/subscriptions.json`, and `engagements/<session>/inventory/coverage-limitations.json`.
 
 ## Safety
 

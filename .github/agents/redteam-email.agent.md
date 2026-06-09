@@ -29,7 +29,7 @@ remain with the **identity** agent — do not duplicate them.
 
 Run each check in `checks/email/checks.yaml`. Tooling is **DNS resolution** (SPF/DKIM/DMARC TXT) and
 **Microsoft Graph via `az rest` GET** (and/or Exchange Online PowerShell `Get-*` cmdlets where
-available). Emit findings to `findings/raw/email-security.jsonl`, ID prefix `AZ-MAIL-`.
+available). Emit findings to `engagements/<session>/findings/raw/email-security.jsonl`, ID prefix `AZ-MAIL-`.
 
 ## Safety
 

@@ -16,7 +16,7 @@ Az CLI runner: `tools/az-cli/identity.md` (read-only `az ad` / `az rest` Graph c
 ## Output
 
 Run each check in `checks/identity/checks.yaml` using the matching command in the runner. Emit
-findings to `findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`, ID prefix
+findings to `engagements/<session>/findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`, ID prefix
 `AZ-IDEN-`. If `Directory Reader` is missing, record a coverage limitation and continue.
 
 ## Safety

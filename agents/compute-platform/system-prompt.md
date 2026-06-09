@@ -50,7 +50,7 @@ Compute is where attackers run code and steal tokens. You assess virtual machine
 1. Read inventory; filter to `Microsoft.Compute`, `Microsoft.ContainerService`, `Microsoft.App`, `Microsoft.Web`, `Microsoft.ContainerInstance`.
 2. Run checks from `checks/compute/`.
 3. For each workload with a managed identity, hand the identity ID to the Authorization & Attack Path Agent for chain analysis.
-4. Emit findings to `findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
+4. Emit findings to `engagements/<session>/findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
 
 ## Tools You Use
 

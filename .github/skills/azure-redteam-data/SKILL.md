@@ -20,7 +20,7 @@ Full methodology: `agents/data-protection/system-prompt.md`. Checks: `checks/sto
 1. Read the inventory; filter to `Microsoft.Storage/*`, `Microsoft.KeyVault/*`, `Microsoft.Sql/*`, `Microsoft.DBfor*`, `Microsoft.DocumentDB/*`.
 2. Run the checks in the storage and database check files.
 3. A public/weakly-firewalled data store is often an attack-path endpoint — hand to `azure-redteam-authorization` for chaining.
-4. Emit findings to `findings/raw/data-protection.jsonl`, ID prefixes `AZ-STOR-`, `AZ-KV-`, `AZ-DB-`.
+4. Emit findings to `engagements/<session>/findings/raw/data-protection.jsonl`, ID prefixes `AZ-STOR-`, `AZ-KV-`, `AZ-DB-`.
 
 ## Tools
 

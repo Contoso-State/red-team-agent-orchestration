@@ -20,7 +20,7 @@ Full methodology: `agents/logging-coverage/system-prompt.md`. Checks: `checks/lo
 
 1. Read the inventory and `engagement.yaml`. Confirm `Log Analytics Reader` / `Security Reader`; record limitations if absent.
 2. Run the checks in `checks/logging/checks.yaml`. Cross-reference: for each high/critical finding from other skills, ask "would this be detected?" — undetected critical exposure raises severity.
-3. Emit findings to `findings/raw/logging-coverage.jsonl`, ID prefix `AZ-LOG-`.
+3. Emit findings to `engagements/<session>/findings/raw/logging-coverage.jsonl`, ID prefix `AZ-LOG-`.
 
 ## Tools
 

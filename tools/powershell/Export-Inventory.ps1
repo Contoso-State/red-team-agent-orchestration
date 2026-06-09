@@ -4,23 +4,31 @@
 
 .DESCRIPTION
     Uses Azure Resource Graph to enumerate all resources in the in-scope
-    subscriptions and writes inventory/resources.jsonl plus a type summary.
+    subscriptions and writes engagements/<session>/inventory/resources.jsonl plus a type summary.
     Read-only. Requires the Resource Graph extension (auto-installed by az).
 
 .PARAMETER Subscriptions
     One or more subscription IDs to enumerate. Defaults to the current subscription.
 
+.PARAMETER SessionPath
+    The per-assessment session folder all output is written under. Defaults to the
+    $env:REDTEAM_SESSION value, or a new ./engagements/<timestamp> folder if unset.
+    Pass the same SessionPath used by Invoke-Preflight.ps1 to keep one session together.
+
 .EXAMPLE
-    pwsh ./tools/powershell/Export-Inventory.ps1 -Subscriptions "<sub-id>"
+    pwsh ./tools/powershell/Export-Inventory.ps1 -Subscriptions "<sub-id>" -SessionPath ./engagements/example-2026-q2-2026-06-15-141200
 #>
 [CmdletBinding()]
 param(
-    [string[]]$Subscriptions
+    [string[]]$Subscriptions,
+    [string]$SessionPath = $env:REDTEAM_SESSION
 )
 
 $ErrorActionPreference = "Stop"
-$invDir = "./inventory"
-if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir | Out-Null }
+if (-not $SessionPath) { $SessionPath = "./engagements/$(Get-Date -Format 'yyyy-MM-dd-HHmmss')" }
+$invDir = Join-Path $SessionPath "inventory"
+if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir -Force | Out-Null }
+Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
 
 if (-not $Subscriptions) {
     $current = az account show --only-show-errors | ConvertFrom-Json

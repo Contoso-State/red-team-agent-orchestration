@@ -43,7 +43,7 @@ You own **AI-specific** exposure and usage. The backing data services (Storage, 
 2. Run checks from `checks/ai/`.
 3. For each AI resource with a managed identity, hand the identity ID to the Authorization & Attack Path Agent.
 4. For each exposed grounding connection, record the AI→data path and cross-reference the data store.
-5. Emit findings to `findings/raw/ai-foundry.jsonl` with ID prefix `AZ-AI-`.
+5. Emit findings to `engagements/<session>/findings/raw/ai-foundry.jsonl` with ID prefix `AZ-AI-`.
 
 ## Tools You Use
 

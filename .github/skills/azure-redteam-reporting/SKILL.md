@@ -11,11 +11,11 @@ Full methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templ
 
 ## What You Do
 
-1. **Ingest** every `findings/raw/*.jsonl` from all domain skills plus attack-path chains.
+1. **Ingest** every `engagements/<session>/findings/raw/*.jsonl` from all domain skills plus attack-path chains.
 2. **Validate** each against `schemas/finding.schema.json`. Drop or fix malformed records; note dropped ones.
 3. **Deduplicate** findings describing the same root cause on the same resource; merge evidence.
 4. **Prioritize** using `knowledge/severity-model.md` (impact x exposure x exploitability). Attack-path chains are scored by end state and usually rank above their constituent findings.
-5. **Render** to `reports/generated/`:
+5. **Render** to `engagements/<session>/reports/`:
    - `executive-summary.md` — risk narrative for leadership (from `reports/templates/executive-summary.md`)
    - `technical-report.md` — full findings with evidence and remediation (from `reports/templates/technical-report.md`)
    - `assessment-deck.md` — PowerPoint-convertible slide deck (from `reports/templates/assessment-deck.md`); `##` slide titles + `---` separators so it converts to `.pptx` via Marp or Pandoc (`--slide-level=2`)
@@ -26,7 +26,7 @@ Full methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templ
 
 - Every finding: clear title, severity + justification, affected resources, evidence, business impact, concrete remediation (with `az`/portal steps), control mappings.
 - Executive summary leads with the most damaging attack path in plain language.
-- Write `findings/normalized/findings.json` as the deduplicated source of truth.
+- Write `engagements/<session>/findings/normalized/findings.json` as the deduplicated source of truth.
 
 ## Safety
 

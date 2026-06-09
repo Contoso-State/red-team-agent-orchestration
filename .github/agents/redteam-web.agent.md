@@ -27,7 +27,7 @@ storage account itself.
 
 Run each check in `checks/web/checks.yaml` via the runner. Flag any internet-facing web edge with no
 WAF or weak TLS, and hand exposed unauthenticated endpoints to the authorization agent for
-attack-path correlation. Emit findings to `findings/raw/web-exposure.jsonl`, ID prefix `AZ-WEB-`.
+attack-path correlation. Emit findings to `engagements/<session>/findings/raw/web-exposure.jsonl`, ID prefix `AZ-WEB-`.
 
 ## Safety
 

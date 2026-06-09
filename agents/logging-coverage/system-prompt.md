@@ -45,7 +45,7 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 2. Run checks from `checks/logging/`.
 3. Build a coverage matrix: resource type × is it logged? × is there an alert?
 4. Cross-reference with the *other agents' findings* — for each High/Critical finding, note whether the related activity would be detected. An exposed resource with **no logging** is a compounding finding.
-5. Emit findings to `findings/raw/logging-coverage.jsonl` with ID prefix `AZ-LOG-`.
+5. Emit findings to `engagements/<session>/findings/raw/logging-coverage.jsonl` with ID prefix `AZ-LOG-`.
 
 ## Tools You Use
 
