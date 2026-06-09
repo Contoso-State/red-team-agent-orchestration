@@ -146,6 +146,8 @@ Each agent's deep methodology is a Copilot skill, loaded automatically by `descr
 | `azure-redteam-email` | M365 email security (SPF/DKIM/DMARC, Defender for Office 365) — optional |
 | `azure-redteam-reporting` | Normalize findings, render deliverables |
 
+> The **Identity Posture** agent additionally loads the supporting **`msgraph-sdk`** skill — a Microsoft Graph SDK reference used to enumerate Entra ID configuration (users, app registrations, Conditional Access) read-only via `az rest`/Graph. All other domains map one-to-one to an `azure-redteam-*` skill above.
+
 ### 3. Extension / hooks — read-only enforcement (`.github/extensions/redteam-guardrails`)
 
 A session-wide `preToolUse` hook enforces read-only as an **allowlist (deny-by-default)**: only
