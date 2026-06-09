@@ -27,6 +27,14 @@
   <a href="#-safety--authorization"><b>Safety</b></a>
 </p>
 
+<p align="center">
+  <a href="https://raw.githack.com/Contoso-State/red-team-agent-orchestration/main/tools/report/sample/report.sample.html"><b>📊 View the live sample report</b></a>
+  &nbsp;·&nbsp;
+  <a href="tools/report/sample/report.sample.html"><b>source</b></a>
+  <br>
+  <sub>A full fictional engagement, rendered by the report generator — interactive attack-path graph, expandable findings, print-to-PDF.</sub>
+</p>
+
 ---
 
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
@@ -235,8 +243,10 @@ findings, prioritized recommendations, an asset/scope inventory, a
 **consolidated pan/zoom attack graph**, and method appendices. Attack-path
 nodes are clickable, findings expand in place, and it exports to PDF cleanly. It
 is rendered straight from `findings.json` by `tools/report/generate-report.mjs`
-(see [`tools/report/README.md`](tools/report/README.md); a fictional rendered
-example lives at `tools/report/sample/report.sample.html`).
+(see [`tools/report/README.md`](tools/report/README.md)). A fictional rendered
+example lives at **[`tools/report/sample/report.sample.html`](tools/report/sample/report.sample.html)**
+([**view it live**](https://raw.githack.com/Contoso-State/red-team-agent-orchestration/main/tools/report/sample/report.sample.html)) —
+open it in a browser to explore the interactive deliverable.
 
 ### 7. Build the presentation deck
 
