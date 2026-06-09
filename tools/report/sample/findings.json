@@ -1,0 +1,279 @@
+{
+  "findings": [
+    {
+      "id": "AZ-PATH-001",
+      "title": "Public web app to subscription Owner via managed identity and Key Vault",
+      "severity": "Critical",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "category": "Attack Path",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-web-prod",
+      "region": "eastus",
+      "description": "An internet-facing App Service has a system-assigned managed identity that can read a Key Vault holding a service principal credential. That principal holds roleAssignments/write at the subscription scope, enabling self-elevation to Owner.",
+      "attack_vector": "Public web entry -> SSRF/code exec -> managed identity token -> Key Vault secret -> privileged SP -> roleAssignments/write -> subscription Owner",
+      "risk": "Full administrative control of the production subscription, including all data stores and the ability to disable logging.",
+      "recommendation": "Remove roleAssignments/write from the service principal (replace with PIM-eligible, time-bound assignment). Scope the managed identity's Key Vault access to only the secrets it needs and enable Key Vault RBAC with purge protection.",
+      "evidence": [
+        { "source": "Azure Resource Graph", "summary": "App Service contoso-public-portal exposes HTTPS publicly with system-assigned identity enabled." },
+        { "source": "az role assignment list", "summary": "SP 'sp-deploy-prod' holds a custom role with Microsoft.Authorization/roleAssignments/write at subscription scope." },
+        { "source": "az keyvault show", "summary": "Key Vault kv-web-prod grants get/list secrets to the app's managed identity via access policy." }
+      ],
+      "attack_path": [
+        "Public App Service (contoso-public-portal)",
+        "App managed identity token (IMDS)",
+        "Key Vault kv-web-prod secret read",
+        "Service principal sp-deploy-prod",
+        "roleAssignments/write self-elevation",
+        "Subscription Owner"
+      ],
+      "controls": {
+        "cis_azure": ["CIS 1.23", "CIS 8.4"],
+        "mitre": ["T1078.004", "T1548", "T1552.005"],
+        "defender_for_cloud": ["Managed identity with excessive permissions"],
+        "nist_800_53": ["AC-6", "IA-5"]
+      },
+      "references": [
+        "https://learn.microsoft.com/azure/role-based-access-control/best-practices",
+        "https://learn.microsoft.com/azure/key-vault/general/rbac-guide"
+      ],
+      "status": "confirmed",
+      "first_seen": "2026-06-09T09:15:00Z",
+      "last_seen": "2026-06-09T09:15:00Z"
+    },
+    {
+      "id": "AZ-STOR-001",
+      "title": "Storage account allows anonymous public blob access",
+      "severity": "High",
+      "confidence": "High",
+      "agent": "data-protection",
+      "category": "Storage",
+      "check_id": "CHK-STOR-PUBLIC-BLOB",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/contosopublicdata",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-data",
+      "region": "eastus",
+      "description": "Storage account 'contosopublicdata' has allowBlobPublicAccess enabled and a container with an anonymous access level of 'container', allowing unauthenticated enumeration and download of all blobs.",
+      "attack_vector": "Unauthenticated internet user lists and downloads blobs directly over HTTPS.",
+      "risk": "Exposure of any sensitive data stored in the public container; reconnaissance aid for further attacks.",
+      "recommendation": "Set allowBlobPublicAccess=false on the storage account and set every container's public access level to 'private'. Use SAS or Entra-authenticated access for legitimate sharing.",
+      "evidence": [
+        { "source": "az storage account show", "summary": "allowBlobPublicAccess = true." },
+        { "source": "az storage container list", "summary": "Container 'public-assets' has publicAccess = container." }
+      ],
+      "controls": {
+        "cis_azure": ["CIS 3.7"],
+        "mitre": ["T1530"],
+        "defender_for_cloud": ["Storage account public access should be disallowed"]
+      },
+      "references": ["https://learn.microsoft.com/azure/storage/blobs/anonymous-read-access-prevent"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:12:00Z",
+      "last_seen": "2026-06-09T09:12:00Z"
+    },
+    {
+      "id": "AZ-AUTH-014",
+      "title": "Service principal holds roleAssignments/write at subscription scope",
+      "severity": "High",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "category": "RBAC",
+      "check_id": "CHK-RBAC-ESCALATION-PRIMITIVE",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleAssignments/sp-deploy-prod",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "",
+      "region": "",
+      "description": "The CI/CD service principal 'sp-deploy-prod' is assigned a custom role that includes Microsoft.Authorization/roleAssignments/write — an escalation primitive that lets the principal grant itself Owner.",
+      "attack_vector": "Any compromise of the SP credential yields a one-step path to subscription Owner.",
+      "risk": "Privilege escalation to full subscription control; this is the pivot that turns the public-web entry point into a Critical chain.",
+      "recommendation": "Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.",
+      "evidence": [
+        { "source": "az role definition list", "summary": "Custom role 'Deploy-Prod' includes Microsoft.Authorization/roleAssignments/write." }
+      ],
+      "attack_path": [
+        "Compromised SP sp-deploy-prod",
+        "roleAssignments/write",
+        "Self-assign Owner"
+      ],
+      "controls": {
+        "cis_azure": ["CIS 1.23"],
+        "mitre": ["T1098.003"],
+        "nist_800_53": ["AC-6"]
+      },
+      "references": ["https://learn.microsoft.com/azure/role-based-access-control/role-definitions"],
+      "status": "confirmed",
+      "first_seen": "2026-06-09T09:14:00Z",
+      "last_seen": "2026-06-09T09:14:00Z"
+    },
+    {
+      "id": "AZ-NET-007",
+      "title": "Network security group allows RDP (3389) from the internet",
+      "severity": "High",
+      "confidence": "High",
+      "agent": "network-exposure",
+      "category": "Network",
+      "check_id": "CHK-NET-RDP-OPEN",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-infra/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-infra",
+      "region": "eastus",
+      "description": "NSG 'nsg-jumpbox' has an inbound rule allowing TCP 3389 from source 0.0.0.0/0 (Any). The associated VM is directly reachable for RDP brute-force.",
+      "attack_vector": "Internet-wide RDP brute force / credential stuffing against the jumpbox.",
+      "risk": "Initial access foothold on a management host with line of sight to internal resources.",
+      "recommendation": "Remove the 0.0.0.0/0 RDP rule. Use Azure Bastion or just-in-time VM access, and restrict management ports to known admin IP ranges.",
+      "evidence": [
+        { "source": "az network nsg rule list", "summary": "Rule 'allow-rdp' — protocol TCP, destPort 3389, source Any, access Allow." }
+      ],
+      "controls": {
+        "cis_azure": ["CIS 6.1"],
+        "mitre": ["T1190", "T1110"],
+        "defender_for_cloud": ["Management ports should be closed on your virtual machines"]
+      },
+      "references": ["https://learn.microsoft.com/azure/bastion/bastion-overview"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:10:00Z",
+      "last_seen": "2026-06-09T09:10:00Z"
+    },
+    {
+      "id": "AZ-IDEN-003",
+      "title": "Privileged accounts without multi-factor authentication",
+      "severity": "High",
+      "confidence": "Medium",
+      "agent": "identity-posture",
+      "category": "Identity",
+      "check_id": "CHK-IDEN-MFA-PRIV",
+      "resource_id": "/tenants/00000000-0000-0000-0000-0000000000aa/directoryRoles/GlobalAdministrator",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "region": "",
+      "description": "Three accounts holding the Global Administrator role have no registered MFA method and are not covered by a Conditional Access policy requiring MFA.",
+      "attack_vector": "Password-only access to tenant-wide admin; phishing or credential stuffing yields Global Admin.",
+      "risk": "Compromise of any one account grants full control of the Entra tenant and all subscriptions.",
+      "recommendation": "Enforce phishing-resistant MFA for all privileged roles via Conditional Access, and make the roles PIM-eligible rather than permanently active.",
+      "evidence": [
+        { "source": "msgraph-sdk (az rest)", "summary": "3 of 4 Global Administrators have no strong auth method registered." }
+      ],
+      "controls": {
+        "cis_azure": ["CIS 1.1.1"],
+        "mitre": ["T1078.004"],
+        "nist_800_53": ["IA-2(1)"]
+      },
+      "references": ["https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-admin-mfa"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:11:00Z",
+      "last_seen": "2026-06-09T09:11:00Z"
+    },
+    {
+      "id": "AZ-AI-002",
+      "title": "Azure OpenAI deployment reachable over public network",
+      "severity": "Medium",
+      "confidence": "High",
+      "agent": "ai-foundry",
+      "category": "AI",
+      "check_id": "CHK-AI-PUBLIC-NETWORK",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai",
+      "subscription_id": "00000000-0000-0000-0000-000000000001",
+      "resource_group": "rg-ai",
+      "region": "eastus2",
+      "description": "The Azure OpenAI account 'contoso-openai' has publicNetworkAccess=Enabled with no IP restrictions, exposing the inference endpoint and any deployed models to the internet (key-based auth only).",
+      "attack_vector": "If an API key leaks (e.g. in client code), the endpoint is directly callable from anywhere.",
+      "risk": "Model abuse, data exfiltration via prompts, and unbudgeted spend.",
+      "recommendation": "Set publicNetworkAccess=Disabled and use a private endpoint, or restrict to known IP ranges. Prefer Entra ID (managed identity) auth over API keys and rotate keys.",
+      "evidence": [
+        { "source": "az cognitiveservices account show", "summary": "publicNetworkAccess = Enabled; networkAcls default action = Allow." }
+      ],
+      "controls": {
+        "mitre": ["T1133"],
+        "defender_for_cloud": ["Cognitive Services accounts should restrict network access"]
+      },
+      "references": ["https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:16:00Z",
+      "last_seen": "2026-06-09T09:16:00Z"
+    },
+    {
+      "id": "AZ-LOG-005",
+      "title": "Key Vault has no diagnostic logging to a Log Analytics workspace",
+      "severity": "Medium",
+      "confidence": "High",
+      "agent": "logging-coverage",
+      "category": "Logging",
+      "check_id": "CHK-LOG-KV-DIAG",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-web-prod",
+      "region": "eastus",
+      "description": "Key Vault 'kv-web-prod' (the vault on the Critical attack path) has no diagnostic setting sending AuditEvent logs anywhere, so secret-read activity is invisible.",
+      "attack_vector": "An attacker reading secrets through the managed identity leaves no audit trail.",
+      "risk": "The most dangerous step in the Critical chain is undetectable — exploitable AND invisible.",
+      "recommendation": "Add a diagnostic setting on the vault sending AuditEvent (and AllMetrics) to a Log Analytics workspace, and alert on anomalous secret reads.",
+      "evidence": [
+        { "source": "az monitor diagnostic-settings list", "summary": "No diagnostic settings configured on kv-web-prod." }
+      ],
+      "controls": {
+        "cis_azure": ["CIS 5.1.5"],
+        "mitre": ["T1562.008"],
+        "nist_800_53": ["AU-12"]
+      },
+      "references": ["https://learn.microsoft.com/azure/key-vault/general/logging"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:13:00Z",
+      "last_seen": "2026-06-09T09:13:00Z"
+    },
+    {
+      "id": "AZ-WEB-009",
+      "title": "Web app served over TLS 1.0 with no Web Application Firewall",
+      "severity": "Low",
+      "confidence": "High",
+      "agent": "web-exposure",
+      "category": "Web",
+      "check_id": "CHK-WEB-TLS-MIN",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-web-prod",
+      "region": "eastus",
+      "description": "The public portal accepts TLS 1.0/1.1 and is not fronted by Azure Front Door or Application Gateway WAF.",
+      "attack_vector": "Downgrade attacks and direct exploitation of the origin without a WAF inspection layer.",
+      "risk": "Weak transport security and no edge protection for the most-exposed app.",
+      "recommendation": "Set minimum TLS to 1.2+, and place the app behind Front Door or App Gateway with WAF in Prevention mode.",
+      "evidence": [
+        { "source": "az webapp config show", "summary": "minTlsVersion = 1.0; no WAF resource associated." }
+      ],
+      "controls": {
+        "cis_azure": ["CIS 9.3"],
+        "mitre": ["T1557"]
+      },
+      "references": ["https://learn.microsoft.com/azure/web-application-firewall/overview"],
+      "status": "open",
+      "first_seen": "2026-06-09T09:17:00Z",
+      "last_seen": "2026-06-09T09:17:00Z"
+    },
+    {
+      "id": "AZ-GOV-011",
+      "title": "No resource locks on production resource groups",
+      "severity": "Informational",
+      "confidence": "Medium",
+      "agent": "governance-posture",
+      "category": "Governance",
+      "check_id": "CHK-GOV-LOCKS",
+      "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod",
+      "subscription_id": "00000000-0000-0000-0000-000000000000",
+      "resource_group": "rg-web-prod",
+      "region": "",
+      "description": "Production resource groups have no CanNotDelete or ReadOnly locks, so a compromised or mistaken Contributor can delete production resources.",
+      "attack_vector": "Destructive action (resource deletion) by any Contributor.",
+      "risk": "Availability impact; not a confidentiality issue on its own.",
+      "recommendation": "Apply CanNotDelete locks to production resource groups and critical resources.",
+      "evidence": [
+        { "source": "az lock list", "summary": "No management locks found on rg-web-prod." }
+      ],
+      "controls": {
+        "nist_800_53": ["CP-2"]
+      },
+      "references": ["https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources"],
+      "status": "accepted_risk",
+      "first_seen": "2026-06-09T09:18:00Z",
+      "last_seen": "2026-06-09T09:18:00Z"
+    }
+  ]
+}

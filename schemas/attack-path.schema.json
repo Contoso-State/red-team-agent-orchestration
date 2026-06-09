@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/attack-path.schema.json",
+  "title": "Attack Path Graph",
+  "description": "Optional, richer graph representation of an attack chain for the interactive HTML report. The Authorization & Attack Path Agent already emits chains as AZ-PATH-* findings with an ordered attack_path[] of step strings; the HTML report can DERIVE a linear node graph from those. This schema lets an agent OPTIONALLY supply an explicit node/edge graph (engagements/<session>/reports/attack-paths.json) when the chain is non-linear or shares nodes across paths. When present, the explicit graph is authoritative; AZ-PATH findings already represented here are not re-derived.",
+  "type": "object",
+  "required": ["paths"],
+  "properties": {
+    "generated": { "type": "string", "format": "date-time" },
+    "paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path" }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "object",
+      "required": ["id", "title", "severity", "nodes"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable path ID. Convention: AZ-PATH-<NNN> to align with the finding it maps to.",
+          "pattern": "^AZ-PATH-[0-9]{3}$"
+        },
+        "title": { "type": "string" },
+        "severity": {
+          "type": "string",
+          "enum": ["Critical", "High", "Medium", "Low", "Informational"],
+          "description": "Scored by end state, not the weakest step."
+        },
+        "entry": {
+          "type": "string",
+          "description": "Node id (or label) of the entry point."
+        },
+        "end_state": {
+          "type": "string",
+          "description": "Node id (or label) of the final impact/end state."
+        },
+        "finding_id": {
+          "type": "string",
+          "description": "The AZ-PATH-* finding this graph corresponds to, if any. Used to dedupe against derived paths.",
+          "pattern": "^AZ-[A-Z]+-[0-9]{3}$"
+        },
+        "break_chain": {
+          "type": "string",
+          "description": "The single highest-leverage remediation that breaks this chain."
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge" }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string", "description": "Path-unique node id." },
+        "label": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["entry", "pivot", "target", "step"],
+          "description": "entry = attacker foothold, pivot = intermediate asset/identity, target = crown-jewel/end state, step = narrative step (used for paths derived from attack_path text)."
+        },
+        "resource_id": {
+          "type": "string",
+          "description": "Azure resource ID this node represents, if it maps to a concrete resource."
+        },
+        "finding_id": {
+          "type": "string",
+          "description": "Finding that this node corresponds to (click-through target in the report).",
+          "pattern": "^AZ-[A-Z]+-[0-9]{3}$"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "description": "Source node id." },
+        "to": { "type": "string", "description": "Destination node id." },
+        "label": { "type": "string", "description": "Short technique label, e.g. 'managed identity token'." },
+        "technique": { "type": "string", "description": "MITRE ATT&CK technique id, e.g. T1078.004." },
+        "finding_id": {
+          "type": "string",
+          "description": "Finding enabling this transition.",
+          "pattern": "^AZ-[A-Z]+-[0-9]{3}$"
+        }
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@
   <b>An agentic red team for Azure cloud security.</b><br>
   A coordinated team of AI agents — each a domain specialist — runs comprehensive,
   <b>read-only</b> penetration testing against your Azure environment, then hands you a
-  leadership-ready report and slide deck.
+  leadership-ready report, an interactive HTML report, and a slide deck.
 </p>
 
 <p align="center">
@@ -225,7 +225,15 @@ Correlates findings across domains to identify multi-step compromise chains.
 /report
 ```
 
-Normalizes findings, deduplicates, reconciles severity, and generates executive + technical reports in `engagements/<session>/reports/`.
+Normalizes findings, deduplicates, reconciles severity, and generates the
+executive summary, technical report, normalized `findings.json`, and an
+**interactive HTML report** (`report.html`) in `engagements/<session>/reports/`.
+The HTML report is self-contained and offline — open it in a browser to explore
+**clickable attack-path node graphs** and findings that expand in place to show
+evidence, attack vector, remediation, and CIS/MITRE mappings. It is rendered
+straight from `findings.json` by `tools/report/generate-report.mjs` (see
+[`tools/report/README.md`](tools/report/README.md); a fictional rendered example
+lives at `tools/report/sample/report.sample.html`).
 
 ### 7. Build the presentation deck
 
@@ -250,7 +258,7 @@ engagements/
     ├── inventory/                    # resources.jsonl, subscriptions.json, coverage-limitations.json
     ├── findings/                     # raw/<agent>.jsonl + normalized/findings.json
     ├── evidence/                     # raw + sanitized artifacts
-    └── reports/                      # executive-summary, technical-report, assessment-deck, findings.json
+    └── reports/                      # executive-summary, technical-report, report.html, assessment-deck, findings.json
 ```
 
 - **Timestamped, never overwritten** — `<session>` = `<engagement.id>` + a UTC `YYYY-MM-DD-HHMMSS`
@@ -301,17 +309,17 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
-├── schemas/                     # JSON schemas for findings, checks, engagement
+├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs
-├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell
+├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
     └── <session>/               # <engagement-id>-<YYYY-MM-DD-HHMMSS>
         ├── inventory/           # Resource inventory + coverage limitations
         ├── findings/            # raw/<agent>.jsonl + normalized findings
         ├── evidence/            # raw + sanitized evidence artifacts
-        └── reports/             # executive-summary, technical-report, deck, findings.json
+        └── reports/             # executive-summary, technical-report, report.html, deck, findings.json
 ```
 
 ## 🧾 Findings Model

@@ -35,6 +35,21 @@ Write to `engagements/<session>/reports/`:
 2. **`technical-report.md`** — from `reports/templates/technical-report.md`. Audience: engineers. Every finding with resource ID, evidence, attack vector, reproduction context, and remediation.
 3. **`findings.json`** — the normalized, deduplicated canonical findings set (the machine-readable source of truth).
 4. **`assessment-deck.md`** — from `reports/templates/assessment-deck.md`. Audience: leadership in a room. A PowerPoint-convertible slide deck (`##` slide titles, `---` separators, one idea per slide). Convert to `.pptx` with Marp (`npx @marp-team/marp-cli ... -o assessment-deck.pptx`) or Pandoc (`pandoc ... --slide-level=2`). Keep slides terse; detail stays in the technical report.
+5. **`report.html`** — the interactive, self-contained HTML report. Render it **from `findings.json`** (never hand-author it) with the generator:
+
+   ```bash
+   node tools/report/generate-report.mjs \
+     --findings engagements/<session>/reports/findings.json \
+     --attack-paths engagements/<session>/reports/attack-paths.json \
+     --engagement engagements/<session>/engagement.yaml \
+     --out engagements/<session>/reports/report.html
+   ```
+
+   Attack paths render as clickable node graphs and findings expand in place. If
+   you produced an explicit attack-path graph (`attack-paths.json`, see
+   `schemas/attack-path.schema.json`), pass it with `--attack-paths`; otherwise
+   the generator derives linear chains from each finding's `attack_path[]`. The
+   output is dependency-free and fully offline. See `tools/report/README.md`.
 
 ## Report Quality Bar
 

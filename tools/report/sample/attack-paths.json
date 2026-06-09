@@ -1,0 +1,27 @@
+{
+  "generated": "2026-06-09T09:20:00Z",
+  "paths": [
+    {
+      "id": "AZ-PATH-001",
+      "title": "Public web app to subscription Owner",
+      "severity": "Critical",
+      "entry": "Public App Service",
+      "end_state": "Subscription Owner",
+      "finding_id": "AZ-PATH-001",
+      "break_chain": "Remove Microsoft.Authorization/roleAssignments/write from sp-deploy-prod (finding AZ-AUTH-014). Without the escalation primitive, the chain terminates at a low-privilege identity.",
+      "nodes": [
+        { "id": "entry", "label": "Public App Service", "type": "entry", "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal", "finding_id": "AZ-WEB-009" },
+        { "id": "mi", "label": "App managed identity", "type": "pivot" },
+        { "id": "kv", "label": "Key Vault secret", "type": "pivot", "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod", "finding_id": "AZ-LOG-005" },
+        { "id": "sp", "label": "sp-deploy-prod", "type": "pivot", "finding_id": "AZ-AUTH-014" },
+        { "id": "owner", "label": "Subscription Owner", "type": "target", "finding_id": "AZ-PATH-001" }
+      ],
+      "edges": [
+        { "from": "entry", "to": "mi", "label": "IMDS token", "technique": "T1552.005" },
+        { "from": "mi", "to": "kv", "label": "secret read", "technique": "T1555.006", "finding_id": "AZ-LOG-005" },
+        { "from": "kv", "to": "sp", "label": "SP credential" },
+        { "from": "sp", "to": "owner", "label": "roleAssignments/write", "technique": "T1098.003", "finding_id": "AZ-AUTH-014" }
+      ]
+    }
+  ]
+}

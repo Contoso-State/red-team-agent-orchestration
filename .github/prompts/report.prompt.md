@@ -26,11 +26,26 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
      PowerPoint-convertible slide deck. Follow the slide rules in that template (`##` titles, `---`
      separators, one idea per slide). See `/deck` for the standalone flow and conversion commands.
    - `engagements/<session>/reports/findings.json` (normalized canonical set)
+   - `engagements/<session>/reports/report.html` — the interactive HTML report, generated **from
+     `findings.json`** (clickable attack-path node graphs + expandable findings):
+
+     ```bash
+     node tools/report/generate-report.mjs \
+       --findings engagements/<session>/reports/findings.json \
+       --attack-paths engagements/<session>/reports/attack-paths.json \
+       --engagement engagements/<session>/engagement.yaml \
+       --out engagements/<session>/reports/report.html
+     ```
+
+     `--attack-paths` is optional (omit it to derive linear chains from each finding's `attack_path[]`).
+     The report is self-contained and offline. See `tools/report/README.md`.
 
 ## Output
 
 - A leadership-ready executive summary led by attack paths and business risk
 - A complete technical report with per-finding remediation
+- An **interactive HTML report** (`report.html`) — clickable attack-path node
+  graphs and expandable findings; self-contained and offline (open in a browser)
 - A PowerPoint-ready deck (`assessment-deck.md`) — convert with
   `npx @marp-team/marp-cli engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx`
   or `pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2`

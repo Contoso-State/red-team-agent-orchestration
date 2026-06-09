@@ -19,6 +19,7 @@ Full methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templ
    - `executive-summary.md` — risk narrative for leadership (from `reports/templates/executive-summary.md`)
    - `technical-report.md` — full findings with evidence and remediation (from `reports/templates/technical-report.md`)
    - `assessment-deck.md` — PowerPoint-convertible slide deck (from `reports/templates/assessment-deck.md`); `##` slide titles + `---` separators so it converts to `.pptx` via Marp or Pandoc (`--slide-level=2`)
+   - `report.html` — interactive, self-contained HTML report generated **from `findings.json`** (`node tools/report/generate-report.mjs --findings <findings.json> [--attack-paths <attack-paths.json>] [--engagement <engagement.yaml>] --out report.html`). Attack paths render as clickable node graphs; findings expand in place. Dependency-free and offline. See `tools/report/README.md`.
    - per-finding files from `reports/templates/finding.md`
 6. **Map** each finding to CIS (`controls/cis-azure.yaml`) and MITRE ATT&CK Cloud (`controls/mitre-cloud.yaml`).
 
