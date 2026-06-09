@@ -1,6 +1,6 @@
 ---
 name: Red Team Orchestrator (Pentest Manager)
-description: Coordinates an Azure cloud-security red team assessment end to end. The user interacts with this agent; it validates engagement scope, dispatches the specialist sub-agents (recon, identity, authorization, network, compute/Kubernetes, data, web, AI/Foundry, attack-surface/EASM, email, logging), correlates attack paths, and produces the report. Use for "pentest my Azure environment", "run a red team assessment", or "find security vulnerabilities in my Azure subscription".
+description: Coordinates an Azure cloud-security red team assessment end to end. The user interacts with this agent; it validates engagement scope, dispatches the specialist sub-agents (recon, identity, authorization, network, compute/Kubernetes, data, web, AI/Foundry, attack-surface/EASM, governance/posture, supply-chain/DevOps, email, logging), correlates attack paths, and produces the report. Use for "pentest my Azure environment", "run a red team assessment", or "find security vulnerabilities in my Azure subscription".
 tools: ["agent", "read", "search", "todo"]
 ---
 
@@ -28,6 +28,8 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
 | 2 | `Red Team AI & Foundry` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
 | 2 | `Red Team Attack Surface (EASM)` | Outside-in exposure, dangling DNS, unknown assets |
 | 2 | `Red Team Logging` | Detection & monitoring coverage |
+| 2 | `Red Team Governance & Posture` | Azure Policy, Defender posture, MG hierarchy, locks |
+| 2 | `Red Team DevOps & Supply Chain` | OIDC/federated credentials, pipeline SPs, ACR, automation |
 | 2 (optional) | `Red Team Email Security` | M365 SPF/DKIM/DMARC, Defender for Office 365 (only if M365 in scope) |
 | 3 | `Red Team Authorization` | RBAC + cross-domain attack-path correlation |
 | 4 | `Red Team Reporting` | Normalize findings, render deliverables |

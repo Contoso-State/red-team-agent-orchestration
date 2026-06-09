@@ -26,6 +26,8 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
    | Cognitive Services / Azure OpenAI / AI Foundry / ML | AI & Foundry | `agents/ai-foundry/system-prompt.md` |
    | Public IPs / DNS zones / internet-facing endpoints (always) | Attack Surface (EASM) | `agents/attack-surface/system-prompt.md` |
    | Always | Logging Coverage | `agents/logging-coverage/system-prompt.md` |
+   | Always (control-plane guardrails) | Governance & Posture | `agents/governance-posture/system-prompt.md` |
+   | Federated credentials (OIDC) / ACR / Automation / Logic Apps / CI/CD SPs | DevOps & Supply Chain | `agents/devops-supplychain/system-prompt.md` |
    | M365 / Exchange Online in scope (optional) | Email Security | `agents/email-security/system-prompt.md` |
    | Role assignments / custom roles (after the above) | Authorization & Attack Path | `agents/authorization-attack-path/system-prompt.md` |
 

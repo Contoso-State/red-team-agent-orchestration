@@ -22,6 +22,8 @@ The full methodology lives in `agents/orchestrator/system-prompt.md`. Read it an
 | Assess | `azure-redteam-ai` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
 | Assess | `azure-redteam-easm` | Outside-in exposure, dangling DNS, unknown assets |
 | Assess | `azure-redteam-logging` | Detection & monitoring coverage |
+| Assess | `azure-redteam-governance` | Azure Policy, Defender posture, MG hierarchy, resource locks |
+| Assess | `azure-redteam-supplychain` | OIDC/federated credentials, pipeline SPs, ACR, automation, Logic Apps |
 | Assess (optional) | `azure-redteam-email` | M365 SPF/DKIM/DMARC, Defender for Office 365 (only if M365 in scope) |
 | Assess | `azure-redteam-authorization` | RBAC, privilege escalation, attack paths |
 | Report | `azure-redteam-reporting` | Normalize findings, render reports |

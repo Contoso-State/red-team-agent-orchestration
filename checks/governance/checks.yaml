@@ -1,0 +1,132 @@
+# Governance & Posture Security Checks
+# Executed by the Governance & Posture Agent. Conforms to schemas/check.schema.json.
+# Ownership boundary: this agent owns control-plane guardrails (Azure Policy, Defender for
+# Cloud secure score/recommendations, management-group hierarchy, resource locks, security
+# contacts). Defender *plan* on/off coverage is owned by logging-coverage
+# (CHK-LOG-DEFENDER-DISABLED) and is NOT re-flagged here. Generic RBAC assignments are owned by
+# authorization-attack-path; this agent only flags broad STANDING grants inherited at MG/root.
+
+- check_id: CHK-GOV-POLICY-COVERAGE
+  title: Subscription or management group lacks baseline Azure Policy guardrails
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: High
+  description: Few or no Azure Policy assignments exist at the subscription or management-group scope, or no built-in security initiative (e.g. Microsoft Cloud Security Benchmark) is assigned, so insecure configurations are never denied or audited.
+  detection:
+    method: azure-cli
+    tool: "az policy assignment list --scope <scope>; az policy state summarize (read-only)"
+    logic: No policy assignment references a security initiative, or all assignments are Disabled/DoNotEnforce, or assignment count is effectively zero at the in-scope subscription/MG.
+  attack_vector: Absent guardrails let an attacker (or insider) deploy public, unencrypted, or over-permissioned resources unchallenged
+  recommendation: Assign the Microsoft Cloud Security Benchmark initiative at the management-group root with Deny/Audit effects; remediate non-compliant resources.
+  controls:
+    cis_azure: ["2.1", "1.x"]
+    mitre: ["T1578", "T1098"]
+  required_permissions: ["Reader", "Resource Policy Reader"]
+
+- check_id: CHK-GOV-POLICY-EXEMPTIONS
+  title: Broad or long-lived Azure Policy exemptions weaken guardrails
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: Policy exemptions are scoped broadly (subscription or management group), never expire, or waive security-relevant initiatives, silently disabling controls for large parts of the estate.
+  detection:
+    method: azure-cli
+    tool: "az policy exemption list --scope <scope>"
+    logic: Exemption has no expiresOn, or category Waiver on a security initiative, or is scoped at subscription/MG rather than a single resource.
+  attack_vector: An over-broad exemption disables Deny/Audit guardrails so misconfigurations pass unflagged
+  recommendation: Scope exemptions to individual resources, require expiry dates and justification, and review exemptions on security initiatives regularly.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1562.001"]
+  required_permissions: ["Reader", "Resource Policy Reader"]
+
+- check_id: CHK-GOV-SECURE-SCORE-LOW
+  title: Low Defender for Cloud secure score with unactioned critical recommendations
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: The Microsoft Defender for Cloud secure score is low and high-impact security recommendations (assessments) remain unhealthy, indicating systemic posture debt. Distinct from logging's plan on/off check — this evaluates the resulting recommendation backlog, not whether plans are enabled.
+  detection:
+    method: azure-cli
+    tool: "az security secure-scores list; az security assessment list"
+    logic: Secure score percentage below the engagement threshold (e.g. < 60%), or high-severity assessments in an Unhealthy state remain unremediated.
+  attack_vector: Each unhealthy recommendation is a concrete, Microsoft-confirmed exposure an attacker can exploit
+  recommendation: Triage and remediate high-severity Defender for Cloud recommendations; track secure score as a posture KPI.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1190", "T1078"]
+  required_permissions: ["Security Reader"]
+
+- check_id: CHK-GOV-MG-HIERARCHY-GUARDRAILS
+  title: Weak management-group hierarchy without inherited guardrails
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: The management-group hierarchy is flat or subscriptions sit directly under the tenant root with no intermediate landing-zone groups, so no guardrail policies or RBAC controls are inherited from above the subscription.
+  detection:
+    method: azure-cli
+    tool: "az account management-group list; az account management-group show --name <mg> --expand --recurse; az rest --method GET .../managementGroups"
+    logic: In-scope subscription is a direct child of the tenant root MG, or the hierarchy has no intermediate group carrying policy/RBAC assignments.
+  attack_vector: Without inherited guardrails each subscription is an independent trust boundary an attacker can pivot through unchecked
+  recommendation: Adopt a landing-zone management-group hierarchy (platform / landing zones / sandbox) and assign guardrail policy + RBAC at intermediate groups.
+  controls:
+    cis_azure: ["1.x", "2.1"]
+    mitre: ["T1578"]
+  required_permissions: ["Management Group Reader"]
+
+- check_id: CHK-GOV-NO-RESOURCE-LOCKS
+  title: Critical resources without CanNotDelete or ReadOnly locks
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Low
+  description: High-value resources or resource groups (Key Vaults, storage with data, production workloads) have no management locks, so a compromised contributor can delete or alter them with no safety net.
+  detection:
+    method: azure-cli
+    tool: "az lock list --resource-group <rg>; az lock list (subscription scope)"
+    logic: Critical resource group or resource has no CanNotDelete or ReadOnly lock.
+  attack_vector: Destructive action / ransomware deletes unprotected resources to maximize impact or cover tracks
+  recommendation: Apply CanNotDelete locks to production resource groups and ReadOnly where appropriate; pair with policy and RBAC.
+  controls:
+    mitre: ["T1485", "T1490"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-GOV-MG-RBAC-INHERITANCE
+  title: Broad standing privilege granted at management-group or root scope
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: High
+  description: Owner, Contributor, or User Access Administrator is assigned at the tenant root or a high-level management group, so the grant is inherited by every child subscription as permanent standing access. This agent flags the inheritance/blast-radius angle; per-assignment RBAC analysis stays with authorization-attack-path.
+  detection:
+    method: azure-cli
+    tool: "az role assignment list --scope /providers/Microsoft.Management/managementGroups/<mg> --include-inherited"
+    logic: A privileged role (Owner/Contributor/User Access Administrator) is assigned at root or a top-level management group, especially to a group, guest, or service principal.
+  attack_vector: Compromising one principal with root-MG Owner yields standing control of every subscription beneath it
+  recommendation: Remove broad standing assignments at MG/root; use narrowly-scoped, PIM-eligible, time-bound roles at the lowest necessary scope.
+  controls:
+    cis_azure: ["1.x"]
+    mitre: ["T1098", "T1078.004"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-GOV-NO-SECURITY-CONTACT
+  title: Defender for Cloud security contact and notifications not configured
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Low
+  description: No security contact email or alert notification is configured for Microsoft Defender for Cloud, so high-severity alerts and attack notifications have no owner. This is a posture/configuration gap (who is accountable), distinct from logging's detection-pipeline coverage.
+  detection:
+    method: azure-cli
+    tool: "az security contact list"
+    logic: No security contact with a notification email, or alert notifications disabled.
+  attack_vector: Active-attack alerts are raised but never reach a human, delaying or preventing response
+  recommendation: Configure a monitored security contact email and enable high-severity alert notifications in Defender for Cloud.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1562.001"]
+  required_permissions: ["Security Reader"]

@@ -14,7 +14,7 @@
     "title": { "type": "string" },
     "domain": {
       "type": "string",
-      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "email"]
+      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "email", "governance", "supplychain"]
     },
     "agent": {
       "type": "string",
@@ -28,7 +28,9 @@
         "ai-foundry",
         "web-exposure",
         "attack-surface",
-        "email-security"
+        "email-security",
+        "governance-posture",
+        "devops-supplychain"
       ]
     },
     "mode": {

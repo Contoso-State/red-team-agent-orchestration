@@ -1,0 +1,130 @@
+# DevOps & Supply Chain Security Checks
+# Executed by the DevOps & Supply Chain Agent. Conforms to schemas/check.schema.json.
+# Ownership boundary: this agent owns the CI/CD and external-trust surface — workload identity
+# federation (OIDC), pipeline service principals, ACR build automation, Automation Accounts, and
+# Logic App / deployment automation. Generic app-registration secret/cert hygiene and Graph
+# permissions stay with identity-posture; generic per-assignment RBAC stays with
+# authorization-attack-path. Findings here are framed by the CI/CD trust path, not generic hygiene.
+# All checks are read-only and metadata-only: no runbook source, no callback URLs, no secret values.
+
+- check_id: CHK-SUP-APP-FIC-BROAD-TRUST
+  title: App registration federated credential with broad OIDC trust and Azure privilege
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: An app registration has a federated identity credential (OIDC trust to GitHub Actions / Azure DevOps) whose subject is broad — repo-wide, all branches, environment-less, or pull_request — AND the app holds meaningful Azure RBAC. Broad trust plus privilege lets any workflow in the trusted repo mint tokens for a privileged identity.
+  detection:
+    method: azure-cli
+    tool: "az ad app federated-credential list --id <appId>; az role assignment list --assignee <appId>"
+    logic: FIC subject/issuer is broad (e.g. ends in ':ref:refs/heads/*', ':pull_request', repo without environment/branch constraint, or a non-pinned subject) AND the app/SP is assigned Owner, Contributor, User Access Administrator, a Key Vault admin role, or AcrPush on a sensitive registry. Without privilege, downgrade to Low/Informational (review).
+  attack_vector: A push or PR in the trusted repository requests an OIDC token and acts as the privileged identity
+  recommendation: Constrain FIC subjects to a specific branch/environment/tag; minimize the identity's Azure RBAC; require protected environments for privileged deployments.
+  controls:
+    cis_azure: ["1.4"]
+    mitre: ["T1199", "T1078.004", "T1098.001"]
+  required_permissions: ["Application.Read.All"]
+
+- check_id: CHK-SUP-UAMI-FIC-BROAD-TRUST
+  title: User-assigned managed identity federated credential with broad trust
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: A user-assigned managed identity has a federated credential trusting an external OIDC issuer (GitHub/Azure DevOps) with a broad subject, and the identity holds privileged Azure RBAC. Same escalation path as app-registration FIC but via a UAMI.
+  detection:
+    method: azure-cli
+    tool: "az identity federated-credential list --identity-name <name> -g <rg>; az role assignment list --assignee <principalId>"
+    logic: UAMI federated credential subject is broad/unpinned AND the identity holds privileged roles. Without privilege, downgrade to review.
+  attack_vector: A workflow in the trusted repo obtains a token for the UAMI and exercises its Azure privileges
+  recommendation: Pin the federated subject to a specific branch/environment; reduce the UAMI's role assignments to least privilege.
+  controls:
+    mitre: ["T1199", "T1078.004"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-SUP-CICD-SP-BROAD-ROLE
+  title: CI/CD-like service principal with broad subscription role
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: A service principal that appears to be used by CI/CD (has a federated credential, a deployment-oriented name, or deployment role assignments) holds Owner or Contributor at subscription scope. Pipeline usage is inferred, not proven, from Azure-side signals.
+  detection:
+    method: azure-cli
+    tool: "az ad sp list; az ad app federated-credential list; az role assignment list --assignee <spId> --scope /subscriptions/<subId>"
+    logic: Service principal with a FIC and/or deployment-style display name holds Owner/Contributor at subscription (or higher) scope.
+  attack_vector: Compromising the pipeline or its trust relationship yields subscription-wide control
+  recommendation: Scope CI/CD identities to the specific resource groups they deploy to; avoid Owner; prefer per-environment identities.
+  controls:
+    cis_azure: ["1.x"]
+    mitre: ["T1078.004", "T1199"]
+  required_permissions: ["Reader", "Directory.Read.All"]
+
+- check_id: CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET
+  title: Deployment identity still using a long-lived secret instead of federation
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: Medium
+  description: A CI/CD-like identity (deployment RBAC and/or an existing federated credential) still authenticates with a long-lived client secret or certificate rather than OIDC workload identity federation. The static secret is an exfiltration target that bypasses the OIDC trust constraints. Distinct from identity-posture's generic credential-hygiene check — scoped here to deployment identities only.
+  detection:
+    method: azure-cli
+    tool: "az ad app credential list --id <appId> (metadata only); az ad app federated-credential list --id <appId>; az role assignment list --assignee <appId>"
+    logic: App with deployment RBAC has active passwordCredentials/keyCredentials (metadata only — endDateTime, never the secret value), especially long-lived, when it could use federation instead.
+  attack_vector: A leaked pipeline secret authenticates from anywhere, ignoring branch/environment OIDC constraints
+  recommendation: Migrate deployment identities to workload identity federation (OIDC) and remove static client secrets.
+  controls:
+    cis_azure: ["1.4"]
+    mitre: ["T1552.001", "T1078.004"]
+  required_permissions: ["Application.Read.All"]
+
+- check_id: CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK
+  title: Container registry admin user enabled or task building from unreviewed source
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: An Azure Container Registry has the shared admin user enabled (a single static credential for push/pull), or an ACR task builds images from an external/non-approved source repository or on base-image update triggers, creating an image supply-chain path. "Untrusted" is relative to an engagement-provided allowlist of approved registries/repos.
+  detection:
+    method: azure-cli
+    tool: "az acr show -n <registry>; az acr task list -r <registry>; az acr task show -r <registry> -n <task>"
+    logic: adminUserEnabled == true, OR a task's source context points to a repository outside the approved allowlist, OR a base-image-update trigger sources from an unreviewed registry. Flag external/non-approved sources as 'requires review' when no allowlist is provided.
+  attack_vector: Stolen admin credential pushes a backdoored image; a poisoned source repo or base image is built and deployed
+  recommendation: Disable the ACR admin user and use Entra/token auth; restrict tasks to approved source repositories; pin and scan base images.
+  controls:
+    mitre: ["T1525", "T1199", "T1078.001"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-SUP-AUTOMATION-PRIV-IDENTITY
+  title: Automation Account with privileged identity and external triggers
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: An Automation Account runs with a privileged managed identity (or legacy RunAs) and has enabled webhooks, schedules, or hybrid workers, so triggering a runbook executes privileged actions. Assessment is metadata-only — runbook source and webhook URLs are not retrievable read-only and are never claimed.
+  detection:
+    method: azure-cli
+    tool: "az automation account list; az automation runbook list --automation-account-name <acct> -g <rg>; az role assignment list --assignee <identityPrincipalId>"
+    logic: Automation Account has a system/user-assigned identity (or RunAs) with privileged RBAC AND published runbooks with enabled webhooks/schedules/hybrid-worker associations (metadata only).
+  attack_vector: Invoking a webhook/schedule runs a runbook as the privileged identity, executing attacker-chosen Azure actions
+  recommendation: Reduce the automation identity's RBAC to least privilege; restrict/rotate webhooks; review runbook triggers and hybrid worker groups.
+  controls:
+    mitre: ["T1078.004", "T1053", "T1648"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-SUP-LOGICAPP-OPEN-TRIGGER
+  title: Logic App with unauthenticated HTTP trigger or high-risk API connections
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: Medium
+  description: A Logic App workflow exposes an HTTP/request trigger without IP restrictions or additional authentication, and/or relies on stored API connections to high-risk connectors. Detection is metadata-only — signed callback URLs require a POST listCallbackUrl action and are never enumerated.
+  detection:
+    method: azure-cli
+    tool: "az resource list --resource-type Microsoft.Logic/workflows; az rest --method GET .../workflows/<name>; az resource list --resource-type Microsoft.Web/connections"
+    logic: Workflow definition contains a Request/HTTP trigger with no accessControl IP restriction or auth, and/or API connections to sensitive connectors exist. Read workflow/connection metadata via ARM GET only.
+  attack_vector: An open HTTP trigger lets an unauthenticated caller drive the workflow and its connected resources
+  recommendation: Add trigger IP allow-lists / SAS or AAD auth; review API connections and their connector permissions; restrict who can invoke the workflow.
+  controls:
+    mitre: ["T1190", "T1199"]
+  required_permissions: ["Reader"]

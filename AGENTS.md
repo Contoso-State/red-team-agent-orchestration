@@ -2,13 +2,13 @@
 
 ## Repository Purpose
 
-This repository contains an agentic red team platform for Azure cloud infrastructure security assessment. AI agents coordinate to perform comprehensive penetration testing against Azure environments, identifying vulnerabilities across identity, RBAC, networking, compute/Kubernetes, data/SQL, web & static sites, AI/Foundry, external attack surface (EASM), email (M365), and monitoring domains.
+This repository contains an agentic red team platform for Azure cloud infrastructure security assessment. AI agents coordinate to perform comprehensive penetration testing against Azure environments, identifying vulnerabilities across identity, RBAC, networking, compute/Kubernetes, data/SQL, web & static sites, AI/Foundry, external attack surface (EASM), governance & posture, DevOps & supply chain, email (M365), and monitoring domains.
 
 ## Architecture
 
 The system uses a **hub-and-spoke orchestration model**, wired with three native Copilot CLI layers:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to twelve domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to fourteen domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge each agent draws on.
 - **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a session-wide `preToolUse` hook that enforces read-only as an allowlist (deny-by-default) across `az`/`azd` and Azure PowerShell, for every agent.
 
@@ -26,7 +26,7 @@ Engagement flow:
 |---|---|
 | `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` (or run `/setup`) for real assessments |
 | `.github/prompts/*.prompt.md` | Slash commands — `/setup` (pick subscription → `engagement.yaml`), `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck` |
-| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 12 specialists are dispatched by it |
+| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 14 specialists are dispatched by it |
 | `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |
 | `.github/extensions/redteam-guardrails/` | Hooks extension — `preToolUse` deny of mutating `az`/`azd` (logic in `guardrails-core.mjs`, tested by `guardrails-core.test.mjs`) |
 | `agents/*/system-prompt.md` | Detailed agent methodology and tool usage (single source of truth the skills/agents reference) |

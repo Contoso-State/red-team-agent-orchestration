@@ -48,7 +48,13 @@
         "network-exposure",
         "compute-platform",
         "data-protection",
+        "web-exposure",
+        "ai-foundry",
+        "attack-surface",
         "logging-coverage",
+        "email-security",
+        "governance-posture",
+        "devops-supplychain",
         "reporting"
       ]
     },

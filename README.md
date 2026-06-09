@@ -6,8 +6,8 @@
   <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
-  <img src="https://img.shields.io/badge/agents-13-ff2b40" alt="13 agents (orchestrator + 12 specialists)">
-  <img src="https://img.shields.io/badge/checks-83-2496ed" alt="83 security checks">
+  <img src="https://img.shields.io/badge/agents-15-ff2b40" alt="15 agents (orchestrator + 14 specialists)">
+  <img src="https://img.shields.io/badge/checks-97-2496ed" alt="97 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
 </p>
 
@@ -31,7 +31,7 @@
 
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to twelve domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fourteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge. Copilot pulls the relevant skill in based on its `description`, giving every agent its methodology and `az` runner without manual wiring.
 - **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
 
@@ -54,6 +54,8 @@ graph TD
         WEB[Web & Static Sites]
         AI[AI & Foundry]
         EASM[Attack Surface / EASM]
+        GOV[Governance & Posture]
+        SUP[DevOps & Supply Chain]
         LOG[Logging Coverage]
         MAIL[Email Security · optional]
         AUTH[Authorization & Attack Path]
@@ -69,7 +71,7 @@ graph TD
 ## 🤖 Agent Team
 
 <p align="center">
-  <img src="assets/agent-team.svg" alt="Orchestrator dispatches twelve domain specialists" width="100%">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fourteen domain specialists" width="100%">
 </p>
 
 | Agent | Domain | Key Focus |
@@ -85,6 +87,8 @@ graph TD
 | **AI & Foundry** | AI services | Azure AI Foundry, Azure OpenAI, Cognitive Services, Machine Learning workspace exposure |
 | **Attack Surface (EASM)** | External exposure | Outside-in footprint, dangling DNS / subdomain takeover, orphaned IPs, unknown assets |
 | **Logging Coverage** | Monitoring | Diagnostic settings, Sentinel connectors, alert rules, Activity Log gaps |
+| **Governance & Posture** | Governance / Posture | Azure Policy guardrails & exemptions, Defender for Cloud secure score, management-group hierarchy, resource locks |
+| **DevOps & Supply Chain** | CI/CD / Supply chain | Workload identity federation (OIDC), pipeline service principals, ACR admin/tasks, Automation Accounts, Logic Apps |
 | **Email Security** *(optional)* | Microsoft 365 | SPF/DKIM/DMARC, Exchange Online Protection, Defender for Office 365, mail-flow rules |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
@@ -96,7 +100,7 @@ The team uses three native Copilot CLI layers that map cleanly onto **who acts**
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the twelve specialists set
+The Orchestrator is the only **user-invocable** agent; the fourteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the
 `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective
 agent" real. The Orchestrator is **dispatch-only** — it has no `execute`/shell capability, so it
@@ -115,6 +119,8 @@ never runs `az` itself; it assigns work to the specialist and presents the findi
 | `redteam-ai.agent.md` | Red Team AI & Foundry | Orchestrator |
 | `redteam-easm.agent.md` | Red Team Attack Surface (EASM) | Orchestrator |
 | `redteam-logging.agent.md` | Red Team Logging | Orchestrator |
+| `redteam-governance.agent.md` | Red Team Governance & Posture | Orchestrator |
+| `redteam-supplychain.agent.md` | Red Team DevOps & Supply Chain | Orchestrator |
 | `redteam-email.agent.md` | Red Team Email Security *(optional, M365)* | Orchestrator |
 | `redteam-reporting.agent.md` | Red Team Reporting | Orchestrator |
 
@@ -135,6 +141,8 @@ Each agent's deep methodology is a Copilot skill, loaded automatically by `descr
 | `azure-redteam-ai` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
 | `azure-redteam-easm` | External attack surface, dangling DNS, unknown assets |
 | `azure-redteam-logging` | Detection & monitoring coverage |
+| `azure-redteam-governance` | Azure Policy, Defender for Cloud posture, MG hierarchy, resource locks |
+| `azure-redteam-supplychain` | OIDC/federated credentials, pipeline SPs, ACR, automation, Logic Apps |
 | `azure-redteam-email` | M365 email security (SPF/DKIM/DMARC, Defender for Office 365) — optional |
 | `azure-redteam-reporting` | Normalize findings, render deliverables |
 
@@ -269,7 +277,7 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 ```
 ├── engagement.example.yaml      # Engagement scope template
 ├── .github/
-│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 12 specialists)
+│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists)
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
 │   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny)
 │   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck
@@ -286,6 +294,8 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 │   ├── attack-surface/          # External attack surface (EASM), dangling DNS
 │   ├── email-security/          # M365 email security (optional)
 │   ├── logging-coverage/        # Monitoring, Sentinel, diagnostic settings
+│   ├── governance-posture/      # Azure Policy, Defender posture, MG hierarchy, resource locks
+│   ├── devops-supplychain/      # OIDC/federated creds, pipeline SPs, ACR, automation, Logic Apps
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies

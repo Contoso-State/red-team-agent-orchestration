@@ -52,8 +52,10 @@ Dispatch domain agents based on resource types present in the inventory:
 | Public IPs, DNS zones/records, internet-facing endpoints (always) | Attack Surface (EASM) |
 | Entra ID, app registrations, service principals | Identity Posture |
 | Role assignments, custom roles, managed identities | Authorization & Attack Path |
+| Federated identity credentials (OIDC), Microsoft.ContainerRegistry, Microsoft.Automation, Microsoft.Logic, CI/CD service principals | DevOps & Supply Chain |
 | Microsoft 365 / Exchange Online accepted domains (optional, only if in scope) | Email Security |
 | Always | Logging Coverage |
+| Always (control-plane guardrails) | Governance & Posture |
 
 Each agent writes findings to `engagements/<session>/findings/raw/<agent>.jsonl`.
 
