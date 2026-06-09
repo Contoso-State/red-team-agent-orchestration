@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 640" width="1400" height="640" role="img" aria-label="Red team agent constellation: orchestrator dispatches fourteen domain specialists">
+  <defs>
+    <linearGradient id="abg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0d14"/>
+      <stop offset="1" stop-color="#160407"/>
+    </linearGradient>
+    <radialGradient id="acore" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#7a0010" stop-opacity="0.9"/>
+    </radialGradient>
+    <radialGradient id="aglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="agrid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ff2b40" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1400" height="640" fill="url(#abg)"/>
+  <rect width="1400" height="640" fill="url(#agrid)"/>
+  <circle cx="700" cy="310" r="260" fill="url(#aglow)"/>
+
+  <!-- dispatch links -->
+  <g stroke="#ff5a5a" stroke-opacity="0.4" stroke-width="2">
+    <line x1="700" y1="310" x2="700" y2="75"/>
+    <line x1="700" y1="310" x2="934" y2="98"/>
+    <line x1="700" y1="310" x2="1122" y2="163"/>
+    <line x1="700" y1="310" x2="1226" y2="258"/>
+    <line x1="700" y1="310" x2="1226" y2="362"/>
+    <line x1="700" y1="310" x2="1122" y2="457"/>
+    <line x1="700" y1="310" x2="934" y2="522"/>
+    <line x1="700" y1="310" x2="700" y2="545"/>
+    <line x1="700" y1="310" x2="466" y2="522"/>
+    <line x1="700" y1="310" x2="278" y2="457"/>
+    <line x1="700" y1="310" x2="174" y2="362"/>
+    <line x1="700" y1="310" x2="174" y2="258"/>
+    <line x1="700" y1="310" x2="278" y2="163"/>
+    <line x1="700" y1="310" x2="466" y2="98"/>
+  </g>
+
+  <!-- specialist nodes -->
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="600" fill="#f5f7fa" text-anchor="middle">
+    <g>
+      <rect x="625" y="53" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="700" y="80">Inventory &amp; Scope</text>
+    </g>
+    <g>
+      <rect x="859" y="76" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="934" y="103">Identity</text>
+    </g>
+    <g>
+      <rect x="1047" y="141" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="1122" y="168">Authorization</text>
+    </g>
+    <g>
+      <rect x="1151" y="236" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="1226" y="263">Network</text>
+    </g>
+    <g>
+      <rect x="1151" y="340" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="1226" y="367">Compute / K8s</text>
+    </g>
+    <g>
+      <rect x="1047" y="435" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="1122" y="462">Data / SQL</text>
+    </g>
+    <g>
+      <rect x="859" y="500" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="934" y="527">Web &amp; Static</text>
+    </g>
+    <g>
+      <rect x="625" y="523" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="700" y="550">AI &amp; Foundry</text>
+    </g>
+    <g>
+      <rect x="391" y="500" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="466" y="527">Governance</text>
+    </g>
+    <g>
+      <rect x="203" y="435" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="278" y="462">Supply Chain</text>
+    </g>
+    <g>
+      <rect x="99" y="340" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="174" y="367">Attack Surface</text>
+    </g>
+    <g>
+      <rect x="99" y="236" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="174" y="263">Logging</text>
+    </g>
+    <g>
+      <rect x="203" y="141" width="150" height="44" rx="11" fill="#15090c" stroke="#ff8a3b" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <text x="278" y="164">Email</text>
+      <text x="278" y="180" font-size="10" fill="#ffb27a">optional · M365</text>
+    </g>
+    <g>
+      <rect x="391" y="76" width="150" height="44" rx="11" fill="#15090c" stroke="#ff3b4d" stroke-width="1.6"/>
+      <text x="466" y="103">Reporting</text>
+    </g>
+  </g>
+
+  <!-- orchestrator core -->
+  <g transform="translate(700,310)">
+    <polygon points="78,0 39,68 -39,68 -78,0 -39,-68 39,-68" fill="url(#acore)" stroke="#ffd2d2" stroke-width="2"/>
+    <polygon points="56,0 28,48 -28,48 -56,0 -28,-48 28,-48" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1"/>
+    <text x="0" y="-4" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-weight="800" fill="#ffffff">ORCHESTRATOR</text>
+    <text x="0" y="18" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="600" fill="#ffe0e0" letter-spacing="1">PENTEST MANAGER</text>
+  </g>
+
+  <!-- caption -->
+  <text x="700" y="616" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#9fb3c8">
+    The dispatch-only Orchestrator assigns each domain to its specialist — every query is read-only.
+  </text>
+</svg>

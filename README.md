@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/agents-15-ff2b40" alt="15 agents (orchestrator + 14 specialists)">
   <img src="https://img.shields.io/badge/checks-97-2496ed" alt="97 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
+  <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
 </p>
 
 <p align="center">
@@ -19,6 +20,7 @@
 </p>
 
 <p align="center">
+  <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><b>📖 Documentation</b></a> ·
   <a href="#-quick-start"><b>Quick Start</b></a> ·
   <a href="#-how-it-works"><b>How It Works</b></a> ·
   <a href="#-agent-team"><b>Agent Team</b></a> ·

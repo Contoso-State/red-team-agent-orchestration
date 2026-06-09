@@ -1,0 +1,32 @@
+version: 1
+project:
+  title: Azure Red Team Agent Orchestration
+  description: >-
+    An agentic red team for Azure cloud security — a coordinated team of read-only
+    AI agents that pentest your Azure environment and produce consulting-grade reports.
+  github: https://github.com/Contoso-State/red-team-agent-orchestration
+  thumbnail: assets/banner.svg
+  error_rules:
+    # Local methodology pages intentionally link to repo files (skills, agents,
+    # checks) that aren't part of the rendered doc tree.
+    - rule: link-resolves
+      severity: ignore
+  toc:
+    - file: index.md
+    - file: getting-started.md
+    - file: agent-team.md
+    - file: skills.md
+    - file: methodology.md
+    - file: reporting.md
+    - file: safety.md
+    - file: repository.md
+site:
+  template: book-theme
+  title: Azure Red Team Agent Orchestration
+  options:
+    logo_text: Azure Red Team
+    favicon: assets/banner.svg
+    hide_outline: false
+  nav:
+    - title: GitHub
+      url: https://github.com/Contoso-State/red-team-agent-orchestration

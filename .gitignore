@@ -45,3 +45,7 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# MyST / docs build output
+doc/_build/
+node_modules/

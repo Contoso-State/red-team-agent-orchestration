@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="Azure Red Team Agent Orchestration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0d14"/>
+      <stop offset="0.55" stop-color="#120308"/>
+      <stop offset="1" stop-color="#1c0406"/>
+    </linearGradient>
+    <radialGradient id="glowRed" cx="0.16" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0.92" cy="0.2" r="0.6">
+      <stop offset="0" stop-color="#2496ed" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2496ed" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="redText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a5a"/>
+      <stop offset="1" stop-color="#e10600"/>
+    </linearGradient>
+    <linearGradient id="blueText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#50b0ff"/>
+      <stop offset="1" stop-color="#0078d4"/>
+    </linearGradient>
+    <linearGradient id="hexStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff3b4d"/>
+      <stop offset="1" stop-color="#7a0010"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
+      <path d="M34 0H0V34" fill="none" stroke="#ff2b40" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#bg)"/>
+  <rect width="1200" height="320" fill="url(#grid)"/>
+  <rect width="1200" height="320" fill="url(#glowRed)"/>
+  <rect width="1200" height="320" fill="url(#glowBlue)"/>
+
+  <!-- emblem: hexagon shield + crosshair -->
+  <g transform="translate(168,160)">
+    <polygon points="92,0 46,80 -46,80 -92,0 -46,-80 46,-80" fill="#15090c" stroke="url(#hexStroke)" stroke-width="3"/>
+    <polygon points="66,0 33,57 -33,57 -66,0 -33,-57 33,-57" fill="none" stroke="#ff2b40" stroke-opacity="0.5" stroke-width="1.5"/>
+    <g filter="url(#soft)">
+      <circle r="34" fill="none" stroke="#ff5a5a" stroke-width="3"/>
+    </g>
+    <circle r="34" fill="none" stroke="#ff8a8a" stroke-width="1.5"/>
+    <circle r="6" fill="#ff2b40"/>
+    <line x1="-52" y1="0" x2="-40" y2="0" stroke="#ff5a5a" stroke-width="3"/>
+    <line x1="40" y1="0" x2="52" y2="0" stroke="#ff5a5a" stroke-width="3"/>
+    <line x1="0" y1="-52" x2="0" y2="-40" stroke="#ff5a5a" stroke-width="3"/>
+    <line x1="0" y1="40" x2="0" y2="52" stroke="#ff5a5a" stroke-width="3"/>
+  </g>
+
+  <!-- title -->
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="320" y="138" font-size="62" font-weight="800" letter-spacing="1" fill="#f5f7fa"><tspan fill="url(#blueText)">AZURE</tspan> <tspan fill="url(#redText)">RED TEAM</tspan></text>
+    <text x="322" y="186" font-size="30" font-weight="600" letter-spacing="6" fill="#9fb3c8">AGENT&#160;&#160;ORCHESTRATION</text>
+
+    <!-- tagline pills -->
+    <g font-size="15" font-weight="600" fill="#ffd2d2">
+      <rect x="322" y="214" width="172" height="30" rx="15" fill="#ff2b40" fill-opacity="0.12" stroke="#ff2b40" stroke-opacity="0.45"/>
+      <text x="408" y="234" text-anchor="middle">AUTONOMOUS</text>
+      <rect x="506" y="214" width="158" height="30" rx="15" fill="#ff2b40" fill-opacity="0.12" stroke="#ff2b40" stroke-opacity="0.45"/>
+      <text x="585" y="234" text-anchor="middle">READ-ONLY</text>
+      <rect x="676" y="214" width="176" height="30" rx="15" fill="#2496ed" fill-opacity="0.12" stroke="#2496ed" stroke-opacity="0.5"/>
+      <text x="764" y="234" text-anchor="middle" fill="#bfe0ff">AZURE-NATIVE</text>
+    </g>
+  </g>
+
+  <!-- agent constellation accent (right) -->
+  <g stroke="#ff2b40" stroke-opacity="0.35" stroke-width="1.2">
+    <line x1="1040" y1="70" x2="1110" y2="120"/>
+    <line x1="1110" y1="120" x2="1060" y2="190"/>
+    <line x1="1060" y1="190" x2="1130" y2="240"/>
+    <line x1="1110" y1="120" x2="1150" y2="70"/>
+    <line x1="1040" y1="70" x2="1000" y2="150"/>
+    <line x1="1000" y1="150" x2="1060" y2="190"/>
+  </g>
+  <g fill="#0a0d14" stroke="#ff5a5a" stroke-width="2">
+    <circle cx="1040" cy="70" r="7"/>
+    <circle cx="1110" cy="120" r="9" fill="#ff2b40" stroke="#ffd2d2"/>
+    <circle cx="1060" cy="190" r="7"/>
+    <circle cx="1130" cy="240" r="6"/>
+    <circle cx="1150" cy="70" r="6"/>
+    <circle cx="1000" cy="150" r="6"/>
+  </g>
+
+  <rect x="0" y="314" width="1200" height="6" fill="url(#redText)"/>
+</svg>

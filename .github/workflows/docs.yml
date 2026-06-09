@@ -1,0 +1,70 @@
+name: docs
+
+# Build the MyST (mystmd / Jupyter Book v2 engine) documentation site and deploy
+# it to GitHub Pages — mirrors the setup used by the PyRIT documentation site.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "doc/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "doc/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# Permissions required for the GitHub Pages deployment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; don't cancel an in-progress production deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install mystmd
+        run: npm install -g mystmd@1.10.1
+
+      - name: Build static HTML site
+        working-directory: doc
+        # BASE_URL scopes every absolute asset/link under the project-pages
+        # subpath, e.g. /red-team-agent-orchestration/.
+        env:
+          BASE_URL: /${{ github.event.repository.name }}
+        run: myst build --html --ci
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: doc/_build/html
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    # Build-only on pull requests; deploy only on push to main or manual runs.
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
