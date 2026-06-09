@@ -50,6 +50,11 @@ jobs:
           BASE_URL: /${{ github.event.repository.name }}
         run: myst build --html --ci
 
+      - name: Bundle the sample report into the site
+        # Ship the self-contained sample HTML report alongside the docs so the
+        # "Sample Report" nav link is served same-origin (no third-party host).
+        run: cp tools/report/sample/report.sample.html doc/_build/html/report.sample.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

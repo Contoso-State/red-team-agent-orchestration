@@ -18,6 +18,8 @@ project:
     - file: skills.md
     - file: methodology.md
     - file: reporting.md
+    - url: https://contoso-state.github.io/red-team-agent-orchestration/report.sample.html
+      title: Sample Report
     - file: safety.md
     - file: repository.md
 site:
