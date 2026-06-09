@@ -1,0 +1,10 @@
+/* Brand the page title ("Azure Red Team Agent Orchestration", etc.) in Azure blue,
+   matching the banner wordmark and the mermaid diagrams. */
+h1.myst-fm-block-title {
+  color: #0078d4;
+}
+
+/* Lighter azure for dark mode so the title stays legible. */
+.dark h1.myst-fm-block-title {
+  color: #50b0ff;
+}

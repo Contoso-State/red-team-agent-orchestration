@@ -27,6 +27,7 @@ site:
     logo_text: Azure Red Team
     favicon: assets/banner.svg
     hide_outline: false
+    style: assets/custom.css
   nav:
     - title: GitHub
       url: https://github.com/Contoso-State/red-team-agent-orchestration
