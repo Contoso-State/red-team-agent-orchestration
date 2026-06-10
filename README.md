@@ -148,6 +148,7 @@ further ("start with the exposed surface?").
 | Durable task manifest (plan / resume / reduce) | `tools/orchestration/manifest.mjs` |
 | Coverage matrix (honest gaps) | `tools/orchestration/coverage.mjs` |
 | Bounded per-resource fan-out | `tools/powershell/Invoke-BoundedFanout.ps1` |
+| Engagement datastore (SQLite cache + history) | `tools/datastore/` |
 
 ## 🧩 How the Team Is Packaged (Agents + Skills + Hooks)
 
@@ -316,11 +317,17 @@ the engagement and the moment it ran — nothing is scattered across the repo ro
 engagements/
 └── <session>/                        # <engagement-id>-<YYYY-MM-DD-HHMMSS>
     ├── engagement.yaml               # scope snapshot used by this run
+    ├── engagement.db                 # SQLite datastore — cache + canonical store (gitignored)
     ├── inventory/                    # resources.jsonl, subscriptions.json, coverage-limitations.json
     ├── findings/                     # raw/<agent>.jsonl + normalized/findings.json
     ├── evidence/                     # raw + sanitized artifacts
-    └── reports/                      # executive-summary, technical-report, report.html, assessment-deck, findings.json
+    └── reports/                      # executive-summary, technical-report, report.html, assessment-deck, findings.json, delta.json
 ```
+
+A sibling `engagements/_history/<engagement.id>.db` accumulates every run so the report can show what
+changed (new / persisting / resolved / regressed). Both the per-session `engagement.db` and the history
+DB let agents query cached configuration instead of re-hitting Azure — see
+[`knowledge/datastore.md`](knowledge/datastore.md).
 
 - **Timestamped, never overwritten** — `<session>` = `<engagement.id>` + a UTC `YYYY-MM-DD-HHMMSS`
   stamp (e.g. `example-2026-q2-2026-06-15-141200`), so re-running produces a new folder and keeps a
@@ -332,6 +339,33 @@ engagements/
   `$env:REDTEAM_SESSION` or pass `-SessionPath ./engagements/<session>`.
 
 See [`engagements/README.md`](engagements/README.md) for the full layout reference.
+
+## 🗄️ Engagement Datastore
+
+Each run is backed by a **dependency-free SQLite datastore** (`engagement.db`) that acts as both the
+**cache** and the **canonical store** for the assessment — so the team stops re-querying Azure for the
+same data on every step. It is built on Node's built-in `node:sqlite` (no npm install).
+
+- **Query, don't re-crawl** — inventory, per-resource configuration facts, and the resource graph are
+  ingested once; domain agents read them back as a **read-through cache** (with a freshness TTL) instead
+  of issuing another `az`/ARG call. Cache hit → no Azure call; miss/stale → targeted query, then ingest.
+- **One place to join** — findings, resources, identity edges, and coverage live together, so
+  attack-path reasoning is a SQL join rather than N files merged in a prompt.
+- **Cross-run lifecycle** — a sibling `engagements/_history/<engagement.id>.db` folds in every run and
+  classifies findings as **new / persisting / resolved / regressed**, emitting a `reports/delta.json`
+  the executive summary leads with.
+- **Single writer, safe by default** — `ingest.mjs` is the only writer (agents read freely); the read
+  API is read-only-guarded; **every `*.db` is gitignored** and `resource_facts` stores **config only,
+  never secrets**.
+
+| Tool | Role |
+|---|---|
+| `tools/datastore/ingest.mjs` | files → DB (the single writer; dedupes findings, unions `affected_resources[]`) |
+| `tools/datastore/query.mjs` | read-only cache API (`resources` / `facts` / `fresh` / `neighbors` / `next-tasks` / `stats`) |
+| `tools/datastore/export.mjs` | DB → canonical `findings.json` / `coverage.json` / inventory |
+| `tools/datastore/promote.mjs` | fold a run into history + emit the `new/persisting/resolved/regressed` delta |
+
+Full reference: [`knowledge/datastore.md`](knowledge/datastore.md).
 
 ## 🎚️ Operating Modes
 
@@ -372,15 +406,18 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 ├── playbooks/                   # Multi-step assessment methodologies
 ├── schemas/                    # JSON schemas — findings, attack paths, checks, engagement, task, coverage
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
-├── knowledge/                   # Azure attack matrix, common misconfigs
+├── knowledge/                   # Azure attack matrix, common misconfigs, scaling, datastore
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
 │   ├── orchestration/          # Scale: task manifest, coverage matrix, preflight cost estimate
+│   ├── datastore/              # SQLite engagement datastore: ingest / query / export / promote
 │   ├── resource-graph/         # ARG queries + scope-brief generator
 │   ├── powershell/             # Inventory export + bounded per-resource fan-out
 │   └── report/                 # Findings-driven HTML report generator + sample
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
+    ├── _history/                # Cross-run lifecycle DBs (<engagement.id>.db, gitignored)
     └── <session>/               # <engagement-id>-<YYYY-MM-DD-HHMMSS>
+        ├── engagement.db        # SQLite cache + canonical store (gitignored)
         ├── inventory/           # Resource inventory + coverage limitations
         ├── findings/            # raw/<agent>.jsonl + normalized findings
         ├── evidence/            # raw + sanitized evidence artifacts

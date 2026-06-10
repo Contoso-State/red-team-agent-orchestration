@@ -34,9 +34,27 @@ Engagement flow:
 | `playbooks/*.md` | Multi-step assessment playbooks |
 | `schemas/*.json` | JSON schemas for structured findings and engagement data |
 | `controls/*.yaml` | Compliance control mappings (CIS, MITRE, Defender) |
-| `knowledge/*.md` | Reference material for Azure attack techniques |
+| `knowledge/*.md` | Reference material for Azure attack techniques (see `knowledge/datastore.md` for the engagement datastore) |
 | `tools/az-cli/*.md` | Per-domain read-only `az` CLI runners, keyed to check IDs |
+| `tools/datastore/*.mjs` | SQLite engagement datastore — `ingest` (files→DB, sole writer), `query` (read-only cache API), `export` (DB→artifacts), `promote` (cross-run lifecycle). Built on `node:sqlite`, no dependencies |
 | `tools/` | KQL queries, Resource Graph queries, PowerShell scripts |
+
+## Data Layer
+
+The assessment is backed by a per-engagement **SQLite datastore** (`engagements/<session>/engagement.db`)
+that is both **cache** and **canonical store**, plus a longitudinal `engagements/_history/<id>.db`. The
+rules that matter for agents:
+
+- **Query the DB, don't re-crawl Azure.** Inventory and per-resource config facts are ingested once;
+  agents read them back as a read-through cache (`tools/datastore/query.mjs`, freshness via the `fresh`
+  probe — exit 0 fresh, 3 miss/stale). Only on a miss do they issue a new `az`/ARG call, then ingest it.
+- **`ingest.mjs` is the single writer.** Agents write their own raw JSONL/evidence to files; the
+  orchestrator ingests. Agents never write the DB directly (concurrent readers are fine).
+- **`promote.mjs` is the only history writer**, run last, and emits `reports/delta.json`
+  (new / persisting / resolved / regressed).
+- **Every `*.db` is gitignored**; `resource_facts` holds **config only, never secrets**.
+
+Canonical doc: `knowledge/datastore.md`.
 
 ## Safety Rules
 
@@ -74,3 +92,4 @@ When working in this repo:
 - PowerShell for Azure automation scripts
 - KQL for Log Analytics and Sentinel queries
 - Azure Resource Graph query language for resource enumeration
+- Node ESM `.mjs` (dependency-free) for tooling; SQLite via the built-in `node:sqlite` for the datastore

@@ -381,6 +381,13 @@ The concepts above map to concrete, dependency-light tools in this repo:
 | Coverage matrix (honest gaps) | `tools/orchestration/coverage.mjs --from <records>` → `coverage.json` + `coverage.md` (schema `schemas/coverage.schema.json`) |
 | Aggregated-finding + attack-path validation | `tools/validate-findings.mjs` |
 | Findings-driven report (renders `affected_resources[]`) | `tools/report/generate-report.mjs` (`--inventory-summary summary.json` for the cover) |
+| Engagement datastore (SQLite cache + canonical store; query instead of re-hitting Azure) | `tools/datastore/` — `ingest.mjs` (files→DB), `query.mjs` (read-only cache API: resources/facts/fresh/neighbors/next-tasks), `export.mjs` (DB→artifacts), `promote.mjs` (cross-run lifecycle). See `knowledge/datastore.md`. |
+
+The **engagement datastore (`engagement.db`) is the queryable index** the inventory feeds: the agents'
+canonical place to look up a resource's configuration, relationships, and prior findings without
+re-querying Azure or `cat`-ing `resources.jsonl` into context. It complements the scope brief (the small
+rollup agents read to decide *where* to look) — the brief drives targeting, the DB answers point lookups.
+Both keep the raw inventory out of the prompt.
 
 The **scope brief is the Inventory & Scope agent's primary downstream output**: the
 orchestrator and domain agents read it (a small rollup) to decide where to look, and run

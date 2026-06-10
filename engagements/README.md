@@ -7,6 +7,7 @@ engagement and the moment it ran. Nothing from a run is scattered across the rep
 engagements/
 └── <session>/                       # <engagement-id>-<YYYY-MM-DD-HHMMSS>
     ├── engagement.yaml              # snapshot of the scope this run used (self-contained)
+    ├── engagement.db                # SQLite engagement datastore (cache + canonical store, gitignored)
     ├── inventory/
     │   ├── resources.jsonl          # shared resource inventory
     │   ├── subscriptions.json       # subscription metadata
@@ -21,8 +22,22 @@ engagements/
         ├── executive-summary.md     # leadership audience
         ├── technical-report.md      # engineer audience
         ├── assessment-deck.md       # PowerPoint-convertible deck (Marp / Pandoc)
+        ├── delta.json               # what changed vs the prior run (new/persisting/resolved/regressed)
         └── findings.json            # machine-readable canonical findings
 ```
+
+Alongside the per-session folders, longitudinal state lives in a sibling directory:
+
+```
+engagements/
+└── _history/
+    └── <engagement.id>.db           # cross-run finding & resource lifecycle (gitignored)
+```
+
+The per-session `engagement.db` is the **single source of truth and cache** for one run: inventory,
+resource configuration facts, relationships, coverage, tasks, and deduplicated findings. Agents query it
+instead of re-hitting Azure (see `knowledge/datastore.md`). The `_history/<engagement.id>.db` accumulates
+every run so the report can show what's new, persisting, resolved, or regressed over time.
 
 ## Naming
 
@@ -36,7 +51,9 @@ giving you a clean, auditable history of every assessment.
 ## Git
 
 The entire `engagements/` tree is **gitignored** (only this `README.md` and `.gitkeep` are tracked),
-because session output contains sensitive target-specific data. Never commit a session folder.
+because session output contains sensitive target-specific data. Never commit a session folder. This
+includes every `*.db` (the per-session `engagement.db` and the `_history/*.db` files) — they hold target
+configuration and findings and must never be pushed.
 
 ## How it gets created
 
