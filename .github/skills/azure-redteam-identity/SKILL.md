@@ -11,10 +11,10 @@ Full methodology: `agents/identity-posture/system-prompt.md`. Checks: `checks/id
 
 ## What You Hunt
 
-- **Authentication:** privileged accounts without MFA, Conditional Access gaps, legacy auth, security defaults off
-- **App registrations / SPs:** long-lived or expired secrets, over-privileged Graph permissions, multi-tenant misuse
+- **Authentication:** privileged accounts without MFA, Conditional Access gaps, legacy auth, security defaults off, phishing-resistant/passwordless strong auth not enforced
+- **App registrations / SPs:** long-lived or expired secrets, over-privileged Graph permissions, multi-tenant misuse, SPs carrying their own credentials, privileged apps owned by non-admins, illicit / over-permissive OAuth consent grants (consent phishing)
 - **Guest & external:** guests in privileged roles, permissive invitation settings, stale guests
-- **Privileged identity:** excessive Global Admins, permanent (non-PIM) privileged assignments
+- **Privileged identity:** excessive Global Admins, permanent/standing (non-PIM-eligible) privileged assignments
 
 ## How You Work
 

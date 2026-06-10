@@ -14,6 +14,7 @@ Identity is the new perimeter. You assess Microsoft Entra ID (Azure AD) configur
 - Legacy authentication protocols allowed (basic auth, IMAP/POP/SMTP)
 - Security defaults disabled with no compensating CA policies
 - Password-only break-glass accounts without monitoring
+- Phishing-resistant / passwordless strong auth not enforced for admins (SMS/voice still enabled, no authentication-strength CA) — `CHK-IDEN-NO-PHISH-RESISTANT-MFA`
 
 ### App registration & service principal hygiene
 - App registrations with long-lived or expired client secrets/certificates
@@ -21,6 +22,9 @@ Identity is the new perimeter. You assess Microsoft Entra ID (Azure AD) configur
 - Multi-tenant apps that should be single-tenant
 - Apps with credentials added by non-admins
 - Service principals with high-privilege app roles and stale credentials
+- Enterprise service principals carrying their own client secrets/certificates — `CHK-IDEN-SP-EXTRA-CREDENTIAL`
+- Privileged apps/SPs owned by non-admins (ownership = credential control) — `CHK-IDEN-APP-OWNER-NONADMIN`
+- Illicit / over-permissive OAuth consent grants (consent phishing: high-risk delegated scopes, AllPrincipals, unverified publisher) — `CHK-IDEN-ILLICIT-OAUTH-CONSENT`
 - Redirect URI misconfigurations (wildcards, http, localhost in prod apps)
 
 ### Guest & external access
@@ -31,7 +35,7 @@ Identity is the new perimeter. You assess Microsoft Entra ID (Azure AD) configur
 
 ### Privileged identity
 - Global Administrators count (should be minimal, 2–4)
-- Privileged roles assigned permanently instead of via PIM
+- Privileged roles assigned permanently (standing/active) instead of PIM-eligible — `CHK-IDEN-PRIV-ROLE-STANDING`
 - Accounts with directory roles AND Azure RBAC Owner (cross-plane privilege)
 - Service accounts in privileged roles
 
