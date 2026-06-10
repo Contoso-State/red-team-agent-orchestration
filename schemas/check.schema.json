@@ -69,6 +69,7 @@
       "properties": {
         "cis_azure": { "type": "array", "items": { "type": "string" } },
         "mitre": { "type": "array", "items": { "type": "string" } },
+        "nist_csf": { "type": "array", "items": { "type": "string" }, "description": "NIST Cybersecurity Framework 2.0 subcategory IDs, e.g. ['PR.AA-01', 'DE.CM-09']. See controls/nist-csf.yaml." },
         "owasp": { "type": "array", "items": { "type": "string" }, "description": "OWASP Top 10 (2021) category IDs, e.g. ['A05:2021']." },
         "cwe": { "type": "array", "items": { "type": "string" }, "description": "CWE IDs, e.g. ['CWE-79']." }
       }
