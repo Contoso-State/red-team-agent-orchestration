@@ -14,7 +14,8 @@ Full methodology: `agents/authorization-attack-path/system-prompt.md`. Checks: `
 - **RBAC over-permissioning:** Owner/Contributor/UAA at subscription or management-group scope, privileged service principals, classic admins
 - **Dangerous custom roles:** `*` actions, `Microsoft.Authorization/roleAssignments/write` (self-escalation), data-plane wildcards
 - **Escalation primitives** held by non-owners: `runCommand/action`, `listClusterAdminCredential/action`, `accessPolicies/write`, `userAssignedIdentities/assign/action`
-- **Managed identity abuse:** privileged identities attached to internet-facing compute
+- **Managed identity abuse:** privileged identities attached to internet-facing compute — control-plane (Owner/Contributor/UAA) and data-plane (Key Vault/Storage) reach via IMDS token theft
+- **Standing privilege:** privileged Azure resource roles held permanently instead of PIM-eligible (eligible-vs-active gap)
 
 ## Attack-Path Correlation (Run After Domain Skills)
 

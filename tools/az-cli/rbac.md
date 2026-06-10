@@ -55,3 +55,31 @@ az role definition list \
 az role assignment list --include-classic-administrators true \
   --query "[?contains(roleDefinitionName, 'Administrator')]" -o json
 ```
+
+## CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE — Compute managed identity with a privileged control-plane role
+```bash
+# 1) Enumerate compute-attached managed-identity principal IDs (Resource Graph):
+az graph query -q "resources | where type in~ ('microsoft.compute/virtualmachines','microsoft.compute/virtualmachinescalesets','microsoft.web/sites','microsoft.app/containerapps','microsoft.containerservice/managedclusters') | where isnotnull(identity) | project name, type, principalId=identity.principalId, userAssigned=identity.userAssignedIdentities" -o json
+# 2) For each principalId, list its role assignments and flag broad-scope privileged roles:
+az role assignment list --assignee <principalId> --all \
+  --query "[?roleDefinitionName=='Owner' || roleDefinitionName=='Contributor' || roleDefinitionName=='User Access Administrator']" -o json
+```
+
+## CHK-RBAC-MI-DATA-PLANE-SECRETS — Compute managed identity with Key Vault / Storage data-plane roles
+```bash
+az role assignment list --assignee <principalId> --all \
+  --query "[?contains(roleDefinitionName,'Key Vault') || contains(roleDefinitionName,'Storage Blob Data') || contains(roleDefinitionName,'Storage Queue Data')]" -o json
+# Flag Key Vault Secrets User/Officer, Key Vault Crypto User, Storage Blob Data Contributor/Reader
+# held by a compute-attached managed identity (secret/data read path post-compromise).
+```
+
+## CHK-RBAC-STANDING-PRIV-NO-PIM — Permanent privileged Azure role with no PIM-eligible schedule
+```bash
+# Active assignments at subscription scope:
+az role assignment list --scope "/subscriptions/<subId>" --include-inherited \
+  --query "[?roleDefinitionName=='Owner' || roleDefinitionName=='Contributor' || roleDefinitionName=='User Access Administrator']" -o json
+# Eligible (PIM for Azure resources) assignments to compare against (read-only ARM GET):
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Authorization/roleEligibilityScheduleInstances?api-version=2020-10-01&\$filter=atScope()" -o json
+# Flag active privileged assignments with NO matching eligible schedule (excl. break-glass).
+```

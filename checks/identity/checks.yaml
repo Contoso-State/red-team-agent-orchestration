@@ -124,3 +124,93 @@
     cis_azure: ["1.1.3"]
     mitre: ["T1078.004"]
   required_permissions: ["Directory.Read.All"]
+
+- check_id: CHK-IDEN-ILLICIT-OAUTH-CONSENT
+  title: Over-permissive or illicit OAuth application consent grant
+  domain: identity
+  agent: identity-posture
+  mode: read-only
+  severity_default: High
+  description: An OAuth application holds delegated permission grants for high-impact scopes (e.g. Mail.Read, Mail.ReadWrite, Files.ReadWrite.All, offline_access), often consented tenant-wide (AllPrincipals) or to an app from an unverified publisher - the hallmark of an illicit consent grant (consent phishing) attack.
+  detection:
+    method: msgraph
+    tool: "GET /oauth2PermissionGrants + /servicePrincipals; GET /auditLogs/directoryAudits?$filter=activityDisplayName eq 'Consent to application'"
+    logic: A delegated permission grant covers high-risk scopes and is either consentType AllPrincipals (admin/tenant-wide) or granted to a service principal whose app has an unverified publisher or recent creation.
+  attack_vector: Consent phishing -> attacker app receives a refresh token to read mail/files without a password and without re-triggering MFA
+  recommendation: Require admin consent for apps; restrict user consent to verified publishers and low-risk scopes; review and revoke unrecognized grants.
+  controls:
+    mitre: ["T1528", "T1550.001", "T1566.002"]
+    nist_csf: ["PR.AA-05", "GV.SC-04", "DE.CM-09"]
+  required_permissions: ["Directory.Read.All", "Application.Read.All", "AuditLog.Read.All"]
+
+- check_id: CHK-IDEN-SP-EXTRA-CREDENTIAL
+  title: Enterprise service principal carries its own client credentials
+  domain: identity
+  agent: identity-posture
+  mode: read-only
+  severity_default: High
+  description: A service principal object has client secrets or certificates attached, which - especially when added recently or on a privileged enterprise app - is a common service-principal-abuse persistence primitive (additional cloud credentials).
+  detection:
+    method: msgraph
+    tool: "GET /servicePrincipals -> passwordCredentials/keyCredentials (metadata only)"
+    logic: Service principal has one or more passwordCredentials/keyCredentials, particularly with a recent keyId/startDateTime or on an SP that also holds privileged app roles or a directory role.
+  attack_vector: Attacker adds a secret to an existing privileged SP -> persistent app-only access that survives user password resets
+  recommendation: Prefer workload identity federation over SP secrets; remove unused SP credentials; alert on credential additions via audit logs.
+  controls:
+    mitre: ["T1098.001", "T1078.004"]
+    nist_csf: ["PR.AA-01", "DE.CM-09"]
+  required_permissions: ["Application.Read.All"]
+
+- check_id: CHK-IDEN-APP-OWNER-NONADMIN
+  title: Privileged application or service principal owned by a non-admin
+  domain: identity
+  agent: identity-posture
+  mode: read-only
+  severity_default: High
+  description: A standard (non-privileged) user is an owner of an application or service principal that holds high-privilege Graph permissions or a privileged directory role. Application ownership confers the ability to add credentials, creating a hidden privilege-escalation path.
+  detection:
+    method: msgraph
+    tool: "GET /applications/{id}/owners + /servicePrincipals/{id}/owners"
+    logic: An owner of a privileged app/SP is a non-admin user (not in a privileged directory role), granting de-facto credential-management control over that privileged identity.
+  attack_vector: Compromise a low-privilege owner -> add an app credential -> authenticate as the privileged app
+  recommendation: Restrict app/SP ownership to administrators; review owners of privileged apps; remove unnecessary owners.
+  controls:
+    mitre: ["T1098.001", "T1078.004"]
+    nist_csf: ["PR.AA-01", "PR.AA-05"]
+  required_permissions: ["Application.Read.All", "Directory.Read.All"]
+
+- check_id: CHK-IDEN-PRIV-ROLE-STANDING
+  title: Privileged directory role held as standing (non-PIM-eligible) access
+  domain: identity
+  agent: identity-posture
+  mode: read-only
+  severity_default: High
+  description: A privileged Entra role (e.g. Global Administrator, Privileged Role Administrator, Application Administrator) is assigned permanently/active rather than as a PIM-eligible, just-in-time assignment, leaving always-on privilege that is not gated by activation, MFA, or approval.
+  detection:
+    method: msgraph
+    tool: "GET /roleManagement/directory/roleAssignments (active) vs /roleManagement/directory/roleEligibilityScheduleInstances (eligible)"
+    logic: A principal holds an active/permanent assignment to a privileged role with no corresponding eligible PIM schedule, beyond documented break-glass accounts.
+  attack_vector: Standing admin privilege is an always-available target for credential theft - no JIT/MFA/approval barrier
+  recommendation: Convert standing privileged assignments to PIM-eligible with activation MFA, justification, and approval; keep only 1-2 active break-glass accounts.
+  controls:
+    mitre: ["T1078.004", "T1098"]
+    nist_csf: ["PR.AA-05", "PR.AA-02"]
+  required_permissions: ["RoleManagement.Read.Directory", "Directory.Read.All"]
+
+- check_id: CHK-IDEN-NO-PHISH-RESISTANT-MFA
+  title: Phishing-resistant strong authentication not enforced for privileged roles
+  domain: identity
+  agent: identity-posture
+  mode: read-only
+  severity_default: Medium
+  description: Privileged roles are not required to use phishing-resistant / passwordless methods (FIDO2, Windows Hello for Business, certificate-based). Phishable factors such as SMS and voice remain enabled and no Conditional Access authentication-strength policy enforces strong auth for admins.
+  detection:
+    method: msgraph
+    tool: "GET /policies/authenticationMethodsPolicy + /identity/conditionalAccess/policies + /policies/authenticationStrengthPolicies"
+    logic: SMS/voice methods are enabled tenant-wide and/or no enabled CA policy applies a phishing-resistant authentication strength to privileged-role users.
+  attack_vector: Phishable MFA (SMS/voice/push) is bypassed by real-time phishing or MFA fatigue -> admin account takeover
+  recommendation: Enable FIDO2/WHfB/passkeys; disable SMS and voice; enforce a phishing-resistant authentication-strength CA policy for all privileged roles.
+  controls:
+    mitre: ["T1078.004", "T1556", "T1621"]
+    nist_csf: ["PR.AA-03", "PR.AA-02"]
+  required_permissions: ["Policy.Read.All"]

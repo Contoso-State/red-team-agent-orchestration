@@ -140,3 +140,57 @@
     cis_azure: ["1.22"]
     mitre: ["T1078"]
   required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE
+  title: Compute-attached managed identity holds a privileged control-plane role
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A managed identity attached to a compute resource (VM, VMSS, Function App, Container App, AKS) holds Owner/Contributor/User Access Administrator at resource-group, subscription, or management-group scope. Compromise of the workload yields that standing privilege via the instance metadata token endpoint.
+  detection:
+    method: resource-graph
+    tool: "resources (identity.principalId of compute) joined to authorizationresources roleAssignments"
+    logic: A system- or user-assigned managed identity bound to a compute resource is the assignee of a privileged role (Owner/Contributor/UAA or equivalent) at RG scope or higher.
+  attack_vector: Compromise workload (RCE/SSRF/runCommand) -> read IMDS token -> act as the managed identity with its privileged role -> lateral movement / escalation
+  recommendation: Scope managed-identity role assignments to the specific resources required; avoid Owner/Contributor at subscription scope for compute identities.
+  controls:
+    mitre: ["T1078.004", "T1552.005", "T1098.003"]
+    nist_csf: ["PR.AA-05", "PR.AA-01"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-MI-DATA-PLANE-SECRETS
+  title: Compute-attached managed identity can read Key Vault / Storage data-plane secrets
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: High
+  description: A managed identity attached to a compute resource holds data-plane roles such as Key Vault Secrets User/Officer, Key Vault Crypto User, or Storage Blob Data Contributor/Reader, enabling secret and data retrieval once the workload is compromised.
+  detection:
+    method: resource-graph
+    tool: "resources (compute identity.principalId) joined to authorizationresources roleAssignments filtered to data-plane role definitions"
+    logic: A compute-attached managed identity is assigned a Key Vault or Storage data-plane role over a vault/account holding sensitive material.
+  attack_vector: Compromise workload -> IMDS token -> read Key Vault secrets / storage data -> harvested credentials enable further lateral movement
+  recommendation: Grant data-plane roles at the individual vault/account scope only; separate duties so a single workload identity cannot read all secrets.
+  controls:
+    mitre: ["T1552.005", "T1555.006", "T1528"]
+    nist_csf: ["PR.AA-05", "PR.AA-01"]
+  required_permissions: ["Microsoft.Authorization/*/read"]
+
+- check_id: CHK-RBAC-STANDING-PRIV-NO-PIM
+  title: Privileged Azure resource role assigned permanently instead of PIM-eligible
+  domain: rbac
+  agent: authorization-attack-path
+  mode: read-only
+  severity_default: Medium
+  description: Owner, Contributor, or User Access Administrator at subscription or management-group scope is granted as a permanent active assignment with no corresponding PIM eligible schedule, leaving always-on privilege not gated by just-in-time activation, MFA, or approval.
+  detection:
+    method: resource-graph
+    tool: "authorizationresources roleAssignments vs roleEligibilityScheduleInstances/roleManagementPolicyAssignments"
+    logic: A principal holds an active privileged role at subscription/MG scope with no matching eligible (PIM) schedule and no activation requirement, beyond documented break-glass.
+  attack_vector: Standing privilege at broad scope is an always-available escalation target with no JIT/MFA barrier
+  recommendation: Convert standing privileged assignments to PIM-eligible with activation MFA, justification, and approval; minimize permanent active holders.
+  controls:
+    mitre: ["T1078", "T1098"]
+    nist_csf: ["PR.AA-05"]
+  required_permissions: ["Microsoft.Authorization/*/read"]

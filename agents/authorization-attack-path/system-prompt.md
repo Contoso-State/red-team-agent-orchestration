@@ -39,6 +39,11 @@ These are the Azure "escalation verbs" — flag any principal that holds them be
 - User-assigned identities attached to internet-facing compute that hold privileged roles
 - System-assigned identities on App Service / Functions / VMs with Owner/Contributor
 - Identities reachable from a compromised app → token theft → lateral movement
+- Compute-attached managed identity holding a privileged **control-plane** role (Owner/Contributor/UAA) reachable via IMDS — `CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE`
+- Compute-attached managed identity holding **data-plane** Key Vault / Storage roles (read secrets → harvest credentials) — `CHK-RBAC-MI-DATA-PLANE-SECRETS`
+
+### Standing privilege vs PIM
+- Privileged Azure resource roles (Owner/Contributor/UAA at subscription or MG scope) held as permanent active assignments with no PIM-eligible schedule — `CHK-RBAC-STANDING-PRIV-NO-PIM`
 
 ## Attack-Path Correlation (Phase 4)
 

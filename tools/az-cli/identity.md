@@ -57,3 +57,56 @@ az rest --method GET \
   --url "https://graph.microsoft.com/v1.0/directoryRoles/<gaRoleId>/members" -o json
 # Flag: member count above engagement threshold (commonly > 5).
 ```
+
+## CHK-IDEN-ILLICIT-OAUTH-CONSENT — Over-permissive / illicit OAuth consent grants
+```bash
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" -o json
+# Flag high-risk delegated scopes (Mail.Read, Mail.ReadWrite, Files.ReadWrite.All, offline_access)
+# and consentType == AllPrincipals (tenant-wide). Then check the granting SP's publisher trust:
+az ad sp show --id <servicePrincipalId> \
+  --query "{name:displayName,publisher:publisherName,verified:verifiedPublisher}" -o json
+# Correlate with consent events (read-only audit query):
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/auditLogs/directoryAudits?\$filter=activityDisplayName eq 'Consent to application'" -o json
+```
+
+## CHK-IDEN-SP-EXTRA-CREDENTIAL — Service principals carrying their own client credentials
+```bash
+az ad sp list --all --query "[].{id:id,appId:appId,displayName:displayName}" -o json
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/servicePrincipals/<spId>?\$select=displayName,passwordCredentials,keyCredentials" -o json
+# Flag SPs with passwordCredentials/keyCredentials (metadata only: keyId, startDateTime, endDateTime),
+# especially recent additions or SPs that also hold privileged app roles / directory roles.
+```
+
+## CHK-IDEN-APP-OWNER-NONADMIN — Privileged app/SP owned by a non-admin
+```bash
+az ad app owner list --id <appId> -o json
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/servicePrincipals/<spId>/owners" -o json
+# Cross-reference owners against privileged directory-role members; flag owners that are standard users.
+```
+
+## CHK-IDEN-PRIV-ROLE-STANDING — Standing (non-PIM-eligible) privileged role assignments
+```bash
+# Active / permanent assignments:
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?\$expand=principal" -o json
+# Eligible (PIM) assignments to compare against:
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances?\$expand=principal" -o json
+# Flag principals with an ACTIVE privileged role but NO matching eligible schedule (excl. break-glass).
+```
+
+## CHK-IDEN-NO-PHISH-RESISTANT-MFA — Phishing-resistant strong auth not enforced
+```bash
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/policies/authenticationMethodsPolicy" -o json
+# Flag sms/voice configurations with state == enabled. Then confirm an authentication-strength
+# Conditional Access policy covers privileged-role users:
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies" -o json
+az rest --method GET \
+  --url "https://graph.microsoft.com/v1.0/policies/authenticationStrengthPolicies" -o json
+```
