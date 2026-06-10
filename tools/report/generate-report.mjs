@@ -1612,6 +1612,10 @@ function buildHtml(findings, paths, meta, title) {
     .join('');
   const summaryHtml = summary.map((p) => `<p>${escText(p)}</p>`).join('');
   const extBanner = buildExternalTestingBanner(findings, meta);
+  // Whether gated active external testing (EVA) was part of this engagement —
+  // drives the Methodology appendix so the read-only claim stays accurate.
+  const externalActive = String(meta.mode || '').trim() === 'external-active-testing'
+    || findings.some((f) => f.agent === 'external-vuln' || /^AZ-EVA-/.test(String(f.id || '')));
   const sec1 = `
   <section id="exec-summary" class="section">
     <div class="sec-head"><span class="sec-num">1</span><h2>Executive Summary</h2></div>
@@ -1803,7 +1807,8 @@ function buildHtml(findings, paths, meta, title) {
       <h3>Scope</h3>
       <p>Only resources and configurations represented in the supplied findings dataset are in scope. Tenants and subscriptions listed on the cover define the engagement boundary.</p>
       <h3>Approach</h3>
-      <p>The methodology is read-only and evidence-driven: configuration and posture are evaluated against documented control baselines and known attack techniques. No exploitation, write operations, or live credential use is performed, and no exploit payloads are included.</p>
+      <p>The control-plane methodology is read-only and evidence-driven: configuration and posture are evaluated against documented control baselines and known attack techniques. No write operations or live credential use is performed against the Azure control plane.</p>
+      ${externalActive ? `<p>This engagement additionally included <strong>gated active external testing</strong> (External Vulnerability Agent). Real traffic was sent <strong>only</strong> to hosts on an allowlist derived from in-scope Azure resources, under recorded written authorization and enforced fail-closed by an egress guardrail. Testing was bounded to the authorized intensity tier; no denial-of-service, data exfiltration, or lateral movement was performed. See the Active External Testing notice in the Executive Summary for the authorization reference and coverage.</p>` : `<p>No exploitation, write operations, or live credential use is performed, and no exploit payloads are included.</p>`}
       <h3>Limitations</h3>
       <p>Absence of a finding is not proof of security; it reflects only what was evaluated with the supplied inputs. Severity and confidence are analytical judgments. Attack paths are models intended to prioritize remediation, not guarantees of exploitability. Findings should be validated against the live environment before remediation is finalized.</p>
     </div>
