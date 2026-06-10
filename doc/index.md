@@ -33,8 +33,8 @@ discovered in your Azure subscription, and only after a signed authorization. Se
   read-only domain specialists (identity, network, compute, data, web, AI, EASM, logging,
   governance, supply chain, email, authorization/attack-path, inventory, reporting), plus a
   **gated** active-testing agent (EVA) that stays off until explicitly authorized.
-- **Atomic security checks** across 13 domains, each mapped to CIS Azure and MITRE
-  ATT&CK cloud techniques.
+- **Atomic security checks** across 13 domains, each mapped to CIS Azure, MITRE
+  ATT&CK cloud techniques, and NIST CSF 2.0.
 - **Attack-path correlation** that chains single-domain findings into multi-step
   compromise scenarios.
 - **An incremental SQLite datastore** that caches Azure config so agents stop re-querying,

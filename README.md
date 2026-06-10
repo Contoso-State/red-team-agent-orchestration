@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
   <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
-  <img src="https://img.shields.io/badge/checks-111-2496ed" alt="111 security checks">
+  <img src="https://img.shields.io/badge/checks-140-2496ed" alt="140 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
 </p>
@@ -217,7 +217,7 @@ is treated as a state change and blocked, so unknown or new mutating verbs fail 
 inspected — docs that merely mention `az ... delete` are never blocked). `mode:
 controlled-validation` doesn't silently allow mutations; it downgrades them to an explicit
 human-approval prompt. Decision logic lives in `guardrails-core.mjs` and is unit-tested by
-`guardrails-core.test.mjs` (111 assertions). Because the hook is session-wide it covers **every**
+`guardrails-core.test.mjs` (133 assertions). Because the hook is session-wide it covers **every**
 agent — and the orchestrator additionally has **no shell access at all** (dispatch-only), so it can
 never run `az` itself.
 
@@ -423,8 +423,8 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
 ├── schemas/                    # JSON schemas — findings, attack paths, checks, engagement, task, coverage
-├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
-├── knowledge/                   # Azure attack matrix, common misconfigs, scaling, datastore
+├── controls/                    # CIS Azure, MITRE ATT&CK, NIST CSF 2.0, Defender mappings
+├── knowledge/                   # Azure attack matrix, Entra/K8s/container/OAuth-SAML-JWT/CSPM methodology, scaling, datastore
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
 │   ├── preflight/              # Environment doctor — verifies az, sign-in, resource-graph ext, Node
 │   ├── orchestration/          # Scale: task manifest, coverage matrix, preflight cost estimate
@@ -509,3 +509,12 @@ Install these once before your first run (the [environment doctor](#-quick-start
 
 Released under the [MIT License](LICENSE). This is a template — fork it, scope it to your
 own tenant, and run it against environments you are **authorized** to assess.
+
+## 🙏 Attribution
+
+Portions of the detection methodology and attack-technique knowledge were harvested and
+adapted from the Apache-2.0 project [`mukul975/Anthropic-Cybersecurity-Skills`](https://github.com/mukul975/Anthropic-Cybersecurity-Skills).
+See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the full license text and
+[`knowledge/ATTRIBUTION.md`](knowledge/ATTRIBUTION.md) for the per-skill → artifact map.
+All adapted material is read-only methodology — no active/offensive commands were added to
+any command runner.

@@ -21,7 +21,7 @@ controls:
   - id: "1.4"
     title: Ensure application credential hygiene (short-lived secrets)
     section: Identity and Access Management
-    checks: [CHK-IDEN-STALE-APP-SECRET]
+    checks: [CHK-IDEN-STALE-APP-SECRET, CHK-SUP-APP-FIC-BROAD-TRUST, CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET, CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT]
 
   - id: "1.22"
     title: Ensure minimal privileged role assignments (least privilege)
@@ -36,7 +36,7 @@ controls:
   - id: "2.1.x"
     title: Ensure Microsoft Defender for Cloud plans are enabled
     section: Microsoft Defender for Cloud
-    checks: [CHK-LOG-DEFENDER-DISABLED]
+    checks: [CHK-LOG-DEFENDER-DISABLED, CHK-LOG-NO-SENTINEL-ANALYTICS-RULES]
 
   - id: "3.1"
     title: Ensure secure transfer / Entra auth required for storage
@@ -61,17 +61,17 @@ controls:
   - id: "4.1.x"
     title: Ensure SQL public access restricted and Entra auth enforced
     section: Database Services
-    checks: [CHK-DB-SQL-ALLOW-AZURE-SERVICES, CHK-DB-SQL-PUBLIC-NETWORK, CHK-DB-SQL-NO-ENTRA-ADMIN, CHK-DB-SQL-NO-TDE]
+    checks: [CHK-DB-SQL-ALLOW-AZURE-SERVICES, CHK-DB-SQL-PUBLIC-NETWORK, CHK-DB-SQL-NO-ENTRA-ADMIN, CHK-DB-SQL-NO-TDE, CHK-DB-SQL-NO-DEFENDER-VA]
 
   - id: "5.1.x"
     title: Ensure a diagnostic setting exists for Activity Log
     section: Logging and Monitoring
-    checks: [CHK-LOG-NO-ACTIVITY-EXPORT]
+    checks: [CHK-LOG-NO-ACTIVITY-EXPORT, CHK-LOG-NO-IMMUTABLE-LOG-STORE]
 
   - id: "5.x"
     title: Ensure diagnostic logs are enabled for critical resources
     section: Logging and Monitoring
-    checks: [CHK-LOG-NO-DIAG-CRITICAL, CHK-LOG-NO-DIAG-KEYVAULT]
+    checks: [CHK-LOG-NO-DIAG-CRITICAL, CHK-LOG-NO-DIAG-KEYVAULT, CHK-LOG-SHORT-RETENTION]
 
   - id: "6.1"
     title: Ensure RDP/SSH and broad access restricted from the internet

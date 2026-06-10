@@ -32,7 +32,7 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
 ├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
-├── controls/                    # CIS, MITRE ATT&CK mappings
+├── controls/                    # CIS, MITRE ATT&CK, NIST CSF 2.0 mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs, severity model, web/OWASP testing (EVA)
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, datastore, HTML report generator
 │   ├── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle

@@ -22,22 +22,22 @@ functions:
         subcategories:
           - id: GV.RM-01
             title: Risk management objectives established and agreed
-            checks: [CHK-GOV-SECURE-SCORE-LOW]
+            checks: [CHK-GOV-SECURE-SCORE-LOW, CHK-GOV-NO-DEFENDER-CSPM-PLAN]
       - id: GV.PO
         name: Policy
         subcategories:
           - id: GV.PO-01
             title: Cybersecurity policy established and communicated
-            checks: [CHK-GOV-POLICY-COVERAGE, CHK-GOV-POLICY-EXEMPTIONS]
+            checks: [CHK-GOV-POLICY-COVERAGE, CHK-GOV-POLICY-EXEMPTIONS, CHK-GOV-NO-CIS-COMPLIANCE-STANDARD]
       - id: GV.SC
         name: Cybersecurity Supply Chain Risk Management
         subcategories:
           - id: GV.SC-04
             title: Suppliers and third-party trust relationships known and prioritized
-            checks: [CHK-SUP-APP-FIC-BROAD-TRUST, CHK-SUP-UAMI-FIC-BROAD-TRUST, CHK-SUP-CICD-SP-BROAD-ROLE]
+            checks: [CHK-SUP-APP-FIC-BROAD-TRUST, CHK-SUP-UAMI-FIC-BROAD-TRUST, CHK-SUP-CICD-SP-BROAD-ROLE, CHK-IDEN-ILLICIT-OAUTH-CONSENT, CHK-SUP-NO-IMAGE-SCAN-ENFORCED]
           - id: GV.SC-06
             title: Pre-engagement due diligence on supply chain identities
-            checks: [CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET, CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK]
+            checks: [CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET, CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK, CHK-COMP-ACR-NO-CONTENT-TRUST]
 
   - function: IDENTIFY (ID)
     description: Understand the organization's assets, suppliers, and related cybersecurity risks.
@@ -56,7 +56,7 @@ functions:
         subcategories:
           - id: ID.RA-01
             title: Vulnerabilities in assets identified and recorded
-            checks: [CHK-EASM-PUBLIC-MGMT-PORT, CHK-EVA-001, CHK-EVA-002, CHK-EVA-003]
+            checks: [CHK-EASM-PUBLIC-MGMT-PORT, CHK-EVA-001, CHK-EVA-002, CHK-EVA-003, CHK-COMP-AKS-OUTDATED-VERSION, CHK-COMP-CONTAINER-IMAGE-VULN, CHK-GOV-NO-VULN-POSTURE-MGMT]
           - id: ID.RA-05
             title: Threats, vulnerabilities, likelihood, and impact used to prioritize risk
             checks: [CHK-GOV-SECURE-SCORE-LOW]
@@ -69,22 +69,22 @@ functions:
         subcategories:
           - id: PR.AA-01
             title: Identities and credentials managed
-            checks: [CHK-IDEN-STALE-APP-SECRET, CHK-IDEN-APP-OVERPRIV-GRAPH]
+            checks: [CHK-IDEN-STALE-APP-SECRET, CHK-IDEN-APP-OVERPRIV-GRAPH, CHK-IDEN-APP-OWNER-NONADMIN, CHK-IDEN-SP-EXTRA-CREDENTIAL, CHK-RBAC-MI-DATA-PLANE-SECRETS, CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE]
           - id: PR.AA-02
             title: Identities proofed and bound to credentials
-            checks: [CHK-IDEN-GUEST-PRIVILEGED]
+            checks: [CHK-IDEN-GUEST-PRIVILEGED, CHK-IDEN-NO-PHISH-RESISTANT-MFA, CHK-IDEN-PRIV-ROLE-STANDING]
           - id: PR.AA-03
             title: Users, services, and hardware authenticated
-            checks: [CHK-IDEN-GA-NO-MFA, CHK-IDEN-LEGACY-AUTH, CHK-IDEN-NO-CA-POLICY]
+            checks: [CHK-IDEN-GA-NO-MFA, CHK-IDEN-LEGACY-AUTH, CHK-IDEN-NO-CA-POLICY, CHK-IDEN-NO-PHISH-RESISTANT-MFA]
           - id: PR.AA-05
             title: Access permissions and authorizations managed (least privilege)
-            checks: [CHK-IDEN-EXCESS-GLOBAL-ADMINS, CHK-RBAC-SUB-OWNER-SPRAWL, CHK-RBAC-WILDCARD-ACTION, CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE, CHK-RBAC-CLASSIC-ADMIN, CHK-RBAC-SP-PRIVILEGED, CHK-RBAC-AKS-CLUSTER-ADMIN]
+            checks: [CHK-IDEN-EXCESS-GLOBAL-ADMINS, CHK-RBAC-SUB-OWNER-SPRAWL, CHK-RBAC-WILDCARD-ACTION, CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE, CHK-RBAC-CLASSIC-ADMIN, CHK-RBAC-SP-PRIVILEGED, CHK-RBAC-AKS-CLUSTER-ADMIN, CHK-COMP-AKS-NODE-MI-EXPOSURE, CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL, CHK-IDEN-APP-OWNER-NONADMIN, CHK-IDEN-ILLICIT-OAUTH-CONSENT, CHK-IDEN-PRIV-ROLE-STANDING, CHK-RBAC-MI-DATA-PLANE-SECRETS, CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE, CHK-RBAC-STANDING-PRIV-NO-PIM, CHK-STOR-NO-SAS-EXPIRATION-POLICY]
       - id: PR.DS
         name: Data Security
         subcategories:
           - id: PR.DS-01
             title: Data-at-rest protected
-            checks: [CHK-DB-SQL-NO-TDE, CHK-COMP-VM-NO-DISK-ENCRYPTION, CHK-STOR-KV-NO-PURGE-PROTECTION]
+            checks: [CHK-DB-SQL-NO-TDE, CHK-COMP-VM-NO-DISK-ENCRYPTION, CHK-STOR-KV-NO-PURGE-PROTECTION, CHK-STOR-NO-INFRA-ENCRYPTION]
           - id: PR.DS-02
             title: Data-in-transit protected
             checks: [CHK-STOR-NO-HTTPS-ONLY, CHK-WEB-TLS-WEAK, CHK-MAIL-SPF-MISSING-OR-WEAK, CHK-MAIL-DMARC-MISSING-OR-NONE, CHK-MAIL-DKIM-NOT-ENABLED]
@@ -96,16 +96,16 @@ functions:
         subcategories:
           - id: PR.PS-01
             title: Configuration management practices established
-            checks: [CHK-COMP-APPSVC-FTP-DEBUG, CHK-COMP-APPSVC-NO-AUTH, CHK-COMP-ACR-ADMIN-USER, CHK-COMP-ACR-PUBLIC-ANON, CHK-AI-OPENAI-LOCALAUTH, CHK-AI-OPENAI-NO-CONTENT-FILTER]
+            checks: [CHK-COMP-APPSVC-FTP-DEBUG, CHK-COMP-APPSVC-NO-AUTH, CHK-COMP-ACR-ADMIN-USER, CHK-COMP-ACR-PUBLIC-ANON, CHK-AI-OPENAI-LOCALAUTH, CHK-AI-OPENAI-NO-CONTENT-FILTER, CHK-COMP-ACR-NO-CONTENT-TRUST, CHK-COMP-ACR-NO-DEFENDER-SCAN, CHK-COMP-AKS-NO-POD-SECURITY, CHK-COMP-AKS-NODE-MI-EXPOSURE, CHK-COMP-AKS-OUTDATED-VERSION, CHK-COMP-CONTAINER-IMAGE-VULN, CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT]
           - id: PR.PS-05
             title: Installation and execution of unauthorized software prevented
-            checks: [CHK-COMP-CONTAINER-PRIVILEGED-INGRESS, CHK-COMP-VM-PUBLIC-RUNCOMMAND]
+            checks: [CHK-COMP-CONTAINER-PRIVILEGED-INGRESS, CHK-COMP-VM-PUBLIC-RUNCOMMAND, CHK-COMP-AKS-NO-POD-SECURITY]
       - id: PR.IR
         name: Technology Infrastructure Resilience
         subcategories:
           - id: PR.IR-01
             title: Networks and environments protected from unauthorized access
-            checks: [CHK-NET-MGMT-PORT-INTERNET, CHK-NET-DB-PORT-INTERNET, CHK-NET-ANY-ANY-RULE, CHK-NET-SUBNET-NO-NSG, CHK-COMP-AKS-PUBLIC-API, CHK-COMP-AKS-NO-NETPOL, CHK-WEB-FRONTDOOR-NO-WAF, CHK-WEB-APPGW-NO-WAF, CHK-WEB-APIM-OPEN-GATEWAY, CHK-WEB-ORIGIN-DIRECT-REACH]
+            checks: [CHK-NET-MGMT-PORT-INTERNET, CHK-NET-DB-PORT-INTERNET, CHK-NET-ANY-ANY-RULE, CHK-NET-SUBNET-NO-NSG, CHK-COMP-AKS-PUBLIC-API, CHK-COMP-AKS-NO-NETPOL, CHK-WEB-FRONTDOOR-NO-WAF, CHK-WEB-APPGW-NO-WAF, CHK-WEB-APIM-OPEN-GATEWAY, CHK-WEB-ORIGIN-DIRECT-REACH, CHK-COMP-AKS-NO-POD-SECURITY, CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL]
 
   - function: DETECT (DE)
     description: Find and analyze possible cybersecurity attacks and compromises.
@@ -118,13 +118,13 @@ functions:
             checks: [CHK-LOG-NO-NSG-FLOW, CHK-LOG-NO-DIAG-CRITICAL]
           - id: DE.CM-03
             title: Personnel activity and technology usage monitored
-            checks: [CHK-LOG-NO-ACTIVITY-EXPORT, CHK-LOG-NO-ALERT-ROLE-ASSIGN]
+            checks: [CHK-LOG-NO-ACTIVITY-EXPORT, CHK-LOG-NO-ALERT-ROLE-ASSIGN, CHK-LOG-NO-ALERT-RESOURCE-DELETE]
           - id: DE.CM-06
             title: External service provider activities monitored
-            checks: [CHK-LOG-NO-DIAG-KEYVAULT, CHK-DB-SQL-NO-AUDIT]
+            checks: [CHK-LOG-NO-DIAG-KEYVAULT, CHK-DB-SQL-NO-AUDIT, CHK-LOG-NO-IMMUTABLE-LOG-STORE]
           - id: DE.CM-09
             title: Computing hardware/software and runtime environments monitored
-            checks: [CHK-LOG-DEFENDER-DISABLED, CHK-LOG-NO-SENTINEL-IDENTITY, CHK-MAIL-ANTIPHISH-WEAK, CHK-MAIL-SAFE-LINKS-ATTACH-OFF]
+            checks: [CHK-LOG-DEFENDER-DISABLED, CHK-LOG-NO-SENTINEL-IDENTITY, CHK-MAIL-ANTIPHISH-WEAK, CHK-MAIL-SAFE-LINKS-ATTACH-OFF, CHK-COMP-ACR-NO-DEFENDER-SCAN, CHK-DB-SQL-NO-DEFENDER-VA, CHK-IDEN-ILLICIT-OAUTH-CONSENT, CHK-IDEN-SP-EXTRA-CREDENTIAL, CHK-LOG-NO-SENTINEL-ANALYTICS-RULES, CHK-LOG-SHORT-RETENTION]
 
   - function: RESPOND (RS)
     description: Take action regarding a detected cybersecurity incident.

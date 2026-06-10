@@ -58,6 +58,22 @@ Playbooks are multi-step assessment methodologies that combine checks across dom
 - **`owasp-top10.md`**, **`web-vuln-testing.md`**, **`xss.md`**, **`static-analysis.md`** —
   the web-application testing knowledge base used by the gated External Vulnerability Agent
   (OWASP Top 10, outside-in DAST technique, XSS, and offline static analysis).
+- **`entra-attack-techniques.md`** — Entra ID / identity attack methodology (consent
+  phishing, service-principal & app-ownership abuse, federation trust, standing privilege).
+- **`kubernetes-security.md`**, **`container-security.md`** — AKS / Kubernetes RBAC, Pod
+  Security, workload-identity exposure, and container-image / registry posture.
+- **`oauth-saml-jwt.md`** — OAuth2/OIDC, JWT, and SAML federation testing methodology used
+  by the gated EVA lane.
+- **`cloud-posture-benchmarks.md`** — CIS / CSPM / cloud-vulnerability-management posture
+  methodology and Defender plan-ownership mapping.
+
+:::{note}
+The Entra, Kubernetes, container, OAuth/SAML/JWT, and cloud-posture knowledge files were
+adapted from the Apache-2.0 project [`mukul975/Anthropic-Cybersecurity-Skills`](https://github.com/mukul975/Anthropic-Cybersecurity-Skills);
+see [`THIRD_PARTY_NOTICES.md`](https://github.com/Contoso-State/red-team-agent-orchestration/blob/main/THIRD_PARTY_NOTICES.md)
+and `knowledge/ATTRIBUTION.md`. All adapted material is read-only methodology — no
+active/offensive commands were added to any command runner.
+:::
 
 ## Control mappings (`controls/`)
 
@@ -66,6 +82,8 @@ defenders:
 
 - **`cis-azure.yaml`** — CIS Microsoft Azure Foundations Benchmark.
 - **`mitre-cloud.yaml`** — MITRE ATT&CK for cloud / Azure techniques.
+- **`nist-csf.yaml`** — NIST Cybersecurity Framework 2.0 functions, categories, and
+  subcategories. Checks may also carry inline `controls.nist_csf` tags.
 
 ## Command runners (`tools/`)
 
