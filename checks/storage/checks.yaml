@@ -144,3 +144,41 @@
     cis_azure: ["8.4"]
     mitre: ["T1485", "T1486"]
   required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-NO-INFRA-ENCRYPTION
+  title: Storage account without infrastructure (double) encryption at rest
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Low
+  description: requireInfrastructureEncryption is not enabled, so data at rest is encrypted with a single layer only. For accounts holding sensitive/regulated data this removes a defense-in-depth control against a flaw or compromise of the primary encryption layer.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts properties.encryption.requireInfrastructureEncryption"
+    logic: requireInfrastructureEncryption != true (null or false).
+  attack_vector: Single-layer encryption weakens at-rest protection if the primary key/layer is compromised or exfiltrated
+  recommendation: Enable infrastructure (double) encryption on accounts holding sensitive data; pair with customer-managed keys where required. Note this can only be set at account creation.
+  controls:
+    cis_azure: ["3.x"]
+    mitre: ["T1530"]
+    nist_csf: ["PR.DS-01"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-STOR-NO-SAS-EXPIRATION-POLICY
+  title: Storage account has no SAS expiration policy (long-lived SAS tokens allowed)
+  domain: storage
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: The account has no SAS expiration policy (sasPolicy) and/or no key rotation reminder policy, so account-level and service SAS tokens can be issued with very long or unbounded lifetimes. A single leaked long-lived SAS token grants persistent data-plane access that survives credential review.
+  detection:
+    method: resource-graph
+    tool: "storageaccounts properties.sasPolicy.sasExpirationPeriod + properties.keyPolicy.keyExpirationPeriodInDays"
+    logic: sasPolicy is null/absent (no enforced SAS expiration), or sasExpirationPeriod is excessively long relative to the engagement baseline. Optionally flag missing keyPolicy (no account-key rotation reminder). Metadata only — never enumerate or read SAS token values.
+  attack_vector: A leaked or over-scoped long-lived SAS token gives persistent, hard-to-revoke data access independent of Entra identity
+  recommendation: Define a SAS expiration policy with a short period, prefer short-lived user-delegation SAS bound to Entra identity over account-key SAS, and set a key rotation policy.
+  controls:
+    cis_azure: ["3.x"]
+    mitre: ["T1078.004", "T1552.001"]
+    nist_csf: ["PR.AA-05"]
+  required_permissions: ["Reader"]

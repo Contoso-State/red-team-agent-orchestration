@@ -12,7 +12,7 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 - Resources without diagnostic settings (no logs forwarded to Log Analytics / storage / Event Hub)
 - Activity Log without a diagnostic setting / export
 - Critical resource types (Key Vault, NSG, SQL, storage, App Gateway) with no log collection
-- Log Analytics workspace retention too short for forensics
+- Log Analytics workspace retention too short for forensics (`CHK-LOG-SHORT-RETENTION`)
 - No NSG flow logs (can't reconstruct network activity)
 
 ### Defender for Cloud
@@ -24,18 +24,18 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 ### Microsoft Sentinel / SIEM coverage
 - No Sentinel workspace, or critical data connectors not enabled
 - Azure Activity, Entra ID sign-in/audit logs not ingested
-- Analytics rules absent for high-value detections (impossible travel, mass download, role changes)
+- Analytics rules absent for high-value detections (impossible travel, mass download, role changes) (`CHK-LOG-NO-SENTINEL-ANALYTICS-RULES`)
 - No automation/SOAR playbooks for response
 
 ### Alerting gaps
 - No alerts on privileged role assignments / Owner grants
 - No alerts on Key Vault access anomalies
 - No alerts on NSG/firewall changes
-- No alerts on resource deletion / mass changes
+- No alerts on resource deletion / mass changes / defense-evasion ops (`CHK-LOG-NO-ALERT-RESOURCE-DELETE`)
 - Alert rules disabled or routed nowhere
 
 ### Log integrity
-- Logs stored in mutable storage (no immutability / lock)
+- Logs stored in mutable storage (no immutability / lock) (`CHK-LOG-NO-IMMUTABLE-LOG-STORE`)
 - Diagnostic logs can be disabled by Contributors (no policy guardrail)
 - Single-region logging (no resilience)
 

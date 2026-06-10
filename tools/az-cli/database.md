@@ -56,3 +56,16 @@ az mysql flexible-server list \
 az postgres flexible-server firewall-rule list --name <server> -g <rg> \
   --query "[?startIpAddress=='0.0.0.0']" -o json
 ```
+
+## CHK-DB-SQL-NO-DEFENDER-VA — Defender for SQL / vulnerability assessment off
+```bash
+# Per-server security alert policy (Microsoft Defender for SQL) — read-only:
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.Sql/servers/<server>/securityAlertPolicies/Default?api-version=2022-05-01-preview" -o json
+# Recurring vulnerability assessment config — read-only:
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.Sql/servers/<server>/vulnerabilityAssessments/Default?api-version=2022-05-01-preview" -o json
+# Flag: securityAlertPolicies state != 'Enabled', OR no vulnerabilityAssessments with
+# recurringScans.isEnabled==true and a results store configured. (Subscription plan
+# on/off is owned by logging: CHK-LOG-DEFENDER-DISABLED — do not re-flag it here.)
+```

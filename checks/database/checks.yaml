@@ -124,3 +124,22 @@
   controls:
     mitre: ["T1190"]
   required_permissions: ["Reader"]
+
+- check_id: CHK-DB-SQL-NO-DEFENDER-VA
+  title: SQL Server without Microsoft Defender for SQL / vulnerability assessment
+  domain: database
+  agent: data-protection
+  mode: read-only
+  severity_default: Medium
+  description: The SQL logical server has no Microsoft Defender for SQL security alert policy enabled and/or no recurring vulnerability assessment configured, so SQL injection / anomalous-access alerting and continuous misconfiguration scanning of the database are absent. Distinct from the subscription-level Defender plan toggle owned by logging (CHK-LOG-DEFENDER-DISABLED) — this evaluates the per-server detection/VA configuration and its recurring scan + baseline state.
+  detection:
+    method: azure-cli
+    tool: "az rest --method GET .../servers/<server>/securityAlertPolicies/Default; az rest --method GET .../servers/<server>/vulnerabilityAssessments/Default (read-only)"
+    logic: securityAlertPolicies state != Enabled, OR no vulnerabilityAssessments resource with recurringScans.isEnabled == true and a storage/email destination configured.
+  attack_vector: SQL injection, anomalous data access, and exposed-database misconfigurations proceed without alerting or scan-driven remediation
+  recommendation: Enable Microsoft Defender for SQL on the server, configure recurring vulnerability assessment scans with a results store and baseline, and route alerts to the security contact.
+  controls:
+    cis_azure: ["4.1.x"]
+    mitre: ["T1190", "T1530"]
+    nist_csf: ["DE.CM-09"]
+  required_permissions: ["Reader", "Security Reader"]

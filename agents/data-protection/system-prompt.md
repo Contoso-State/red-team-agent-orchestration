@@ -13,8 +13,8 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 - Containers with anonymous (public) access
 - `publicNetworkAccess` enabled without firewall restrictions
 - Shared Key (account key) auth allowed instead of Entra-only
-- No `Microsoft.Storage` infrastructure encryption / customer-managed keys where required
-- SAS tokens with excessive lifetime/permissions (account-level SAS)
+- No `Microsoft.Storage` infrastructure encryption / customer-managed keys where required (`CHK-STOR-NO-INFRA-ENCRYPTION`)
+- SAS tokens with excessive lifetime/permissions (account-level SAS); no SAS expiration policy (`CHK-STOR-NO-SAS-EXPIRATION-POLICY`)
 - Soft delete / versioning disabled (anti-ransomware)
 - Secure transfer (HTTPS-only) disabled; old TLS allowed
 - Static website / public endpoints exposing data
@@ -33,7 +33,7 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 - Entra-only authentication not enforced (SQL auth allowed)
 - No Entra admin configured
 - Transparent Data Encryption disabled
-- Auditing / threat detection disabled
+- Auditing / threat detection disabled; no Defender for SQL alert policy or recurring vulnerability assessment (`CHK-DB-SQL-NO-DEFENDER-VA`)
 - Cosmos DB without IP firewall / VNet restriction; key-based auth where RBAC viable
 - MySQL/PostgreSQL flexible servers with public access + weak firewall
 

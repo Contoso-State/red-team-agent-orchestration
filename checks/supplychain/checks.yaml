@@ -128,3 +128,40 @@
   controls:
     mitre: ["T1190", "T1199"]
   required_permissions: ["Reader"]
+
+- check_id: CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT
+  title: Plaintext secrets exposed in deployment or automation surfaces
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: High
+  description: The deployment/automation supply chain exposes secrets in cleartext rather than via Key Vault references - Automation Account variables stored unencrypted (isEncrypted == false), deployment-template parameters captured in plaintext history instead of secureString/Key Vault references, or app/Function settings holding connection-string-shaped values that are not @Microsoft.KeyVault references. This is the Azure-side secret-scanning posture. Detection is metadata-only - the presence/shape of an exposed secret is flagged, never its value, which is always redacted.
+  detection:
+    method: azure-cli
+    tool: "az automation variable list --automation-account-name <acct> -g <rg> (isEncrypted flag); az deployment group list / show (parameter type, not value); az webapp config appsettings list (key + KV-reference shape only)"
+    logic: Automation variable with isEncrypted == false, OR a deployment parameter passed as plaintext where it should be secureString/Key Vault reference, OR an app setting/connection string whose value is inline rather than an @Microsoft.KeyVault(...) reference. Record only the location and that a secret-shaped value exists; never emit the value.
+  attack_vector: A reader of automation/deployment/app configuration harvests a live credential and reuses it, bypassing identity controls
+  recommendation: Store all automation/deployment secrets as encrypted variables or Key Vault references; pass deployment secrets as secureString sourced from Key Vault; rotate any value already exposed in plaintext or deployment history.
+  controls:
+    cis_azure: ["1.4"]
+    mitre: ["T1552.001", "T1195"]
+    nist_csf: ["PR.PS-01"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-SUP-NO-IMAGE-SCAN-ENFORCED
+  title: Container image vulnerability scanning not enforced in the deploy path
+  domain: supplychain
+  agent: devops-supplychain
+  mode: read-only
+  severity_default: Medium
+  description: Images in the registries feeding the pipeline are not subject to enforced vulnerability scanning before deployment - Defender for Containers registry/image scanning is not enabled, and no policy or quarantine gate blocks unscanned or vulnerable images from being pulled/deployed by the CI/CD identity. Framed from the supply-chain pipeline angle (push -> scan -> gate -> deploy), distinct from logging's subscription-level Containers plan toggle.
+  detection:
+    method: azure-cli
+    tool: "az security pricing show -n Containers (registry scanning sub-plan); az policy assignment list (image-scan / vulnerable-image gating policies); az rest --method GET .../registries/<r>?...$expand (quarantine policy, read-only)"
+    logic: Containers plan / registry image scanning not enabled, OR no Azure Policy assignment gates 'Container registry images should have vulnerability findings resolved' / blocks unscanned images, OR ACR quarantine policy is disabled so unscanned images are immediately pullable.
+  attack_vector: A vulnerable or backdoored image flows unscanned through the pipeline identity into running workloads
+  recommendation: Enable Defender for Containers registry/image scanning, gate deployment on resolved vulnerability findings via Azure Policy, and enable ACR quarantine so only scanned images are pullable.
+  controls:
+    mitre: ["T1525", "T1195.002"]
+    nist_csf: ["GV.SC-04"]
+  required_permissions: ["Reader", "Security Reader"]
