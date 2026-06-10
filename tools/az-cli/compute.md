@@ -88,3 +88,82 @@ az container list \
   --query "[?ipAddress.type=='Public'].{name:name,rg:resourceGroup,ip:ipAddress.ip,ports:ipAddress.ports}" -o json
 # Flag: external ingress with no ipSecurityRestrictions, or a container group with a public IP.
 ```
+
+## CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL — In-cluster K8s RBAC cluster-admin sprawl
+```bash
+# Pull a (non-admin) kubeconfig read-only, then enumerate in-cluster RBAC. NEVER list admin creds for mutation.
+az aks get-credentials --name <cluster> -g <rg> --overwrite-existing   # user kubeconfig (Entra-gated)
+# Who holds cluster-admin (and other privileged ClusterRoles) via bindings:
+kubectl get clusterrolebindings -o json \
+  --query "items[?roleRef.name=='cluster-admin'].{binding:metadata.name,subjects:subjects}"
+# Wildcard ClusterRoles (verbs/resources == '*') excluding system: roles:
+kubectl get clusterroles -o json   # inspect rules[].verbs / rules[].resources for '*'
+# Bindings exposed to everyone:
+kubectl get clusterrolebindings -o json   # flag subjects name == system:authenticated / system:unauthenticated
+# Optional accelerator (read-only): kubectl rbac-tool who-can '*' '*'  /  kubectl rbac-tool who-can get secrets
+# Flag: cluster-admin bound to non break-glass subjects, wildcard custom ClusterRoles, or binds to system:authenticated.
+```
+
+## CHK-COMP-AKS-NO-POD-SECURITY — Pod Security Standards not enforced / privileged pods
+```bash
+# Namespace-level Pod Security Admission enforcement labels:
+kubectl get ns -L pod-security.kubernetes.io/enforce -L pod-security.kubernetes.io/warn
+# Privileged / host-namespaced / root pods currently running:
+kubectl get pods -A -o json   # inspect spec.securityContext + containers[].securityContext
+#   privileged==true | hostNetwork/hostPID/hostIPC==true | hostPath volumes | runAsNonRoot!=true
+# Optional accelerator (read-only): kubescape scan framework nsa  /  kubesec scan <manifest.yaml>
+# Flag: non-system namespace without enforce=baseline|restricted, OR any privileged/host/root pod.
+```
+
+## CHK-COMP-AKS-NODE-MI-EXPOSURE — Workload Identity off; pods inherit node MI via IMDS
+```bash
+az aks list \
+  --query "[].{name:name,rg:resourceGroup,oidc:oidcIssuerProfile.enabled,workloadId:securityProfile.workloadIdentity.enabled,kubeletIdentity:identityProfile.kubeletidentity.objectId}" -o json
+# Cross-reference the node/kubelet MI's Azure role assignments (read-only):
+az role assignment list --assignee <kubeletIdentity-objectId> --all -o json
+# Flag: oidc != true OR workloadIdentity != true while kubelet identity holds role assignments (no NetworkPolicy to 169.254.169.254).
+```
+
+## CHK-COMP-AKS-OUTDATED-VERSION — Unsupported / outdated Kubernetes version
+```bash
+az aks list \
+  --query "[].{name:name,rg:resourceGroup,controlPlane:currentKubernetesVersion,nodePools:agentPoolProfiles[].{pool:name,ver:orchestratorVersion,img:nodeImageVersion}}" -o json
+# Supported version window for the region:
+az aks get-versions --location <region> --query "values[].version" -o json
+# Flag: control plane below oldest supported minor, or a node pool orchestratorVersion trailing control plane / latest patch.
+```
+
+## CHK-COMP-ACR-NO-DEFENDER-SCAN — Defender for Containers / registry scanning not enabled
+```bash
+# Subscription-level Defender for Containers plan:
+az security pricing show -n Containers --query "{name:name,tier:pricingTier}" -o json
+# Registry vulnerability-assessment findings (if plan enabled):
+az security assessment list --query "[?contains(displayName,'container') || contains(displayName,'registry')].{name:displayName,status:status.code}" -o json
+az acr list --query "[].{name:name,rg:resourceGroup,sku:sku.name}" -o json
+# Optional offline accelerator (read-only): trivy image <login-server>/<repo>@sha256:<digest>
+# Flag: Containers pricingTier == Free/absent, or registries lacking vulnerability-assessment coverage.
+```
+
+## CHK-COMP-ACR-NO-CONTENT-TRUST — Content trust / quarantine / immutability not enabled
+```bash
+az acr config content-trust show --registry <registry> -o json    # status: enabled/disabled
+az acr show --name <registry> \
+  --query "{sku:sku.name,policies:policies}" -o json               # trustPolicy / quarantinePolicy status
+az acr repository show --name <registry> --repository <repo> \
+  --query "{changeableAttributes:changeableAttributes}" -o json     # tag/manifest immutability
+# Flag: trustPolicy != enabled, quarantinePolicy != enabled, or mutable tags on a Premium registry.
+```
+
+## CHK-COMP-CONTAINER-IMAGE-VULN — Deployed images with critical/high CVEs or mutable tags
+```bash
+# Defender container image vulnerability findings:
+az security assessment list \
+  --query "[?contains(displayName,'image') && contains(displayName,'vulnerab')].{name:displayName,status:status.code}" -o json
+# Images currently referenced by running workloads (read-only):
+kubectl get pods -A -o jsonpath="{range .items[*]}{.metadata.namespace}{'/'}{.metadata.name}{'\t'}{range .spec.containers[*]}{.image}{' '}{end}{'\n'}{end}"
+# Container Apps / Instances image references:
+az containerapp list --query "[].{name:name,images:properties.template.containers[].image}" -o json
+az container list --query "[].{name:name,images:containers[].properties.image}" -o json
+# Optional offline accelerator (read-only): trivy image --severity HIGH,CRITICAL <image@sha256:digest>
+# Flag: a referenced digest maps to a CRITICAL/HIGH finding, or a workload uses a mutable tag (e.g. :latest).
+```

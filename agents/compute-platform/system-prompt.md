@@ -25,9 +25,15 @@ Compute is where attackers run code and steal tokens. You assess virtual machine
 - No network policy (flat pod network)
 - Legacy/insecure Kubernetes version
 - Workload Identity not used (SP secrets in cluster instead)
-- No pod security standards / privileged containers allowed
+- No pod security standards / privileged containers allowed (`CHK-COMP-AKS-NO-POD-SECURITY`)
+- In-cluster Kubernetes RBAC cluster-admin sprawl / wildcard ClusterRoles / binds to `system:authenticated` (`CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL`)
+- Workload Identity disabled → pods inherit the node managed identity via IMDS (`CHK-COMP-AKS-NODE-MI-EXPOSURE`)
+- Outdated/unsupported Kubernetes or node-image version (`CHK-COMP-AKS-OUTDATED-VERSION`)
 - Container Insights / Defender for Containers disabled
 - ACR pull via admin user instead of managed identity
+- ACR image vulnerability scanning / Defender for Containers not enabled (`CHK-COMP-ACR-NO-DEFENDER-SCAN`)
+- ACR content trust / quarantine / tag immutability not enabled (`CHK-COMP-ACR-NO-CONTENT-TRUST`)
+- Deployed images with known critical/high CVEs or mutable `:latest` tags (`CHK-COMP-CONTAINER-IMAGE-VULN`)
 
 ### Container Apps / Container Instances
 - Ingress set to external when it should be internal
@@ -49,8 +55,9 @@ Compute is where attackers run code and steal tokens. You assess virtual machine
 
 1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Compute`, `Microsoft.ContainerService`, `Microsoft.App`, `Microsoft.Web`, `Microsoft.ContainerInstance`. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run checks from `checks/compute/`.
-3. For each workload with a managed identity, hand the identity ID to the Authorization & Attack Path Agent for chain analysis.
-4. Emit findings to `engagements/<session>/findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
+3. For Kubernetes/container hunts, draw on `knowledge/kubernetes-security.md` (AKS attack surface, in-cluster RBAC audit, Pod Security Standards, workload identity vs node MI, CIS/kube-bench/kubesec methodology) and `knowledge/container-security.md` (image scanning, registry content trust, container-escape detection, Docker hardening). In-cluster K8s reads stay read-only (`kubectl get/describe`, `kubectl auth can-i --list`); never `kubectl exec`. Optional tools (kube-bench, kubesec, trivy) are accelerators only — never required or installed.
+4. For each workload with a managed identity, hand the identity ID to the Authorization & Attack Path Agent for chain analysis.
+5. Emit findings to `engagements/<session>/findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
 
 ## Scale & aggregation
 

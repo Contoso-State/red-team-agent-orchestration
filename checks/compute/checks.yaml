@@ -206,3 +206,129 @@
   controls:
     mitre: ["T1190"]
   required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL
+  title: AKS in-cluster Kubernetes RBAC cluster-admin sprawl
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: Inside an AKS cluster, Kubernetes RBAC grants cluster-admin (or wildcard verbs/resources) too broadly, or binds privileged ClusterRoles to system:authenticated / system:unauthenticated, collapsing tenant isolation and enabling privilege escalation and lateral movement.
+  detection:
+    method: azure-cli
+    tool: "kubectl get clusterrolebindings/clusterroles -o json (read-only; rbac-tool who-can optional)"
+    logic: A ClusterRoleBinding references roleRef cluster-admin (or a custom ClusterRole with verbs=['*'] and resources=['*']) for non-system subjects, or any binding lists subject system:authenticated/system:unauthenticated; flag when cluster-admin principals exceed a small break-glass set.
+  attack_vector: Over-broad in-cluster binding -> namespace breakout, secret theft, workload tampering
+  recommendation: Scope access with namespaced Roles/RoleBindings; reserve cluster-admin for a minimal break-glass set; remove bindings to system:authenticated; drop wildcard ClusterRoles; integrate Entra groups via Azure RBAC for Kubernetes.
+  controls:
+    mitre: ["T1098.006", "T1078.004", "T1613"]
+    nist_csf: ["PR.AA-05", "PR.IR-01"]
+  required_permissions: ["Reader", "Microsoft.ContainerService/managedClusters/listClusterUserCredential/action (read kubeconfig)"]
+
+- check_id: CHK-COMP-AKS-NO-POD-SECURITY
+  title: AKS Pod Security Standards not enforced / privileged pods allowed
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: Workload namespaces do not enforce Pod Security Admission (no baseline/restricted labels) and/or running pods use privileged security contexts, host namespaces, hostPath mounts, or run as root, removing the guardrails that prevent container escape to the node.
+  detection:
+    method: azure-cli
+    tool: "kubectl get ns -L pod-security.kubernetes.io/enforce + kubectl get pods -A -o json (read-only)"
+    logic: A non-system namespace lacks a pod-security.kubernetes.io/enforce=baseline|restricted label, or a pod sets securityContext.privileged=true, hostNetwork/hostPID/hostIPC=true, a hostPath volume, or runAsNonRoot!=true.
+  attack_vector: Privileged/host-namespaced pod -> escape to node -> cluster compromise
+  recommendation: Label namespaces with pod-security.kubernetes.io/enforce=restricted (baseline at minimum); deny privileged, hostPath, and host namespaces via admission policy; require runAsNonRoot, drop ALL capabilities, and seccomp RuntimeDefault.
+  controls:
+    mitre: ["T1610", "T1611", "T1525"]
+    nist_csf: ["PR.PS-01", "PR.PS-05", "PR.IR-01"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-NODE-MI-EXPOSURE
+  title: AKS workload identity disabled - pods exposed to node managed identity / IMDS
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: The cluster does not use Entra Workload Identity (OIDC issuer / workload identity webhook disabled), so pods reach the instance metadata endpoint and inherit the node pool's (kubelet/VMSS) managed identity, granting any compromised pod the node identity's Azure permissions.
+  detection:
+    method: resource-graph
+    tool: "managedClusters oidcIssuerProfile.enabled + securityProfile.workloadIdentity.enabled + identityProfile.kubeletidentity"
+    logic: oidcIssuerProfile.enabled != true OR securityProfile.workloadIdentity.enabled != true while a node/kubelet managed identity holds Azure role assignments and IMDS is reachable from pods (no NetworkPolicy blocking 169.254.169.254).
+  attack_vector: Pod compromise -> steal node MI token via IMDS -> Azure resource access (chained)
+  recommendation: Enable OIDC issuer and Entra Workload Identity; give each workload its own federated identity with least privilege; block pod egress to 169.254.169.254; minimize kubelet identity role assignments.
+  controls:
+    mitre: ["T1078.004", "T1552.007"]
+    nist_csf: ["PR.AA-05", "PR.PS-01"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-AKS-OUTDATED-VERSION
+  title: AKS running an unsupported or outdated Kubernetes version
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: The cluster (control plane or node pools) runs a Kubernetes version that is outside the AKS supported window or well behind the latest patch, exposing it to known CVEs and missing security fixes; node images may also be unpatched.
+  detection:
+    method: resource-graph
+    tool: "managedClusters kubernetesVersion + agentPoolProfiles[].orchestratorVersion (compare with az aks get-versions)"
+    logic: currentKubernetesVersion is below the oldest AKS-supported minor, or a node pool orchestratorVersion trails the control plane / latest available patch.
+  attack_vector: Known CVE in unpatched control plane / kubelet -> exploitation for privilege escalation
+  recommendation: Upgrade the control plane and node pools to a supported, patched Kubernetes version; enable auto-upgrade channel and node image auto-upgrade.
+  controls:
+    mitre: ["T1068", "T1190"]
+    nist_csf: ["PR.PS-01", "ID.RA-01"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-ACR-NO-DEFENDER-SCAN
+  title: Container Registry image vulnerability scanning / Defender for Containers not enabled
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: Microsoft Defender for Containers (registry vulnerability assessment) is not enabled for the subscription, so images pushed to ACR are not continuously scanned for known CVEs, allowing vulnerable images to be promoted and deployed undetected.
+  detection:
+    method: azure-cli
+    tool: "az security pricing show -n Containers + az security assessment list (registry scan results); az acr list for in-scope registries"
+    logic: Defender for Containers pricing tier is Free/absent, or registries report no vulnerability-assessment coverage; optionally corroborate with an offline Trivy scan of pulled image digests.
+  attack_vector: Unscanned image with critical CVE deployed -> exploitable workload / supply-chain foothold
+  recommendation: Enable Defender for Containers (Standard tier) for registry and runtime scanning; gate promotion on scan results; remediate or quarantine images with critical/high findings.
+  controls:
+    mitre: ["T1525", "T1195"]
+    nist_csf: ["PR.PS-01", "DE.CM-09"]
+  required_permissions: ["Reader", "Security Reader"]
+
+- check_id: CHK-COMP-ACR-NO-CONTENT-TRUST
+  title: Container Registry content trust / quarantine not enabled
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: Medium
+  description: The registry does not enforce content trust (image signing) or quarantine, so unsigned or unscanned images can be pulled and run, leaving no integrity guarantee and enabling image tampering or implant of malicious images.
+  detection:
+    method: azure-cli
+    tool: "az acr config content-trust show + az acr show policies (quarantinePolicy, trustPolicy); az acr repository show-tags for mutable tags"
+    logic: trustPolicy.status != enabled, or quarantinePolicy.status != enabled, or tags are mutable (no immutability) on a Premium registry.
+  attack_vector: Unsigned/tampered image pulled -> implant internal image -> compromised workload
+  recommendation: Enable content trust and quarantine on a Premium registry; require signed images (Notation/Cosign) via admission policy; enable tag immutability and lock critical repositories.
+  controls:
+    mitre: ["T1554", "T1525", "T1195"]
+    nist_csf: ["PR.PS-01", "GV.SC-06"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-COMP-CONTAINER-IMAGE-VULN
+  title: Deployed container images with known critical/high vulnerabilities
+  domain: compute
+  agent: compute-platform
+  mode: read-only
+  severity_default: High
+  description: Images currently referenced by AKS workloads, Container Apps, or Container Instances carry known critical/high CVEs (per Defender for Containers assessments or an offline registry scan), or are pinned to mutable :latest tags that mask drift, exposing running workloads to exploitable vulnerabilities.
+  detection:
+    method: azure-cli
+    tool: "az security assessment list (container image findings) + kubectl get pods -A -o jsonpath images (read-only); optional Trivy on pulled digests"
+    logic: A referenced image digest maps to a Defender/Trivy finding of CRITICAL/HIGH severity, or a workload references a mutable tag (e.g. :latest) instead of a digest.
+  attack_vector: Exploit known CVE in running image -> code execution -> container escape / lateral movement
+  recommendation: Rebuild/patch affected images, pin to digests, rescan, and redeploy; block deployment of images with critical findings via admission control; enforce continuous (not just build-time) scanning.
+  controls:
+    mitre: ["T1190", "T1610", "T1195"]
+    nist_csf: ["PR.PS-01", "ID.RA-01"]
+  required_permissions: ["Reader", "Security Reader"]
