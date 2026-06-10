@@ -227,6 +227,28 @@ function ingestFacts(db, items) {
   return n;
 }
 
+/** Graph edges (VM->NIC->PublicIP, principal->role->scope) for attack-path joins. */
+function ingestRelationships(db, items) {
+  const ins = db.prepare(
+    `INSERT INTO relationships (src_resource_id,dst_resource_id,edge_type,props_json,collected_at)
+     VALUES (?,?,?,?,?)
+     ON CONFLICT(src_resource_id,dst_resource_id,edge_type) DO UPDATE SET
+       props_json=excluded.props_json, collected_at=excluded.collected_at`
+  );
+  const at = nowIso();
+  let n = 0;
+  for (const r of items) {
+    const src = r?.src_resource_id ?? r?.src ?? r?.source;
+    const dst = r?.dst_resource_id ?? r?.dst ?? r?.target;
+    const edge = r?.edge_type ?? r?.edge ?? r?.type;
+    if (!src || !dst || !edge) continue;
+    const props = r.props_json ?? (r.props !== undefined ? JSON.stringify(r.props) : null);
+    ins.run(src, dst, edge, props, r.collected_at ?? at);
+    n++;
+  }
+  return n;
+}
+
 /** Tasks.jsonl is append-only; reduce to last-write-wins per task_id before loading. */
 function ingestTasks(db, records) {
   const state = new Map();
@@ -256,6 +278,7 @@ function discover(session) {
   return {
     resources: pick(join(s, 'inventory', 'resources.json'), join(s, 'inventory', 'resources.jsonl')),
     subscriptions: pick(join(s, 'inventory', 'subscriptions.json')),
+    relationships: pick(join(s, 'inventory', 'relationships.json'), join(s, 'relationships.json')),
     coverage: pick(join(s, 'coverage.json'), join(s, 'inventory', 'coverage.json'), join(s, 'reports', 'coverage.json')),
     tasks: pick(join(s, 'runs', 'tasks.jsonl')),
     findings: existsSync(findingsDir) ? findingsDir : pick(join(s, 'findings', 'normalized', 'findings.json')),
@@ -282,6 +305,7 @@ function main() {
   const tasksPath = args.tasks ?? src.tasks;
   const findingsArg = args.findings ?? src.findings;
   const factsPath = args.facts;
+  const relPath = args.relationships ?? src.relationships;
 
   const db = existsSync(resolve(process.cwd(), args.db)) ? openDb(args.db, { create: true }) : initDb(args.db, {});
   const etlRunId = nowIso();
@@ -291,6 +315,7 @@ function main() {
     if (resourcesPath && existsSync(resourcesPath)) stats.resources = ingestResources(db, readRecords(resourcesPath), etlRunId);
     if (subsPath && existsSync(subsPath)) stats.subscriptions = ingestSubscriptions(db, readRecords(subsPath));
     if (factsPath && existsSync(resolve(process.cwd(), factsPath))) stats.facts = ingestFacts(db, readRecords(factsPath));
+    if (relPath && existsSync(resolve(process.cwd(), relPath))) stats.relationships = ingestRelationships(db, readRecords(relPath));
 
     const files = findingFiles(findingsArg);
     if (files.length) {

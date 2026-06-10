@@ -109,6 +109,20 @@ function cmdCoverage(db, args) {
   print(db.prepare(sql).all(...params));
 }
 
+function cmdNeighbors(db, args) {
+  if (!args.resource) { console.error('Error: --resource <id> is required.'); process.exit(1); }
+  const col = args.reverse ? 'dst_resource_id' : 'src_resource_id';
+  const other = args.reverse ? 'src_resource_id' : 'dst_resource_id';
+  let sql = `SELECT ${other} AS resource_id, edge_type, props_json FROM relationships WHERE ${col} = ?`;
+  const params = [args.resource];
+  if (typeof args.edge === 'string') { sql += ' AND edge_type = ?'; params.push(args.edge); }
+  sql += ' ORDER BY edge_type, resource_id';
+  print(db.prepare(sql).all(...params).map((r) => ({
+    resource_id: r.resource_id, edge_type: r.edge_type,
+    props: r.props_json ? JSON.parse(r.props_json) : null,
+  })));
+}
+
 function cmdNextTasks(db, args) {
   let sql = "SELECT * FROM tasks WHERE status IN ('pending','failed','throttled') ORDER BY task_id";
   if (args.limit) sql += ` LIMIT ${parseInt(args.limit, 10)}`;
@@ -136,6 +150,7 @@ Commands (all need --db <path>):
   fresh --resource <id> --key <k> --ttl <seconds>
   findings [--severity S] [--agent A] [--status st] [--class c] [--full]
   coverage [--status s] [--domain d]
+  neighbors --resource <id> [--edge t] [--reverse]
   next-tasks [--limit N]
   stats`;
 }
@@ -152,6 +167,7 @@ function main() {
       case 'fresh': return cmdFresh(db, args);
       case 'findings': return cmdFindings(db, args);
       case 'coverage': return cmdCoverage(db, args);
+      case 'neighbors': return cmdNeighbors(db, args);
       case 'next-tasks': return cmdNextTasks(db, args);
       case 'stats': return cmdStats(db);
       default:
