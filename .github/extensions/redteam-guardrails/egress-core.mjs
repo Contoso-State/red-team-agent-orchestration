@@ -371,6 +371,35 @@ export function externalTestingGate(cwd, now = new Date()) {
 //   { deny: false }                       -> allow (no external egress, or fully in-scope)
 // ---------------------------------------------------------------------------
 
+/**
+ * Verify that a scanner target-list file only references in-scope hosts. The engagement
+ * allowlist JSON itself is always accepted (fast path). For any other file, every public
+ * host listed must be on the allowlist; an unreadable file fails closed (we cannot prove
+ * scope). Comment lines (`#`) and local/private entries are ignored.
+ */
+export function verifyTargetFile(absPath, allowlist) {
+  if (absPath === allowlist.path) return { ok: true };
+  let text;
+  try {
+    text = readFileSync(absPath, 'utf8');
+  } catch {
+    return { ok: false, reason: `cannot read scanner target-list file '${absPath}' to verify it is in scope` };
+  }
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const cls = classifyCandidate(line);
+    if (!cls) continue; // local/private/non-host line is not external egress
+    if (!onAllowlist(cls.host, allowlist)) {
+      return {
+        ok: false,
+        reason: `scanner target-list file '${absPath}' contains out-of-scope host '${cls.host}'`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
 export function evaluateEgress(toolArgs, cwd, toolName = '', now = new Date()) {
   const command = extractCommand(toolArgs, toolName);
   if (!command) return { deny: false };
@@ -391,17 +420,11 @@ export function evaluateEgress(toolArgs, cwd, toolName = '', now = new Date()) {
           reason: `${gate.reason}`,
         };
       }
-      // Any scanner target-list file must be exactly the engagement allowlist file.
+      // Any scanner target-list file must only reference in-scope hosts.
       for (const f of probe.files) {
-        if (resolve(cwd || '.', f) !== gate.allowlist.path) {
-          return {
-            deny: true,
-            tool: probe.tool,
-            segment,
-            reason:
-              `scanner target-list '${f}' is not the engagement allowlist ` +
-              `(${gate.allowlist.path}); EVA may only read targets from the Azure-derived scope file`,
-          };
+        const v = verifyTargetFile(resolve(cwd || '.', f), gate.allowlist);
+        if (!v.ok) {
+          return { deny: true, tool: probe.tool, segment, reason: v.reason };
         }
       }
       // Every explicit target must be on the Azure-derived allowlist.
