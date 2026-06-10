@@ -208,4 +208,24 @@ assert.strictEqual(evaluate("az vm create -n v -g rg", dir).deny, true,
   "read-only-assessment must DENY mutations");
 pass++;
 
+// --- robustness: evaluate() must NEVER throw (the wiring fails CLOSED on a throw, but
+// the contract is that pathological/adversarial input still returns a decision object). ---
+const pathological = [
+  "", "   ", "az", "az ", "az rest", "az rest --method", "az rest -m",
+  "`".repeat(50), "az " + "(".repeat(200), "az group delete; ".repeat(100),
+  "-EncodedCommand !!!notbase64!!!", "pwsh -Command '", "az --", "az --=",
+  "Remove-Az", "Invoke-AzRestMethod -M", "az \"unterminated", "az group\u2028delete",
+  "az rest --method $(echo POST)", "${IFS}az${IFS}vm${IFS}delete",
+];
+for (const cmd of pathological) {
+  let d;
+  assert.doesNotThrow(() => { d = evaluate({ command: cmd }, "/nonexistent", "execute"); },
+    `evaluate must not throw on: ${JSON.stringify(cmd)}`);
+  assert.strictEqual(typeof d.deny, "boolean", `decision.deny must be boolean for: ${JSON.stringify(cmd)}`);
+  pass++;
+}
+assert.doesNotThrow(() => evaluate(undefined, undefined, undefined), "evaluate must tolerate undefined args");
+assert.doesNotThrow(() => evaluate({}, "/nonexistent", "execute"), "evaluate must tolerate empty args");
+pass += 2;
+
 console.log(`OK — ${pass} guardrail assertions passed`);

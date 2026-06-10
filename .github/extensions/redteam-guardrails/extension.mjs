@@ -25,8 +25,27 @@ const session = await joinSession({
     }),
 
     onPreToolUse: async (input) => {
-      const decision = evaluate(input.toolArgs, input.workingDirectory, input.toolName);
-      if (!decision.deny && !decision.ask) return undefined;
+      // Fail CLOSED: if evaluation throws for any reason (pathological command, parser
+      // bug, unexpected input shape), we cannot prove the command is read-only, so we
+      // must deny rather than risk letting a mutating Azure command through. A security
+      // control that fails open is no control at all.
+      let decision;
+      try {
+        decision = evaluate(input.toolArgs, input.workingDirectory, input.toolName);
+      } catch (err) {
+        await session.log(
+          `redteam-guardrails evaluation error — failing closed (deny): ${err?.stack || err}`,
+          { level: "error" }
+        );
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            "Red team guardrail could not evaluate this command, so it was blocked to " +
+            "preserve the read-only guarantee (fail-closed). Re-run a clearly read-only " +
+            "Azure command (list/show/get/query/Get-Az*), or report this guardrail error.",
+        };
+      }
+      if (!decision || (!decision.deny && !decision.ask)) return undefined;
 
       const mode = engagementMode(input.workingDirectory);
 
