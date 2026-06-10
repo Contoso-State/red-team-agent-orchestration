@@ -11,6 +11,10 @@
 //   - resource-graph ext   (inventory + scope brief run `az graph query`)
 //   - engagement.yaml       (your scope file — created by /setup)
 //
+// It also reports (informational, never a blocker) which optional EVA external
+// scanners (nuclei/httpx/testssl/nikto/whatweb/zap/sqlmap/semgrep) are on PATH and
+// therefore which active External Vulnerability Agent tiers are available.
+//
 // READ-ONLY: this only *reads* tool versions and your signed-in account. It runs
 // `az version`, `az account show`, and `az extension show` (all read/query) and
 // touches no Azure resources. It mutates nothing and stores nothing.
@@ -25,7 +29,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, delimiter } from "node:path";
 
 const pexec = promisify(execFile);
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -46,6 +50,38 @@ export function meetsMinimum(version, min) {
   if (!version) return false;
   if (version.major !== min.major) return version.major > min.major;
   return version.minor >= min.minor;
+}
+
+// The optional external scanners EVA can orchestrate, mapped to the executable name
+// probed on PATH. safe-active needs none (the built-in prober is dependency-free).
+export const EVA_TOOLS = {
+  nuclei: "nuclei",
+  httpx: "httpx",
+  testssl: "testssl.sh",
+  nikto: "nikto",
+  whatweb: "whatweb",
+  zap: "zap-baseline.py",
+  sqlmap: "sqlmap",
+  semgrep: "semgrep",
+};
+
+/**
+ * Given the set/array of EVA tool keys found on PATH, report which EVA tiers are available.
+ * - safe-active is ALWAYS available (dependency-free built-in prober).
+ * - active-dast needs at least one network scanner.
+ * - exploit-validation needs sqlmap (the only bundled exploit-grade tool).
+ * - static-analysis needs semgrep (OFFLINE).
+ * Pure + unit-tested.
+ */
+export function evaTiersFromTools(present) {
+  const have = new Set(Array.isArray(present) ? present : [...(present ?? [])]);
+  const dastTools = ["nuclei", "httpx", "testssl", "nikto", "whatweb", "zap"];
+  return {
+    "safe-active": true,
+    "active-dast": dastTools.some((t) => have.has(t)),
+    "exploit-validation": have.has("sqlmap"),
+    "static-analysis": have.has("semgrep"),
+  };
 }
 
 // ---- environment probes ------------------------------------------------------
@@ -138,6 +174,45 @@ function checkEngagementFile() {
   };
 }
 
+/** True if an executable named `name` is found on PATH (honors PATHEXT on Windows). Reads fs only. */
+export function commandOnPath(name, env = process.env, isWin = IS_WIN) {
+  const path = env.PATH || env.Path || "";
+  if (!path) return false;
+  const dirs = path.split(delimiter).filter(Boolean);
+  const exts = isWin ? (env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
+  for (const dir of dirs) {
+    if (existsSync(join(dir, name))) return true; // exact name (covers *.sh / *.py / unix)
+    if (isWin) {
+      for (const ext of exts) {
+        if (existsSync(join(dir, name + ext)) || existsSync(join(dir, name + ext.toLowerCase()))) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Optional: detect which EVA external scanners are installed and report available tiers.
+// Never required — EVA is off by default and its Tier-1 prober is dependency-free.
+function checkExternalTools() {
+  const present = Object.keys(EVA_TOOLS).filter((k) => commandOnPath(EVA_TOOLS[k]));
+  const tiers = evaTiersFromTools(present);
+  const available = Object.entries(tiers).filter(([, v]) => v).map(([k]) => k);
+  const detail = present.length
+    ? `installed: ${present.join(", ")} -> tiers: ${available.join(", ")}`
+    : "no external scanners on PATH -> tiers: safe-active (built-in prober only)";
+  return {
+    name: "EVA external scanners",
+    required: false, // EVA is opt-in; missing scanners only limit which active tiers are available
+    ok: true,        // informational — never a blocker
+    detail,
+    eva_tools_present: present,
+    eva_tiers_available: available,
+    remedy: present.length
+      ? null
+      : "Optional: install nuclei/httpx/testssl.sh/nikto/whatweb/zap/sqlmap/semgrep to unlock active EVA tiers.",
+  };
+}
+
 function oneLine(err) {
   return String(err?.stderr || err?.message || err).split("\n")[0].slice(0, 160);
 }
@@ -153,7 +228,7 @@ export async function runChecks() {
     checkAzLogin(),
     checkResourceGraphExtension(),
   ]);
-  return [node, azInstalled, azLogin, rgExt, checkEngagementFile()];
+  return [node, azInstalled, azLogin, rgExt, checkEngagementFile(), checkExternalTools()];
 }
 
 function render(results) {

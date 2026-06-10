@@ -1,7 +1,7 @@
 // Unit tests for the environment doctor's pure version logic.
 // Run: node tools/preflight/check-environment.test.mjs
 import assert from "node:assert";
-import { parseNodeVersion, meetsMinimum } from "./check-environment.mjs";
+import { parseNodeVersion, meetsMinimum, evaTiersFromTools, commandOnPath } from "./check-environment.mjs";
 
 let pass = 0;
 const eq = (a, b, msg) => { assert.deepStrictEqual(a, b, msg); pass++; };
@@ -27,5 +27,23 @@ ok(!meetsMinimum({ major: 22, minor: 4 }, MIN), "lower minor fails");
 ok(!meetsMinimum({ major: 21, minor: 99 }, MIN), "lower major fails");
 ok(!meetsMinimum({ major: 18, minor: 0 }, MIN), "LTS 18 fails (no node:sqlite)");
 ok(!meetsMinimum(null, MIN), "null version fails closed");
+
+// --- evaTiersFromTools ---
+eq(evaTiersFromTools([]), { "safe-active": true, "active-dast": false, "exploit-validation": false, "static-analysis": false }, "no tools -> only safe-active");
+eq(evaTiersFromTools(["nuclei"])["active-dast"], true, "nuclei unlocks active-dast");
+eq(evaTiersFromTools(["whatweb"])["active-dast"], true, "whatweb unlocks active-dast");
+eq(evaTiersFromTools(["sqlmap"])["exploit-validation"], true, "sqlmap unlocks exploit-validation");
+eq(evaTiersFromTools(["sqlmap"])["active-dast"], false, "sqlmap alone does not unlock active-dast");
+eq(evaTiersFromTools(["semgrep"])["static-analysis"], true, "semgrep unlocks static-analysis");
+eq(evaTiersFromTools(["semgrep"])["active-dast"], false, "semgrep alone does not unlock active-dast");
+ok(evaTiersFromTools(new Set(["httpx"]))["active-dast"], "accepts a Set");
+eq(evaTiersFromTools(["semgrep", "nuclei", "sqlmap"]), { "safe-active": true, "active-dast": true, "exploit-validation": true, "static-analysis": true }, "all tiers unlocked");
+
+// --- commandOnPath ---
+ok(!commandOnPath("definitely-not-a-real-tool-xyz"), "missing command not found");
+{
+  const env = { PATH: "" };
+  ok(!commandOnPath("anything", env, false), "empty PATH -> false");
+}
 
 console.log(`OK — ${pass} environment-doctor assertions passed`);
