@@ -13,6 +13,26 @@ engagements/*
 *.sarif
 *.ndjson
 
+# Defense-in-depth: assessment artifacts (raw inventory, findings, coverage,
+# orchestration state) MUST always be written under engagements/<session>/ and
+# are already ignored by the rule above. These belt-and-suspenders patterns also
+# ignore them if a tool is ever run with output redirected elsewhere (e.g. repo
+# root), so raw customer/target data can never be staged by accident. Tracked
+# samples use distinct names (findings.json, *.schema.json, *.scale.json) and are
+# unaffected. If you ever need a tracked file with one of these names, add a
+# negation (e.g. !path/to/keep.json).
+resources.json
+resources.jsonl
+subscriptions.json
+summary.json
+scope-brief.json
+scope-brief.md
+coverage.json
+coverage.md
+coverage-limitations.json
+estimate.json
+tasks.jsonl
+
 # Engagement scope files with real target data
 engagement.yaml
 engagement.yml
