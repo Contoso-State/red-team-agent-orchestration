@@ -1,6 +1,7 @@
 ---
 title: Azure Red Team Agent Orchestration
 description: An agentic red team for Azure cloud security.
+thumbnail: assets/social-card.png
 ---
 
 ![Azure Red Team Agent Orchestration](assets/banner.svg)
