@@ -34,25 +34,53 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
    `SubscriptionId`, `Name`, and `TenantId`. Confirm the selection back to the user in one line:
    `Assessing: <Name> (<SubscriptionId>) in tenant <TenantId>`.
 
-6. **Collect the remaining required fields** (ask, with sensible defaults the user can accept):
+6. **Ask the assessment focus (scope *within* the subscription).** A subscription can hold
+   thousands of resources, so ask the user what they want to focus on rather than assessing
+   everything blindly. Ask: **"What is your assessment focus for this subscription?"** and present
+   this menu (multi-select; default **Full estate**):
+
+   | # | Focus | Maps to `scope.domains` | Example `scope.resource_types` |
+   |---|---|---|---|
+   | 1 | **Full estate** — assess everything (default) | *(all)* | *(all)* |
+   | 2 | **Public / internet exposure** — Public IPs, NSGs, firewalls, front doors, WAF | `network-exposure`, `attack-surface`, `web-exposure` | `microsoft.network/publicipaddresses`, `microsoft.network/networksecuritygroups`, `microsoft.network/azurefirewalls`, `microsoft.network/applicationgateways`, `microsoft.cdn/*` |
+   | 3 | **Virtual Machines & compute** — VMs, scale sets, AKS, containers, App Service | `compute-platform` | `microsoft.compute/*`, `microsoft.containerservice/managedclusters`, `microsoft.containerregistry/registries`, `microsoft.web/sites`, `microsoft.app/*` |
+   | 4 | **Data stores** — Storage, Key Vault, SQL, Cosmos DB | `data-protection` | `microsoft.storage/storageaccounts`, `microsoft.keyvault/vaults`, `microsoft.sql/servers`, `microsoft.documentdb/databaseaccounts` |
+   | 5 | **Identity & access** — Entra ID, RBAC, managed identities, privilege escalation | `identity-posture`, `authorization-attack-path` | `microsoft.authorization/*`, `microsoft.managedidentity/*` |
+   | 6 | **AI / Foundry** — Azure OpenAI, Cognitive Services, ML / AI Foundry | `ai-foundry` | `microsoft.cognitiveservices/accounts`, `microsoft.machinelearningservices/*` |
+   | 7 | **Logging & governance** — monitoring coverage, Policy, Defender posture | `logging-coverage`, `governance-posture` | `microsoft.insights/*`, `microsoft.operationalinsights/workspaces` |
+   | 8 | **DevOps & supply chain** — ACR, OIDC creds, automation, Logic Apps | `devops-supplychain` | `microsoft.containerregistry/registries`, `microsoft.automation/automationaccounts`, `microsoft.logic/workflows` |
+   | 9 | **Specific resource types** — let me name them (e.g. *just Virtual Machines*, *just Public IP addresses*) | *(inferred)* | *(the exact ARM types the user names)* |
+
+   - Let the user pick one or several presets, or **option 9** to name specific resource types
+     directly ("just VMs and public IPs"). Translate friendly names to ARM types
+     (Virtual Machines → `microsoft.compute/virtualmachines`, Public IP addresses →
+     `microsoft.network/publicipaddresses`, Storage → `microsoft.storage/storageaccounts`, etc.).
+   - Write the union of the selected domains into `scope.domains` and the union of resource types
+     into `scope.resource_types`. If they choose **Full estate**, leave both empty (= all).
+   - Confirm back in one line, e.g. `Focus: Public exposure + Virtual Machines (domains: network-exposure, attack-surface, web-exposure, compute-platform)`.
+
+7. **Collect the remaining required fields** (ask, with sensible defaults the user can accept):
    - `authorized_by` — email of the person authorizing the assessment **(required, no default)**.
    - `engagement.name` — defaults to `"<SubscriptionName> Azure Security Assessment"`.
    - `mode` — default `read-only-assessment`. Explain the three modes briefly; only change on request.
    - `resource_groups` — default `["*"]` (all). Ask if they want to scope to specific groups.
    - `start_date` / `end_date` — default to today and +30 days.
 
-7. **Write `engagement.yaml`.** Copy `engagement.example.yaml` and fill in the collected values:
-   `scope.tenant_id`, the chosen subscription `id` + `name`, `resource_groups`, `engagement.*`, and
-   `mode`. Leave the `permissions`, `data_handling`, and `caller` blocks at their safe defaults
+8. **Write `engagement.yaml`.** Copy `engagement.example.yaml` and fill in the collected values:
+   `scope.tenant_id`, the chosen subscription `id` + `name`, `resource_groups`,
+   `scope.resource_types`, `scope.domains` (from the assessment focus in step 6), `engagement.*`,
+   and `mode`. Leave the `permissions`, `data_handling`, and `caller` blocks at their safe defaults
    unless the user asked otherwise. **Never invent a tenant or subscription ID** — only use values
    returned by `az account list`.
 
-8. **Validate** the result against `schemas/engagement.schema.json`. Fix anything that fails.
+9. **Validate** the result against `schemas/engagement.schema.json`. Fix anything that fails.
 
-9. **Confirm and hand off.** Echo a one-line scope summary (engagement ID, mode, target subscription,
-   exclusions) and tell the user the next step is `/recon`. Note that `/recon` opens a fresh
-   per-run session folder `engagements/<engagement-id>-<timestamp>/` where **all** output (inventory,
-   findings, evidence, reports) is written and which is fully gitignored.
+10. **Confirm and hand off.** Echo a one-line scope summary (engagement ID, mode, target subscription,
+    assessment focus, exclusions) and tell the user the next step is `/recon`. Note that `/recon`
+    opens a fresh per-run session folder `engagements/<engagement-id>-<timestamp>/` where **all**
+    output (inventory, findings, evidence, reports) is written and which is fully gitignored. Mention
+    that after inventory, `/recon` can **refine the focus against what's actually present** (e.g.
+    "I found 1,200 storage accounts and 18 public IPs — want to start with the exposed surface?").
 
 ## Output
 

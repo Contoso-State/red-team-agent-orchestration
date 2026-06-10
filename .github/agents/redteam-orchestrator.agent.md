@@ -38,7 +38,11 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
 
 1. **Validate scope.** Load `engagement.yaml`; validate against `schemas/engagement.schema.json`.
    If missing, tell the user to run `/setup` (or copy `engagement.example.yaml`) and stop. Echo a one-line scope
-   summary and the `mode` (default `read-only-assessment`). Track phases in the todo list.
+   summary and the `mode` (default `read-only-assessment`). **Confirm the assessment focus:** if
+   `scope.resource_types` / `scope.domains` are empty, ask *"What is your assessment focus for this
+   subscription?"* (Full estate · Public/internet exposure · Virtual Machines & compute · Data stores ·
+   Identity & access · AI/Foundry · Logging & governance · DevOps & supply chain · or specific resource
+   types like *just VMs* / *just Public IPs*) and record the chosen domains/types. Track phases in the todo list.
 2. **Preflight (sequential).** Dispatch `Red Team Inventory & Scope` first. Do not proceed until
    `engagements/<session>/inventory/resources.jsonl` exists and permissions are validated.
 3. **Domain assessment (parallel).** Dispatch the order-2 agents. Pass each: the engagement scope,

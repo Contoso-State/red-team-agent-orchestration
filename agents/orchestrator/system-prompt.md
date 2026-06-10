@@ -32,12 +32,20 @@ Execute these phases in order. Track progress in the session todo list.
 ### Phase 1 — Scope Validation
 - Read `engagement.yaml`. If missing, instruct the user to copy `engagement.example.yaml`.
 - Confirm `mode`, target subscriptions, exclusions, and permitted actions.
+- **Confirm the assessment focus.** A subscription can hold thousands of resources, so do not assess
+  everything blindly unless asked. If `scope.resource_types` / `scope.domains` are empty, ask the user
+  **"What is your assessment focus for this subscription?"** and offer the focus menu (Full estate ·
+  Public/internet exposure · Virtual Machines & compute · Data stores · Identity & access · AI/Foundry ·
+  Logging & governance · DevOps & supply chain · or specific resource types like *just VMs* or *just
+  Public IPs*). Map the answer to `scope.domains` and `scope.resource_types` (see `/setup` for the full
+  mapping table) and record it in the session's snapshot. "Full estate" leaves both empty (= all).
 - **Open the session folder.** Derive `<session>` = `<engagement.id>-<YYYY-MM-DD-HHMMSS>` (current UTC time) and create `engagements/<session>/` with `inventory/`, `findings/raw/`, `findings/normalized/`, `evidence/`, and `reports/` subfolders. Snapshot the resolved scope to `engagements/<session>/engagement.yaml` so the session folder is self-contained. Tell every dispatched agent the exact `<session>` path to write under.
-- Echo back a one-line scope summary to the user for confirmation, including the session folder path.
+- Echo back a one-line scope summary to the user for confirmation, including the assessment focus and the session folder path.
 
 ### Phase 2 — Preflight + Inventory
 - Dispatch **Inventory & Scope Agent** (`agents/inventory-scope/system-prompt.md`).
 - It validates the caller's Azure RBAC and builds `engagements/<session>/inventory/resources.jsonl` plus a **scope brief** (`inventory/scope-brief.json` — counts, rollups, internet-facing surface, paging flags).
+- **Refine the focus against reality.** Once the scope brief exists, show the user the actual composition (e.g. "1,200 storage accounts, 200 VMs, 18 public IPs across 12 resource types") and offer to narrow or confirm the focus before the expensive work runs. This is where an up-front "Full estate" can become a deliberate "start with the exposed surface". Update `scope.resource_types` / `scope.domains` accordingly.
 - **Estimate before you assess.** On a large estate, run `node tools/orchestration/estimate-cost.mjs` against the scope brief to project API calls / wall-clock per domain. If the estimate exceeds the engagement `scale.time_budget_min` or `scale.max_resource_calls`, tighten scope (`scope.resource_types`, `scope.domains`, `scale.sample_per_type`) before dispatching, and tell the user the trade-off.
 - Review `coverage_limitations` — note any blind spots for the final report.
 

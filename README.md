@@ -23,6 +23,7 @@
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><b>📖 Documentation</b></a> ·
   <a href="#-quick-start"><b>Quick Start</b></a> ·
   <a href="#-how-it-works"><b>How It Works</b></a> ·
+  <a href="#-scoping-large-subscriptions"><b>Scoping at Scale</b></a> ·
   <a href="#-agent-team"><b>Agent Team</b></a> ·
   <a href="#-session-output"><b>Session Output</b></a> ·
   <a href="#-operating-modes"><b>Operating Modes</b></a> ·
@@ -105,6 +106,49 @@ graph TD
     Reporter -->|Final report| User
 ```
 
+## 🎯 Scoping Large Subscriptions
+
+A single Azure subscription can hold **thousands of resources**, so the team does **not** blindly
+assess everything. Instead of enumerating every resource one-by-one (slow, throttled, noisy), it
+runs an **aggregation-first, budget-bounded** workflow and lets you steer it.
+
+**It asks what you care about.** During `/setup` (and again in `/recon` once the inventory exists)
+the Orchestrator asks **"What is your assessment focus for this subscription?"**:
+
+| Focus | What it targets |
+|---|---|
+| **Full estate** | Everything (default) |
+| **Public / internet exposure** | Public IPs, NSGs, firewalls, Front Door / WAF |
+| **Virtual Machines & compute** | VMs, scale sets, AKS, containers, App Service |
+| **Data stores** | Storage, Key Vault, SQL, Cosmos DB |
+| **Identity & access** | Entra ID, RBAC, managed identities, privilege escalation |
+| **AI / Foundry** | Azure OpenAI, Cognitive Services, ML / AI Foundry |
+| **Logging & governance** | Monitoring coverage, Policy, Defender posture |
+| **DevOps & supply chain** | ACR, OIDC creds, automation, Logic Apps |
+| **Specific resource types** | Name them — e.g. *just Virtual Machines*, *just Public IP addresses* |
+
+Your answer fills `scope.domains` and `scope.resource_types` in `engagement.yaml`, which **Azure
+Resource Graph applies server-side** — so a "just VMs and public IPs" run never even pulls the other
+9,000 resources back. After inventory, `/recon` shows the real composition and lets you narrow
+further ("start with the exposed surface?").
+
+**How the run stays bounded** (see [`knowledge/scaling.md`](knowledge/scaling.md)):
+
+- **Census cheap, sample expensive** — Resource Graph filters server-side and returns only vulnerable candidates; per-resource (data-plane) calls are a budgeted fallback, not the default.
+- **Aggregate by default** — one misconfiguration across 800 storage accounts is **one finding** with `affected_resources[]`, not 800. Findings carry a `finding_class` + `dedupe_key` so identical issues collapse, even across subscriptions.
+- **Budgets, not best-effort** — `scale.*` knobs (`sample_per_type`, `max_resource_calls`, `time_budget_min`, `concurrency`, `prioritize_exposed`) cap the work; `tools/orchestration/estimate-cost.mjs` projects API calls / runtime *before* the run so you can narrow scope first.
+- **Durable, resumable orchestration** — work is a task manifest keyed by `(agent, subscription, check, scope)`; an interrupted run resumes (skips `done`, retries `failed`) and a deterministic reduce merges per-task output.
+- **Honest coverage** — every task's outcome (`assessed` / `sampled` / `skipped-by-budget` / `failed` / `permission-denied` / `partial`) becomes a coverage cell, so a reader never mistakes *"not assessed"* for *"no findings."*
+
+| Concept | Tool |
+|---|---|
+| Inventory census (paged ARG) | `tools/powershell/Export-Inventory.ps1` |
+| Scope brief (operator rollup) | `tools/resource-graph/scope-brief.mjs` |
+| Preflight cost / time estimate | `tools/orchestration/estimate-cost.mjs` |
+| Durable task manifest (plan / resume / reduce) | `tools/orchestration/manifest.mjs` |
+| Coverage matrix (honest gaps) | `tools/orchestration/coverage.mjs` |
+| Bounded per-resource fan-out | `tools/powershell/Invoke-BoundedFanout.ps1` |
+
 ## 🧩 How the Team Is Packaged (Agents + Skills + Hooks)
 
 The team uses three native Copilot CLI layers that map cleanly onto **who acts**, **what they know**, and **what they're allowed to do**.
@@ -179,8 +223,9 @@ Each skill stays thin and delegates to the detailed methodology in `agents/<name
 
 ### 1. Define engagement scope
 
-Run the guided setup — it lists the subscriptions you can access, asks which one to assess, and
-writes `engagement.yaml` for you:
+Run the guided setup — it lists the subscriptions you can access, asks which one to assess, asks
+**what your assessment focus is** (the whole estate, or a slice like *Virtual Machines*, *Public IP
+addresses*, *Data stores*, *Identity*…), and writes `engagement.yaml` for you:
 
 ```text
 /setup
@@ -210,8 +255,9 @@ This launches the Orchestrator (Pentest Manager), which dispatches the domain su
 The orchestrator will:
 - Open a fresh per-run session folder `engagements/<session>/` (where `<session>` = `<engagement-id>-<timestamp>`) that holds **all** output for this run and is gitignored
 - Validate your Azure permissions (preflight)
-- Enumerate all resources in scope
-- Build a resource inventory
+- Enumerate all in-scope resources (Resource Graph filters by your assessment focus server-side)
+- Build a resource inventory + **scope brief** (counts, rollups, internet-facing surface)
+- **Refine the focus against what's actually there** — e.g. "I found 1,200 storage accounts and 18 public IPs; want to start with the exposed surface?"
 - Identify which domain agents to dispatch
 
 ### 4. Run full assessment
@@ -324,10 +370,14 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
-├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
+├── schemas/                    # JSON schemas — findings, attack paths, checks, engagement, task, coverage
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
+│   ├── orchestration/          # Scale: task manifest, coverage matrix, preflight cost estimate
+│   ├── resource-graph/         # ARG queries + scope-brief generator
+│   ├── powershell/             # Inventory export + bounded per-resource fan-out
+│   └── report/                 # Findings-driven HTML report generator + sample
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
     └── <session>/               # <engagement-id>-<YYYY-MM-DD-HHMMSS>

@@ -44,6 +44,13 @@ Resources
 
 Filter to in-scope subscriptions/resource groups from `engagement.yaml`. Apply `exclusions`.
 
+**Apply the assessment focus server-side.** If `scope.resource_types` is set (the user chose a focus
+like *just Virtual Machines* or *Public IPs* — see `/setup`), add a `where type in~ (...)` clause so
+Resource Graph returns only those ARM types. Trailing `/*` means a whole provider (e.g.
+`microsoft.compute/*`). This is the single biggest lever on a large estate: a focused run never pulls
+the other thousands of resources back. Leave unfiltered only when the focus is **Full estate** (empty
+`scope.resource_types`).
+
 Fall back to `azure-group_resource_list` per resource group only if Resource Graph is unavailable.
 
 ### Step 4 — Write inventory
