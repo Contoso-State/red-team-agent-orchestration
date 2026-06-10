@@ -60,3 +60,20 @@ az keyvault show --name <vault> \
   --query "{softDelete:properties.enableSoftDelete,purgeProtection:properties.enablePurgeProtection}" -o json
 # Flag: enableSoftDelete==false or enablePurgeProtection != true.
 ```
+
+## CHK-STOR-NO-INFRA-ENCRYPTION — Infrastructure (double) encryption disabled
+```bash
+az storage account show --name <acct> -g <rg> \
+  --query "{infraEnc:encryption.requireInfrastructureEncryption}" -o json
+# Flag: requireInfrastructureEncryption != true (null or false) on accounts holding
+# sensitive data. Note: this property is settable only at account creation.
+```
+
+## CHK-STOR-NO-SAS-EXPIRATION-POLICY — No SAS expiration / key rotation policy
+```bash
+az storage account show --name <acct> -g <rg> \
+  --query "{sasExpiry:sasPolicy.sasExpirationPeriod,keyRotation:keyPolicy.keyExpirationPeriodInDays}" -o json
+# Flag: sasPolicy null/absent (no enforced SAS expiration) or an excessively long
+# sasExpirationPeriod; optionally flag a missing keyPolicy. Metadata only — never
+# enumerate or read SAS token values.
+```

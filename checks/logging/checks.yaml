@@ -124,3 +124,78 @@
   controls:
     mitre: ["T1078", "T1556"]
   required_permissions: ["Log Analytics Reader"]
+
+- check_id: CHK-LOG-NO-SENTINEL-ANALYTICS-RULES
+  title: Sentinel workspace has no enabled analytics (detection) rules
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: High
+  description: A Microsoft Sentinel-enabled workspace ingests logs but has no enabled scheduled/analytics detection rules (or only the default templates remain un-deployed), so ingested telemetry produces no incidents. Distinct from CHK-LOG-NO-SENTINEL-IDENTITY (which checks the Entra data *connector*) — this checks whether detection logic actually fires on the data.
+  detection:
+    method: azure-cli
+    tool: "az rest --method GET '.../workspaces/<ws>/providers/Microsoft.SecurityInsights/alertRules?api-version=2023-11-01'"
+    logic: SecurityInsights present on the workspace but alertRules is empty, or every rule has enabled == false. Also treat zero deployed rule templates as a coverage gap.
+  attack_vector: Attacker activity is logged but never raises an incident, so the SOC never responds
+  recommendation: Deploy and enable analytics rules from Microsoft/Sentinel rule templates aligned to in-scope data connectors (identity, activity, resource); tune to reduce noise rather than disabling.
+  controls:
+    cis_azure: ["2.1.x"]
+    mitre: ["T1562.001", "T1078.004"]
+    nist_csf: ["DE.CM-09"]
+  required_permissions: ["Log Analytics Reader", "Security Reader"]
+
+- check_id: CHK-LOG-NO-ALERT-RESOURCE-DELETE
+  title: No alert on destructive or defense-evasion control-plane operations
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Medium
+  description: There is no activity-log alert or analytics rule on high-risk destructive / defense-evasion operations — resource or resource-group deletion, NSG/firewall rule changes, diagnostic-setting deletion, or Key Vault delete/purge — so an attacker covering tracks or staging impact goes unnoticed. Distinct from CHK-LOG-NO-ALERT-ROLE-ASSIGN, which covers privileged role assignment only.
+  detection:
+    method: azure-cli
+    tool: "az monitor activity-log alert list --query \"[].{name:name,condition:condition}\""
+    logic: No alert whose condition targets delete/write on high-risk operations such as Microsoft.Insights/diagnosticSettings/delete, Microsoft.KeyVault/vaults/delete, Microsoft.Network/networkSecurityGroups/securityRules/write, or Microsoft.Resources/subscriptions/resourceGroups/delete.
+  attack_vector: Log tampering, security-control deletion, and destructive actions proceed without raising an alert
+  recommendation: Create activity-log alerts (and matching Sentinel rules) on diagnostic-setting deletion, NSG/firewall changes, Key Vault delete/purge, and resource-group deletion.
+  controls:
+    mitre: ["T1485", "T1562.001", "T1562.008"]
+    nist_csf: ["DE.CM-03"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-NO-IMMUTABLE-LOG-STORE
+  title: Audit logs not exported to a tamper-resistant store
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Medium
+  description: Activity Log / diagnostic data is exported only to a deletable destination — a storage account with no immutability (WORM) policy / legal hold, or a workspace with no archive — so a control-plane attacker can delete or truncate the evidence after the fact.
+  detection:
+    method: azure-cli
+    tool: "az monitor diagnostic-settings subscription list; az storage account blob-service-properties show; az rest --method GET .../immutabilityPolicies (read-only)"
+    logic: The storage account receiving diagnostic/Activity Log export has no immutability (time-based retention / legal hold) policy on the log container, or export targets only a workspace with no archive tier and short retention.
+  attack_vector: An attacker with control-plane access deletes or overwrites logs to destroy forensic evidence
+  recommendation: Export critical audit logs to a dedicated storage account with an immutability (WORM) policy or to a workspace with archive/immutable retention; restrict who can modify the log store.
+  controls:
+    cis_azure: ["5.1.x"]
+    mitre: ["T1562.008", "T1485"]
+    nist_csf: ["DE.CM-06"]
+  required_permissions: ["Reader"]
+
+- check_id: CHK-LOG-SHORT-RETENTION
+  title: Log retention below forensic threshold
+  domain: logging
+  agent: logging-coverage
+  mode: read-only
+  severity_default: Low
+  description: The Log Analytics workspace (or diagnostic-setting retention) keeps data for fewer days than the engagement forensic baseline (e.g. < 90 days), so attacker dwell time can exceed the available log horizon and early-stage activity is no longer recoverable during incident response.
+  detection:
+    method: azure-cli
+    tool: "az monitor log-analytics workspace show --query '{retention:retentionInDays}'"
+    logic: retentionInDays below the engagement threshold (default 90) for a workspace receiving security-relevant logs, with no archive tier extending it.
+  attack_vector: Investigators cannot reconstruct an intrusion whose initial activity predates the short retention window
+  recommendation: Set interactive retention to at least 90 days for security logs and use the archive tier for longer-term/immutable retention aligned to compliance requirements.
+  controls:
+    cis_azure: ["5.x"]
+    mitre: ["T1562.008"]
+    nist_csf: ["DE.CM-09"]
+  required_permissions: ["Log Analytics Reader"]

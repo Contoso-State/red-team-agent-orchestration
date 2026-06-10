@@ -68,3 +68,35 @@ az role assignment list \
 az security contact list -o json
 # Flag: no contact with a notification email, or alert notifications disabled.
 ```
+
+## CHK-GOV-NO-CIS-COMPLIANCE-STANDARD — No CIS benchmark standard monitored
+```bash
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/regulatoryComplianceStandards?api-version=2019-01-01-preview" -o json
+# Flag: no CIS (or other benchmark) standard present, or only default/empty standards
+# with no passed/failed control state — i.e. no benchmark assessment is running.
+```
+
+## CHK-GOV-NO-DEFENDER-CSPM-PLAN — Defender CSPM (foundational posture) plan off
+```bash
+az security pricing show -n CloudPosture -o json
+# Or read directly from ARM:
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/pricings/CloudPosture?api-version=2024-01-01" -o json
+# Flag: pricingTier=='Free' (Defender CSPM not enabled), or posture extensions
+# (agentless scanning, attack-path analysis) not enabled. (Workload-protection plans
+# Servers/Storage/SQL/Containers/KeyVault/AppServices/Arm are owned by logging:
+# CHK-LOG-DEFENDER-DISABLED — do not re-flag them here.)
+```
+
+## CHK-GOV-NO-VULN-POSTURE-MGMT — Vulnerability posture (agentless/VA) not in effect
+```bash
+az security assessment list -o json
+# Or via ARM, then filter to VA-related assessments:
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/assessments?api-version=2021-06-01" -o json
+az security sub-assessment list -o json
+# Flag: assessments such as 'Machines should have a vulnerability assessment solution'
+# / 'Container registry images should have vulnerability findings resolved' are absent
+# or Unhealthy with unremediated high-severity sub-assessments.
+```

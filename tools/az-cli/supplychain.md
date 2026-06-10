@@ -67,3 +67,32 @@ az resource list --resource-type Microsoft.Web/connections -o json
 # Flag: workflow has a Request/HTTP trigger with no accessControl IP restriction or auth,
 # and/or sensitive API connections exist. Do NOT call listCallbackUrl (POST) — metadata only.
 ```
+
+## CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT — Secrets in deployment/automation surfaces
+```bash
+# Automation Account variables — flag unencrypted variables (metadata only):
+az automation variable list --automation-account-name <acct> -g <rg> \
+  --query "[].{name:name,encrypted:isEncrypted}" -o json
+# Deployment parameter shape (type, not value):
+az deployment group list -g <rg> -o json
+az deployment group show -g <rg> -n <deployment> --query "properties.parameters" -o json
+# App / Function settings — key + KV-reference shape only (never echo the value):
+az webapp config appsettings list --name <app> -g <rg> \
+  --query "[].{name:name,isKeyVaultRef:starts_with(value,'@Microsoft.KeyVault')}" -o json
+# Flag: isEncrypted==false on an Automation variable, a plaintext deployment parameter
+# that should be secureString/KV reference, or a secret-shaped app setting that is NOT
+# an @Microsoft.KeyVault(...) reference. Record location only — redact every value.
+```
+
+## CHK-SUP-NO-IMAGE-SCAN-ENFORCED — Image scanning not enforced in deploy path
+```bash
+az security pricing show -n Containers -o json     # registry/image scanning sub-plan
+az policy assignment list --scope "/subscriptions/<subId>" \
+  --query "[].{name:name,policy:policyDefinitionId}" -o json   # image-scan / gating policies
+# ACR quarantine policy (read-only) — only scanned images become pullable when enabled:
+az rest --method GET \
+  --url "https://management.azure.com/subscriptions/<subId>/resourceGroups/<rg>/providers/Microsoft.ContainerRegistry/registries/<registry>?api-version=2023-07-01" -o json
+# Flag: Containers plan / image scanning not enabled, OR no policy gates
+# 'Container registry images should have vulnerability findings resolved' / blocks
+# unscanned images, OR quarantinePolicy disabled. (Plan on/off owned by logging.)
+```

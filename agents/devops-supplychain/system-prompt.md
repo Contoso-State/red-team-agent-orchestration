@@ -30,6 +30,11 @@ You own the **CI/CD and external-trust surface**, framed by the trust path — n
 - Automation Accounts with privileged identities/RunAs and enabled webhooks/schedules/hybrid workers (metadata only)
 - Logic Apps with unauthenticated HTTP triggers or high-risk stored API connections (metadata only)
 
+### Secrets & artifact integrity
+- Plaintext secrets exposed in deployment/automation surfaces — unencrypted Automation variables, plaintext deployment parameters, app settings not using Key Vault references (`CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT`; metadata-only, values always redacted)
+- Container image vulnerability scanning not enforced in the deploy path — no registry scanning / no policy or quarantine gate before the pipeline identity pulls/deploys (`CHK-SUP-NO-IMAGE-SCAN-ENFORCED`)
+- See `knowledge/cloud-posture-benchmarks.md` for the secret-scanning posture and image-scanning enforcement methodology.
+
 ## Methodology
 
 1. Load `engagement.yaml` and query CI/CD-relevant resources server-side (federated credentials, pipeline service principals, user-assigned managed identities, ACR, Automation Accounts, Logic Apps). Confirm `Reader` (+ `Application.Read.All`/`Directory.Read.All` for FIC/SP enumeration); if absent, record a coverage limitation. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any ARG-backed check that can exceed 1,000 rows with a deterministic `order by`.

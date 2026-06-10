@@ -130,3 +130,60 @@
     cis_azure: ["2.1"]
     mitre: ["T1562.001"]
   required_permissions: ["Security Reader"]
+
+- check_id: CHK-GOV-NO-CIS-COMPLIANCE-STANDARD
+  title: No CIS Azure benchmark compliance standard monitored in Defender for Cloud
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: No industry-benchmark regulatory compliance standard (e.g. CIS Microsoft Azure Foundations Benchmark, ISO 27001, PCI DSS) is assigned to the subscription's Defender for Cloud compliance dashboard, so benchmark drift is never measured and there is no continuous CIS-aligned scorecard. Distinct from CHK-GOV-POLICY-COVERAGE (which checks whether the Azure Policy MCSB initiative is assigned) — this checks the regulatory/benchmark compliance standards layered on top.
+  detection:
+    method: azure-cli
+    tool: "az rest --method GET 'https://management.azure.com/subscriptions/<subId>/providers/Microsoft.Security/regulatoryComplianceStandards?api-version=2019-01-01-preview'"
+    logic: No CIS (or other benchmark) standard present, or the only standards returned are default/empty with no passed/failed control state, indicating no benchmark assessment is running.
+  attack_vector: Without a measured benchmark, systemic CIS control failures accumulate unseen and provide ready footholds
+  recommendation: Add the CIS Microsoft Azure Foundations Benchmark (and any required regulatory standards) to Defender for Cloud, and track passed/failed controls over time as a posture KPI.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1078.004", "T1580"]
+    nist_csf: ["GV.PO-01"]
+  required_permissions: ["Security Reader"]
+
+- check_id: CHK-GOV-NO-DEFENDER-CSPM-PLAN
+  title: Defender CSPM (foundational posture) plan not enabled
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: The Defender Cloud Security Posture Management (CloudPosture) plan is on the Free tier, so the advanced posture capabilities — attack-path analysis, the cloud security graph, agentless secret/malware scanning, and security governance rules — are unavailable. Ownership boundary - logging's CHK-LOG-DEFENDER-DISABLED covers the workload-protection plans (Servers, Storage, SQL, Containers, KeyVault, AppServices, Arm); this check covers only the foundational CSPM plan and its posture/governance features, which that check does not enumerate.
+  detection:
+    method: azure-cli
+    tool: "az security pricing show -n CloudPosture; az rest --method GET '.../providers/Microsoft.Security/pricings/CloudPosture?api-version=2024-01-01'"
+    logic: CloudPosture pricingTier == Free (Defender CSPM not enabled), or its posture extensions (agentless scanning, attack-path) are not enabled.
+  attack_vector: Without attack-path analysis and the security graph, exploitable multi-step exposure chains are never surfaced or prioritized
+  recommendation: Enable the Defender CSPM plan and its extensions (agentless scanning, attack-path analysis, governance rules) on in-scope subscriptions.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1078.004", "T1580"]
+    nist_csf: ["GV.RM-01"]
+  required_permissions: ["Security Reader"]
+
+- check_id: CHK-GOV-NO-VULN-POSTURE-MGMT
+  title: Cloud vulnerability posture management (agentless/VA) not in effect
+  domain: governance
+  agent: governance-posture
+  mode: read-only
+  severity_default: Medium
+  description: Continuous vulnerability assessment of machines, containers, and registry images is not producing or not remediating findings — no VA solution is deployed (or agentless scanning is off) and high-severity vulnerability assessments remain Unhealthy. This is the CVM (vulnerability-posture) backlog view, distinct from CHK-GOV-SECURE-SCORE-LOW (overall secure score) and from the plan on/off check owned by logging.
+  detection:
+    method: azure-cli
+    tool: "az security assessment list; az rest --method GET '.../providers/Microsoft.Security/assessments?api-version=2021-06-01' (filter VA-related); az security sub-assessment list"
+    logic: Assessments such as 'Machines should have a vulnerability assessment solution' / 'Container registry images should have vulnerability findings resolved' are absent or in an Unhealthy state with unremediated high-severity sub-assessments.
+  attack_vector: Unpatched CVEs on exposed VMs, containers, and images give an attacker a direct, scanner-confirmed exploitation path
+  recommendation: Enable agentless/integrated vulnerability assessment (via Defender CSPM / Defender for Servers / Containers) and triage high-severity findings on a defined SLA.
+  controls:
+    cis_azure: ["2.1"]
+    mitre: ["T1190", "T1203", "T1068"]
+    nist_csf: ["ID.RA-01"]
+  required_permissions: ["Security Reader"]
