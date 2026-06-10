@@ -14,7 +14,7 @@
     "title": { "type": "string" },
     "domain": {
       "type": "string",
-      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "email", "governance", "supplychain"]
+      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "external-vuln", "email", "governance", "supplychain"]
     },
     "agent": {
       "type": "string",
@@ -28,6 +28,7 @@
         "ai-foundry",
         "web-exposure",
         "attack-surface",
+        "external-vuln",
         "email-security",
         "governance-posture",
         "devops-supplychain"
@@ -35,8 +36,13 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["read-only", "validation"],
-      "description": "Minimum operating mode required to run this check"
+      "enum": ["read-only", "validation", "active"],
+      "description": "Minimum operating mode required to run this check. 'active' checks send real traffic and only run under engagement mode external-active-testing with an enabled, authorized external_testing block."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["safe-active", "active-dast", "exploit-validation", "static-analysis"],
+      "description": "For external-vuln checks: the minimum EVA intensity tier required to run this check."
     },
     "severity_default": {
       "type": "string",
@@ -49,8 +55,8 @@
       "properties": {
         "method": {
           "type": "string",
-          "enum": ["mcp-tool", "resource-graph", "kql", "azure-cli", "msgraph"],
-          "description": "How the check gathers data"
+          "enum": ["mcp-tool", "resource-graph", "kql", "azure-cli", "msgraph", "http-probe", "dast", "static-analysis"],
+          "description": "How the check gathers data. http-probe/dast/static-analysis are EVA (external-vuln) methods that operate against the Azure-derived target allowlist."
         },
         "tool": { "type": "string", "description": "Specific tool or query reference" },
         "logic": { "type": "string", "description": "The condition that constitutes a failing finding" }
@@ -62,7 +68,9 @@
       "type": "object",
       "properties": {
         "cis_azure": { "type": "array", "items": { "type": "string" } },
-        "mitre": { "type": "array", "items": { "type": "string" } }
+        "mitre": { "type": "array", "items": { "type": "string" } },
+        "owasp": { "type": "array", "items": { "type": "string" }, "description": "OWASP Top 10 (2021) category IDs, e.g. ['A05:2021']." },
+        "cwe": { "type": "array", "items": { "type": "string" }, "description": "CWE IDs, e.g. ['CWE-79']." }
       }
     },
     "required_permissions": {

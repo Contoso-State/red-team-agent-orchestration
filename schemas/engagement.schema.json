@@ -19,8 +19,8 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["read-only-assessment", "attack-path-analysis", "controlled-validation"],
-      "description": "Operating mode — controls what agents are permitted to do"
+      "enum": ["read-only-assessment", "attack-path-analysis", "controlled-validation", "external-active-testing"],
+      "description": "Operating mode — controls what agents are permitted to do. 'external-active-testing' additionally unlocks the External Vulnerability Agent (EVA) active tiers; it must be paired with an enabled, authorized external_testing block."
     },
     "scope": {
       "type": "object",
@@ -69,6 +69,7 @@
               "web-exposure",
               "ai-foundry",
               "attack-surface",
+              "external-vuln",
               "logging-coverage",
               "email-security",
               "governance-posture",
@@ -120,6 +121,61 @@
       "properties": {
         "allowed_actions": { "type": "array", "items": { "type": "string" } },
         "forbidden_actions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "external_testing": {
+      "type": "object",
+      "description": "Active external vulnerability testing (the External Vulnerability Agent, EVA). OFF by default. Active tiers send REAL traffic to live endpoints and therefore require all of: mode 'external-active-testing', enabled: true, and a completed authorization block. Targets are ALWAYS restricted to the Azure-derived allowlist (engagements/<session>/scope/external-targets.json) built from in-scope inventory — never free-form internet hosts. A fail-closed egress guardrail enforces this at the tool layer.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Master switch. Must be true (with mode external-active-testing and a valid authorization block) before any active tier runs. Default false."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["safe-active", "active-dast", "exploit-validation"],
+          "description": "Maximum intrusiveness. safe-active = benign GET/HEAD probes (security headers, TLS/ciphers, HTTP methods, cookie flags, CORS, exposed paths) via the built-in dependency-free prober. active-dast = OSS scanners (nuclei / OWASP ZAP / nikto / whatweb / testssl.sh). exploit-validation = sqlmap and confirmed injection/XSS payloads (most intrusive, hardest gate)."
+        },
+        "authorization": {
+          "type": "object",
+          "description": "Written authorization (rules of engagement) for active testing. All fields must be populated before any active tier runs.",
+          "properties": {
+            "attested_by": { "type": "string", "description": "Name/email of the person authorizing active external testing." },
+            "attestation_id": { "type": "string", "description": "Contract, change-ticket, or rules-of-engagement reference." },
+            "authorized_window_start": { "type": "string", "description": "ISO 8601 timestamp — start of the authorized testing window." },
+            "authorized_window_end": { "type": "string", "description": "ISO 8601 timestamp — end of the authorized testing window." },
+            "target_confirmation": { "type": "boolean", "description": "When true, a human must confirm the generated target allowlist before any active tier fires." }
+          }
+        },
+        "static_analysis": {
+          "type": "object",
+          "description": "Extended, fully-offline static analysis (SAST) of website code pulled from Azure (App Service Kudu / Storage $web). Separate gate from live testing; sends no traffic to the target.",
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Default false. Independent of the live-testing tier." }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "description": "Intensity caps so active testing cannot impact production availability.",
+          "properties": {
+            "max_requests_per_host": { "type": "integer", "minimum": 1 },
+            "rate_per_second": { "type": "integer", "minimum": 1 },
+            "concurrency": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "tools": {
+          "type": "object",
+          "description": "Which open-source scanners EVA may orchestrate when present on PATH (each still scope-locked to the allowlist).",
+          "properties": {
+            "nuclei": { "type": "boolean" },
+            "zap": { "type": "boolean" },
+            "sqlmap": { "type": "boolean" },
+            "testssl": { "type": "boolean" },
+            "nikto": { "type": "boolean" },
+            "whatweb": { "type": "boolean" },
+            "semgrep": { "type": "boolean" }
+          }
+        }
       }
     },
     "data_handling": {

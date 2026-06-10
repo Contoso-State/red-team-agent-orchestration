@@ -17,9 +17,14 @@ engagement:
 
 # Operating mode — controls what agents are allowed to do
 # Options:
-#   read-only-assessment  — enumerate and analyze only (DEFAULT, safest)
-#   attack-path-analysis  — read-only + build attack path graphs
-#   controlled-validation — read + limited safe validation of findings
+#   read-only-assessment   — enumerate and analyze only (DEFAULT, safest)
+#   attack-path-analysis   — read-only + build attack path graphs
+#   controlled-validation  — read + limited safe validation of findings
+#   external-active-testing — UNLOCKS the External Vulnerability Agent (EVA).
+#                             Sends REAL traffic to live, Azure-discovered
+#                             endpoints. Requires the external_testing block
+#                             below to be enabled AND authorized. Use only with
+#                             written permission. See safety.md.
 mode: read-only-assessment
 
 # Target scope — agents ONLY operate within these boundaries
@@ -86,6 +91,67 @@ permissions:
     - disable_logging
     - access_customer_data_contents
     - delete_resources
+
+# ============================================================
+# External Vulnerability Agent (EVA) — ACTIVE external testing
+# ============================================================
+# OFF BY DEFAULT. This is the ONLY agent that sends real traffic to
+# live endpoints. It is governed by a fail-closed egress guardrail:
+# EVA may ONLY touch hosts on the Azure-derived allowlist generated
+# from your in-scope inventory (engagements/<session>/scope/external-targets.json).
+# It can never reach a host that does not map to an in-scope Azure resource.
+#
+# To run ANY active tier, ALL of the following must be true:
+#   1. mode: external-active-testing      (above)
+#   2. external_testing.enabled: true     (below)
+#   3. a fully populated authorization block (below)
+#
+# ⚠️  LEGAL: Active scanning of internet-facing systems may be illegal
+#     without explicit written authorization from the asset owner. Only
+#     test assets you own or are contractually authorized to test.
+external_testing:
+  enabled: false
+
+  # Maximum intrusiveness EVA may use:
+  #   safe-active        — benign GET/HEAD probes only (security headers, TLS/
+  #                        ciphers, HTTP methods, cookie flags, CORS, exposed
+  #                        paths). Uses the built-in, dependency-free prober.
+  #   active-dast        — OSS scanners: nuclei / OWASP ZAP / nikto / whatweb /
+  #                        testssl.sh (each scope-locked to the allowlist).
+  #   exploit-validation — sqlmap + confirmed injection/XSS payloads. Most
+  #                        intrusive; use only with explicit sign-off.
+  tier: safe-active
+
+  # Written authorization (rules of engagement). Required before any active tier.
+  authorization:
+    attested_by: ""            # name/email of the authorizer
+    attestation_id: ""         # contract / change-ticket / RoE reference
+    authorized_window_start: "" # ISO 8601, e.g. 2026-06-01T00:00:00Z
+    authorized_window_end: ""   # ISO 8601, e.g. 2026-06-30T23:59:59Z
+    target_confirmation: true  # require a human to confirm the allowlist first
+
+  # Extended OFFLINE static analysis (SAST) of website code pulled from Azure
+  # (App Service Kudu / Storage $web). Sends NO traffic to the target. Separate
+  # gate from live testing.
+  static_analysis:
+    enabled: false
+
+  # Intensity caps so testing cannot impact production availability.
+  limits:
+    max_requests_per_host: 200
+    rate_per_second: 5
+    concurrency: 4
+
+  # Which OSS scanners EVA may orchestrate when present on PATH (still
+  # scope-locked). Tools not installed are simply skipped.
+  tools:
+    nuclei: true
+    zap: true
+    sqlmap: false
+    testssl: true
+    nikto: true
+    whatweb: true
+    semgrep: false
 
 # Data handling controls
 data_handling:
