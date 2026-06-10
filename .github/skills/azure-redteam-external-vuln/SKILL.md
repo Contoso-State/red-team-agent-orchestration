@@ -11,7 +11,7 @@ on the Azure-derived allowlist.
 
 Full methodology: `agents/external-vuln/system-prompt.md`. Checks: `checks/external-vuln/checks.yaml`.
 Knowledge: `knowledge/owasp-top10.md`, `knowledge/web-vuln-testing.md`, `knowledge/xss.md`,
-`knowledge/static-analysis.md`.
+`knowledge/oauth-saml-jwt.md`, `knowledge/static-analysis.md`.
 
 ## Before you do anything
 
@@ -41,6 +41,7 @@ work around it; re-run `build-targets.mjs` if a legitimately in-scope host is mi
 - **A03 Injection:** XSS (011), SQL/NoSQL injection (012).
 - **A10 SSRF:** user-controlled fetch, with extra care around Azure IMDS `169.254.169.254` (014).
 - **A01 Broken access control:** IDOR / missing authz (015).
+- **A07/A02 Authentication flows:** OAuth2/OIDC authorization-flow weaknesses (021), JWT signature/algorithm validation weaknesses (022) — see `knowledge/oauth-saml-jwt.md`.
 - **Static analysis (opt-in):** injection sinks, hardcoded secrets, insecure patterns (020).
 
 ## How you work

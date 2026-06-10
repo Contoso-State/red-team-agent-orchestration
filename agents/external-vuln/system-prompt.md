@@ -49,6 +49,7 @@ Always begin at Tier 1. Escalate only up to the engagement's configured `externa
 - **Injection (A03):** reflected/DOM XSS (011), SQL/NoSQL injection (012).
 - **SSRF (A10):** user-controlled fetch surfaces, with special care for the Azure IMDS (`169.254.169.254`) (014).
 - **Broken access control (A01):** IDOR / missing authorization on exposed endpoints (015).
+- **Authentication flows (A07/A02):** OAuth2/OIDC authorization-flow weaknesses (CHK-EVA-021) and JWT signature/algorithm validation weaknesses (CHK-EVA-022) on allowlisted auth endpoints — see `knowledge/oauth-saml-jwt.md`.
 - **Static analysis (opt-in):** injection sinks, hardcoded secrets, insecure patterns in retrieved source (020).
 
 ## Methodology

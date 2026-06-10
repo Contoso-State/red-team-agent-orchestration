@@ -13,7 +13,10 @@
 //
 // It also reports (informational, never a blocker) which optional EVA external
 // scanners (nuclei/httpx/testssl/nikto/whatweb/zap/sqlmap/semgrep) are on PATH and
-// therefore which active External Vulnerability Agent tiers are available.
+// therefore which active External Vulnerability Agent tiers are available. It likewise
+// reports which optional auxiliary OSS security tools (ScoutSuite, kube-bench, kubesec,
+// trivy/grype, gitleaks, cartography) referenced by the harvested methodology are present
+// for offline posture/IaC/secret analysis.
 //
 // READ-ONLY: this only *reads* tool versions and your signed-in account. It runs
 // `az version`, `az account show`, and `az extension show` (all read/query) and
@@ -82,6 +85,32 @@ export function evaTiersFromTools(present) {
     "exploit-validation": have.has("sqlmap"),
     "static-analysis": have.has("semgrep"),
   };
+}
+
+// Optional auxiliary OSS security tools referenced by the harvested methodology
+// (knowledge/oauth-saml-jwt.md, kubernetes/container/posture knowledge). These are
+// INFORMATIONAL ONLY: presence never gates a run and nothing is ever auto-installed.
+// Each key maps to one or more candidate executables probed on PATH (any match counts);
+// trivy OR grype satisfies the container/IaC vuln-scanner slot.
+export const OPTIONAL_SECURITY_TOOLS = {
+  scoutsuite: ["scout"],          // ScoutSuite multi-cloud security auditor (CLI: `scout`)
+  "kube-bench": ["kube-bench"],   // CIS Kubernetes benchmark
+  kubesec: ["kubesec"],           // Kubernetes manifest risk scoring
+  trivy: ["trivy", "grype"],      // container / IaC vulnerability scanner (trivy, or grype)
+  gitleaks: ["gitleaks"],         // secret scanning
+  cartography: ["cartography"],   // cloud asset inventory graph
+};
+
+/**
+ * Given the set/array of executable names found on PATH, return the keys of the optional
+ * security tools that are present (a tool is present if ANY of its candidate executables
+ * is on PATH). Pure + unit-tested.
+ */
+export function presentOptionalTools(present) {
+  const have = new Set(Array.isArray(present) ? present : [...(present ?? [])]);
+  return Object.entries(OPTIONAL_SECURITY_TOOLS)
+    .filter(([, exes]) => exes.some((e) => have.has(e)))
+    .map(([k]) => k);
 }
 
 // ---- environment probes ------------------------------------------------------
@@ -213,6 +242,31 @@ function checkExternalTools() {
   };
 }
 
+// Optional: detect auxiliary OSS security tools referenced by the harvested methodology
+// (cloud posture, Kubernetes, container/IaC, secret scanning, asset graph). Informational
+// only — never required, never auto-installed; their absence only means that offline
+// analysis tooling isn't locally available. Read-only presence checks on PATH.
+function checkOptionalSecurityTools() {
+  const onPath = new Set();
+  for (const exes of Object.values(OPTIONAL_SECURITY_TOOLS)) {
+    for (const e of exes) if (commandOnPath(e)) onPath.add(e);
+  }
+  const present = presentOptionalTools(onPath);
+  const detail = present.length
+    ? `installed: ${present.join(", ")}`
+    : "none on PATH (optional — used only for offline posture / IaC / secret analysis)";
+  return {
+    name: "Optional security tools",
+    required: false, // purely informational; never blocks the doctor
+    ok: true,
+    detail,
+    optional_tools_present: present,
+    remedy: present.length
+      ? null
+      : "Optional: install scoutsuite/kube-bench/kubesec/trivy(or grype)/gitleaks/cartography for offline posture analysis.",
+  };
+}
+
 function oneLine(err) {
   return String(err?.stderr || err?.message || err).split("\n")[0].slice(0, 160);
 }
@@ -228,7 +282,7 @@ export async function runChecks() {
     checkAzLogin(),
     checkResourceGraphExtension(),
   ]);
-  return [node, azInstalled, azLogin, rgExt, checkEngagementFile(), checkExternalTools()];
+  return [node, azInstalled, azLogin, rgExt, checkEngagementFile(), checkExternalTools(), checkOptionalSecurityTools()];
 }
 
 function render(results) {

@@ -1,7 +1,7 @@
 // Unit tests for the environment doctor's pure version logic.
 // Run: node tools/preflight/check-environment.test.mjs
 import assert from "node:assert";
-import { parseNodeVersion, meetsMinimum, evaTiersFromTools, commandOnPath } from "./check-environment.mjs";
+import { parseNodeVersion, meetsMinimum, evaTiersFromTools, commandOnPath, presentOptionalTools, OPTIONAL_SECURITY_TOOLS } from "./check-environment.mjs";
 
 let pass = 0;
 const eq = (a, b, msg) => { assert.deepStrictEqual(a, b, msg); pass++; };
@@ -45,5 +45,17 @@ ok(!commandOnPath("definitely-not-a-real-tool-xyz"), "missing command not found"
   const env = { PATH: "" };
   ok(!commandOnPath("anything", env, false), "empty PATH -> false");
 }
+
+// --- presentOptionalTools ---
+eq(presentOptionalTools([]), [], "no tools -> none present");
+eq(presentOptionalTools(["definitely-not-a-real-tool-xyz"]), [], "unknown exe -> none present");
+ok(presentOptionalTools(["scout"]).includes("scoutsuite"), "scout -> scoutsuite");
+ok(presentOptionalTools(["kube-bench"]).includes("kube-bench"), "kube-bench detected");
+ok(presentOptionalTools(["trivy"]).includes("trivy"), "trivy satisfies the vuln-scanner slot");
+ok(presentOptionalTools(["grype"]).includes("trivy"), "grype also satisfies the trivy slot");
+ok(presentOptionalTools(new Set(["gitleaks", "cartography"])).includes("gitleaks"), "accepts a Set");
+ok(presentOptionalTools(new Set(["gitleaks", "cartography"])).includes("cartography"), "multiple present");
+eq(presentOptionalTools(["scout"]).length, 1, "only the matching tool is reported");
+ok(Object.keys(OPTIONAL_SECURITY_TOOLS).length === 6, "six optional security tools are catalogued");
 
 console.log(`OK — ${pass} environment-doctor assertions passed`);
