@@ -1,0 +1,59 @@
+{
+  "generated": "2026-06-10T00:00:00Z",
+  "paths": [
+    {
+      "id": "AZ-PATH-001",
+      "title": "Public storage exfil pivots to a privileged identity",
+      "severity": "Critical",
+      "entry": "n1",
+      "end_state": "n4",
+      "finding_id": "AZ-PATH-001",
+      "break_chain": "Disable public blob access (AZ-STOR-001) and rotate the leaked credential.",
+      "nodes": [
+        {
+          "id": "n1",
+          "label": "Public storage: stscale0007",
+          "type": "entry",
+          "resource_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data-08/providers/Microsoft.Storage/storageAccounts/stscale0007",
+          "finding_id": "AZ-STOR-001"
+        },
+        {
+          "id": "n2",
+          "label": "Leaked deployment credential",
+          "type": "pivot"
+        },
+        {
+          "id": "n3",
+          "label": "Privileged service principal",
+          "type": "pivot"
+        },
+        {
+          "id": "n4",
+          "label": "Subscription control",
+          "type": "target"
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2",
+          "label": "anonymous blob read",
+          "technique": "T1530",
+          "finding_id": "AZ-STOR-001"
+        },
+        {
+          "from": "n2",
+          "to": "n3",
+          "label": "credential reuse",
+          "technique": "T1078.004"
+        },
+        {
+          "from": "n3",
+          "to": "n4",
+          "label": "privileged role",
+          "technique": "T1098"
+        }
+      ]
+    }
+  ]
+}

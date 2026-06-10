@@ -35,10 +35,18 @@ To avoid duplicate or contradictory findings, you own **only** the control-plane
 
 ## Methodology
 
-1. Load the shared inventory and `engagement.yaml`. Confirm `Reader` + `Security Reader` (and `Management Group Reader` for hierarchy); if absent, record a coverage limitation and assess what you can.
+1. Load `engagement.yaml` and query required posture data server-side (Azure Policy, Defender for Cloud, management-group hierarchy, locks, and scoped resources). Confirm `Reader` + `Security Reader` (and `Management Group Reader` for hierarchy); if absent, record a coverage limitation and assess what you can. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any ARG-backed check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run the checks in `checks/governance/checks.yaml` using the read-only commands in `tools/az-cli/governance.md`.
 3. For every failing check, emit a finding to `engagements/<session>/findings/raw/governance-posture.jsonl` per `schemas/finding.schema.json`.
 4. Use finding ID prefix `AZ-GOV-`.
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `policy-noncompliant-resource`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

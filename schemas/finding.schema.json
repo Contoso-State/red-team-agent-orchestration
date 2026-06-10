@@ -66,9 +66,18 @@
       "type": "string",
       "description": "ID of the check that produced this finding, e.g. CHK-STOR-PUBLIC-BLOB"
     },
+    "finding_class": {
+      "type": "string",
+      "description": "Stable identifier for the KIND of misconfiguration (derived from the check), e.g. 'storage-public-blob'. All affected resources sharing this class on the same logical scope collapse into ONE finding. See knowledge/scaling.md.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "dedupe_key": {
+      "type": "string",
+      "description": "Deterministic key used to merge/resume findings without creating duplicates across shards or re-runs. Convention: '<finding_class>:<subscription_id>' (or '<finding_class>:<scope_hash>' for tenant-wide findings)."
+    },
     "resource_id": {
       "type": "string",
-      "description": "Full Azure resource ID of the affected resource"
+      "description": "Full Azure resource ID of the REPRESENTATIVE affected resource (the first/most-exposed instance). Kept for backward compatibility; when affected_resources[] is present, this MUST equal the resource_id of one of its entries."
     },
     "subscription_id": {
       "type": "string"
@@ -78,6 +87,29 @@
     },
     "region": {
       "type": "string"
+    },
+    "affected_resources": {
+      "type": "array",
+      "description": "Full list of resource instances exhibiting this finding class. Aggregation is always on: a single-resource finding is simply the N=1 case (one entry matching resource_id). Only aggregate HOMOGENEOUS findings (same class, severity, confidence, remediation, attack-path role, and logical scope) — see knowledge/scaling.md.",
+      "items": {
+        "type": "object",
+        "required": ["resource_id"],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "description": "Full Azure resource ID of this affected instance"
+          },
+          "subscription_id": { "type": "string" },
+          "resource_group": { "type": "string" },
+          "type": { "type": "string", "description": "ARM resource type, e.g. microsoft.storage/storageaccounts" },
+          "region": { "type": "string" },
+          "name": { "type": "string" },
+          "evidence_ref": {
+            "type": "string",
+            "description": "Optional pointer into engagements/<session>/evidence/raw/ (gitignored) specific to this instance"
+          }
+        }
+      }
     },
     "description": {
       "type": "string",

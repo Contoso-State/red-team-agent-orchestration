@@ -30,6 +30,7 @@ const AGENTS = new Set([
   'logging-coverage', 'email-security', 'governance-posture', 'devops-supplychain', 'reporting',
 ]);
 const FINDING_ID_RE = /^AZ-[A-Z]+-[0-9]{3}$/;
+const FINDING_CLASS_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const PATH_ID_RE = /^AZ-PATH-[0-9]{3}$/;
 const REQUIRED = [
   'id', 'title', 'severity', 'confidence', 'agent', 'category',
@@ -78,6 +79,7 @@ const warnMsg = (m) => warnings.push(m);
 
 function validateFindings(list) {
   const seen = new Set();
+  const findingIndex = new Map();
   list.forEach((f, idx) => {
     const where = f && f.id ? `finding "${f.id}"` : `finding #${idx + 1}`;
     if (!f || typeof f !== 'object') { err(`${where}: not an object.`); return; }
@@ -111,13 +113,44 @@ function validateFindings(list) {
         if (!e.summary || String(e.summary).trim() === '') err(`${where}: evidence[${i}] missing "summary".`);
       });
     }
+    if (f.finding_class != null && f.finding_class !== '' && !FINDING_CLASS_RE.test(String(f.finding_class))) {
+      err(`${where}: finding_class "${f.finding_class}" must match ^[a-z0-9]+(-[a-z0-9]+)*$.`);
+    }
+    if (f.dedupe_key != null && typeof f.dedupe_key !== 'string') err(`${where}: dedupe_key must be a string.`);
+    if (f.affected_resources != null) {
+      if (!Array.isArray(f.affected_resources)) {
+        err(`${where}: affected_resources must be an array.`);
+      } else {
+        const affectedIds = new Set();
+        f.affected_resources.forEach((a, i) => {
+          if (!a || typeof a !== 'object' || Array.isArray(a)) { err(`${where}: affected_resources[${i}] is not an object.`); return; }
+          if (!a.resource_id || String(a.resource_id).trim() === '') err(`${where}: affected_resources[${i}] missing "resource_id".`);
+          else affectedIds.add(String(a.resource_id));
+        });
+        // The representative resource_id must be one of the affected instances (aggregation invariant).
+        if (f.affected_resources.length && f.resource_id != null && String(f.resource_id).trim() !== '' && !affectedIds.has(String(f.resource_id))) {
+          err(`${where}: resource_id "${f.resource_id}" must match one of affected_resources[].resource_id.`);
+        }
+      }
+    }
     if (String(f.id ?? '').startsWith('AZ-PATH-') && !(Array.isArray(f.attack_path) && f.attack_path.length)) {
       warnMsg(`${where}: AZ-PATH finding has an empty attack_path[].`);
     }
+    if (f.id != null) {
+      const affected = new Set();
+      if (f.resource_id != null && String(f.resource_id).trim() !== '') affected.add(String(f.resource_id));
+      if (Array.isArray(f.affected_resources)) {
+        for (const a of f.affected_resources) {
+          if (a && a.resource_id) affected.add(String(a.resource_id));
+        }
+      }
+      findingIndex.set(String(f.id), { affected, aggregated: Array.isArray(f.affected_resources) && f.affected_resources.length > 0 });
+    }
   });
+  return findingIndex;
 }
 
-function validateAttackPaths(doc) {
+function validateAttackPaths(doc, findingIndex) {
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.paths)) {
     err('attack-paths: must be an object with a "paths" array.');
     return;
@@ -144,6 +177,14 @@ function validateAttackPaths(doc) {
         if (!n.label) err(`${where}: nodes[${i}] missing "label".`);
         if (n.type != null && !NODE_TYPES.has(n.type)) err(`${where}: nodes[${i}].type "${n.type}" not in ${[...NODE_TYPES].join('/')}.`);
         if (n.finding_id != null && !FINDING_ID_RE.test(String(n.finding_id))) err(`${where}: nodes[${i}].finding_id must match ^AZ-[A-Z]+-[0-9]{3}$.`);
+        if (n.finding_id != null && findingIndex && findingIndex.size) {
+          const fi = findingIndex.get(String(n.finding_id));
+          if (!fi) {
+            warnMsg(`${where}: nodes[${i}].finding_id "${n.finding_id}" does not match any finding.`);
+          } else if (n.resource_id != null && String(n.resource_id).trim() !== '' && fi.aggregated && !fi.affected.has(String(n.resource_id))) {
+            err(`${where}: nodes[${i}].resource_id "${n.resource_id}" is not in finding "${n.finding_id}" affected_resources[]; an aggregated finding's path node must traverse a specific affected instance.`);
+          }
+        }
         nodeIds.add(n.id);
       });
     }
@@ -164,8 +205,8 @@ function main() {
     console.log('Usage: node tools/validate-findings.mjs --findings <path> [--attack-paths <path>]');
     process.exit(args.findings ? 0 : 2);
   }
-  validateFindings(asFindings(loadJson(args.findings, 'findings')));
-  if (args.attackPaths) validateAttackPaths(loadJson(args.attackPaths, 'attack-paths'));
+  const findingIndex = validateFindings(asFindings(loadJson(args.findings, 'findings')));
+  if (args.attackPaths) validateAttackPaths(loadJson(args.attackPaths, 'attack-paths'), findingIndex);
 
   for (const w of warnings) console.error('warning: ' + w);
   if (errors.length) {

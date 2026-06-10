@@ -28,6 +28,51 @@ Resources
 | order by count_ desc
 ```
 
+## Scope rollups (`summarize`)
+
+Cheap, server-side rollups for the scope brief — each returns a handful of rows no matter how
+large the estate. Feed their JSON output to `tools/resource-graph/scope-brief.mjs` (via
+`--inventory`/`--exposure`) or read them directly to size a run before assessing.
+
+### Count by resource group
+```kql
+Resources
+| summarize count() by subscriptionId, resourceGroup
+| order by count_ desc
+```
+
+### Count by region
+```kql
+Resources
+| summarize count() by location
+| order by count_ desc
+```
+
+### Count by subscription (with distinct type count)
+```kql
+Resources
+| summarize resources = count(), types = dcount(type) by subscriptionId
+| order by resources desc
+```
+
+### Potential internet-facing surface (by type)
+```kql
+Resources
+| where type in~ (
+    "microsoft.network/publicipaddresses","microsoft.network/applicationgateways",
+    "microsoft.network/loadbalancers","microsoft.network/frontdoors","microsoft.cdn/profiles",
+    "microsoft.apimanagement/service","microsoft.web/sites","microsoft.web/staticsites",
+    "microsoft.app/containerapps","microsoft.containerservice/managedclusters",
+    "microsoft.network/bastionhosts","microsoft.network/virtualnetworkgateways")
+| summarize count() by type
+| order by count_ desc
+```
+
+> Build the operator-facing brief with:
+> `node tools/resource-graph/scope-brief.mjs --inventory engagements/<session>/inventory/resources.json`
+> → writes `scope-brief.json` (machine) + `scope-brief.md` (human) with type/RG/region/exposure
+> rollups and flags any type over the 1,000-row page limit.
+
 ## Network exposure
 
 ### NSG rules open to the internet on sensitive ports
@@ -102,14 +147,39 @@ Resources
 
 ## Authorization (RBAC graph)
 
-### All role assignments
+> `AuthorizationResources` can hold more rows than `Resources` on a large tenant. **Page it**
+> (`--first 1000 --skip`, with the `order by` shown) just like the inventory, resolve each
+> distinct `principalId` **once** via batched Microsoft Graph `getByIds` into a principal
+> cache, and join `roleDefinitionId → roleName` locally from the definitions census. Treat
+> assignments as graph **edges**, not findings. See `knowledge/scaling.md` → *Identity / RBAC
+> at scale*.
+
+### All role assignments (paged)
 ```kql
 AuthorizationResources
 | where type =~ "microsoft.authorization/roleassignments"
-| project principalId = properties.principalId,
+| project id, principalId = properties.principalId,
           principalType = properties.principalType,
           roleDefId = properties.roleDefinitionId,
           scope = properties.scope
+| order by principalId asc
+```
+
+### Privileged standing assignments (Owner / Contributor / UAA at sub or MG scope)
+```kql
+AuthorizationResources
+| where type =~ "microsoft.authorization/roleassignments"
+| extend roleDefId = tostring(properties.roleDefinitionId),
+         scope = tostring(properties.scope)
+| extend roleGuid = tolower(tostring(split(roleDefId, "/")[-1]))
+| where roleGuid in (
+    "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",   // Owner
+    "b24988ac-6180-42a0-ab88-20f7382dd24c",   // Contributor
+    "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9")   // User Access Administrator
+| where scope !contains "/resourceGroups/"     // subscription- or MG-level only
+| project principalId = properties.principalId,
+          principalType = properties.principalType, roleGuid, scope
+| order by principalId asc
 ```
 
 ### Custom role definitions (inspect for dangerous actions)

@@ -163,6 +163,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .fh-title{font-weight:600; min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35}
 .fh-domain{font-size:12px; color:var(--muted)}
 .fh-res{font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-aff{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:700; font-family:var(--sans,inherit); color:#fff; background:var(--navy2,#1b4b73); vertical-align:middle; white-space:nowrap}
 .fh-caret{justify-self:end; color:var(--muted); transition:transform .15s}
 .finding.open .fh-caret{transform:rotate(90deg)}
 .flash{animation:flash 1.2s ease-out}
@@ -209,6 +210,21 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .asset-name{font-weight:600}
 .asset-type{font-size:11.5px; color:var(--muted)}
 .asset-scope{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
+.resources-count{font-size:12.5px; margin-bottom:10px}
+.type-strip{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px}
+.type-chip{display:flex; align-items:center; gap:7px; border:1px solid var(--line2); border-radius:8px; padding:5px 10px; background:var(--panel2); font-size:12px}
+.type-name{font-size:11.5px; color:var(--muted)}
+.type-n{font-weight:700; font-size:12px}
+.aff-block{margin-top:14px}
+.aff-count{display:inline-block; margin-left:6px; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:700; color:#fff; background:var(--navy2,#1b4b73)}
+.aff-rollup{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px}
+.aff-type{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line2); border-radius:7px; padding:3px 9px; background:var(--panel); font-size:11.5px}
+.aff-type-n{font-weight:700}
+.aff-table{width:100%; border-collapse:collapse; font-size:12.5px}
+.aff-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:6px 9px; border-bottom:1.5px solid var(--line)}
+.aff-table td{padding:6px 9px; border-bottom:1px solid var(--line); vertical-align:top}
+.aff-table tbody tr:hover{background:var(--panel)}
+.aff-more{font-size:12px; margin-top:8px}
 .cov td:first-child{font-weight:600}
 
 /* Consolidated graph */
@@ -244,6 +260,12 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .warnbox ul{margin:0; padding-left:18px; font-size:13px}
 
 /* Responsive */
+@media (max-width:1300px) and (min-width:981px){
+  /* Reclaim header width for the title: the domain is still shown in the
+     expanded detail meta, so it is the safest column to drop first. */
+  .finding-head{grid-template-columns:auto 84px minmax(0,1fr) 150px 92px auto; gap:10px}
+  .fh-domain{display:none}
+}
 @media (max-width:980px){
   .layout{grid-template-columns:1fr}
   .toc{display:none}
@@ -381,7 +403,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Attack Path"
        data-status="confirmed"
        data-finding-id="AZ-PATH-001"
-       data-search="az-path-001 public web app to subscription owner via managed identity and key vault attack path authorization-attack-path critical confirmed contoso-public-portal /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.web/sites/contoso-public-portal  an internet-facing app service has a system-assigned managed identity that can read a key vault holding a service principal credential. that principal holds roleassignments/write at the subscription scope, enabling self-elevation to owner.">
+       data-search="az-path-001 public web app to subscription owner via managed identity and key vault attack path authorization-attack-path critical confirmed contoso-public-portal /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.web/sites/contoso-public-portal   an internet-facing app service has a system-assigned managed identity that can read a key vault holding a service principal credential. that principal holds roleassignments/write at the subscription scope, enabling self-elevation to owner. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-path-001">
       <span class="fh-sev"><span class="pill sev sev-critical">Critical</span></span>
       <span class="fh-id">AZ-PATH-001</span>
@@ -398,6 +420,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">RG</span> rg-web-prod</span><span class="kv"><span class="muted">Region</span> eastus</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>An internet-facing App Service has a system-assigned managed identity that can read a Key Vault holding a service principal credential. That principal holds roleAssignments/write at the subscription scope, enabling self-elevation to Owner.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Public web entry -&gt; SSRF/code exec -&gt; managed identity token -&gt; Key Vault secret -&gt; privileged SP -&gt; roleAssignments/write -&gt; subscription Owner</p></div><div class="detail-block"><h4>Attack path</h4><ol class="apsteps"><li>Public App Service (contoso-public-portal)</li><li>App managed identity token (IMDS)</li><li>Key Vault kv-web-prod secret read</li><li>Service principal sp-deploy-prod</li><li>roleAssignments/write self-elevation</li><li>Subscription Owner</li></ol></div><div class="detail-block"><h4>Risk</h4><p>Full administrative control of the production subscription, including all data stores and the ability to disable logging.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">Azure Resource Graph</div><div class="ev-summary">App Service contoso-public-portal exposes HTTPS publicly with system-assigned identity enabled.</div></li><li><div class="ev-source">az role assignment list</div><div class="ev-summary">SP 'sp-deploy-prod' holds a custom role with Microsoft.Authorization/roleAssignments/write at subscription scope.</div></li><li><div class="ev-source">az keyvault show</div><div class="ev-summary">Key Vault kv-web-prod grants get/list secrets to the app's managed identity via access policy.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Remove roleAssignments/write from the service principal (replace with PIM-eligible, time-bound assignment). Scope the managed identity's Key Vault access to only the secrets it needs and enable Key Vault RBAC with purge protection.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-mitre">T1548</span><span class="chip c-mitre">T1552.005</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-cis">CIS 8.4</span><span class="chip c-dfc">Managed identity with excessive permissions</span><span class="chip c-nist">AC-6</span><span class="chip c-nist">IA-5</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/role-based-access-control/best-practices" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/role-based-access-control/best-practices</a></li><li><a href="https://learn.microsoft.com/azure/key-vault/general/rbac-guide" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/key-vault/general/rbac-guide</a></li></ul></div>
     </div>
   </div>
@@ -408,7 +431,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="RBAC"
        data-status="confirmed"
        data-finding-id="AZ-AUTH-014"
-       data-search="az-auth-014 service principal holds roleassignments/write at subscription scope rbac authorization-attack-path high confirmed sp-deploy-prod /subscriptions/00000000-0000-0000-0000-000000000000/providers/microsoft.authorization/roleassignments/sp-deploy-prod chk-rbac-escalation-primitive the ci/cd service principal &#39;sp-deploy-prod&#39; is assigned a custom role that includes microsoft.authorization/roleassignments/write — an escalation primitive that lets the principal grant itself owner.">
+       data-search="az-auth-014 service principal holds roleassignments/write at subscription scope rbac authorization-attack-path high confirmed sp-deploy-prod /subscriptions/00000000-0000-0000-0000-000000000000/providers/microsoft.authorization/roleassignments/sp-deploy-prod chk-rbac-escalation-primitive  the ci/cd service principal &#39;sp-deploy-prod&#39; is assigned a custom role that includes microsoft.authorization/roleassignments/write — an escalation primitive that lets the principal grant itself owner. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-auth-014">
       <span class="fh-sev"><span class="pill sev sev-high">High</span></span>
       <span class="fh-id">AZ-AUTH-014</span>
@@ -425,6 +448,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-RBAC-ESCALATION-PRIMITIVE</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleAssignments/sp-deploy-prod</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>The CI/CD service principal 'sp-deploy-prod' is assigned a custom role that includes Microsoft.Authorization/roleAssignments/write — an escalation primitive that lets the principal grant itself Owner.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Any compromise of the SP credential yields a one-step path to subscription Owner.</p></div><div class="detail-block"><h4>Attack path</h4><ol class="apsteps"><li>Compromised SP sp-deploy-prod</li><li>roleAssignments/write</li><li>Self-assign Owner</li></ol></div><div class="detail-block"><h4>Risk</h4><p>Privilege escalation to full subscription control; this is the pivot that turns the public-web entry point into a Critical chain.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az role definition list</div><div class="ev-summary">Custom role 'Deploy-Prod' includes Microsoft.Authorization/roleAssignments/write.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Replace the standing assignment with a least-privilege deployment role that excludes roleAssignments/write. If role assignment is required, gate it behind PIM with approval.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1098.003</span><span class="chip c-cis">CIS 1.23</span><span class="chip c-nist">AC-6</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/role-based-access-control/role-definitions" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/role-based-access-control/role-definitions</a></li></ul></div>
     </div>
   </div>
@@ -435,7 +459,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Network"
        data-status="open"
        data-finding-id="AZ-NET-007"
-       data-search="az-net-007 network security group allows rdp (3389) from the internet network network-exposure high open nsg-jumpbox /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-infra/providers/microsoft.network/networksecuritygroups/nsg-jumpbox chk-net-rdp-open nsg &#39;nsg-jumpbox&#39; has an inbound rule allowing tcp 3389 from source 0.0.0.0/0 (any). the associated vm is directly reachable for rdp brute-force.">
+       data-search="az-net-007 network security group allows rdp (3389) from the internet network network-exposure high open nsg-jumpbox /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-infra/providers/microsoft.network/networksecuritygroups/nsg-jumpbox chk-net-rdp-open  nsg &#39;nsg-jumpbox&#39; has an inbound rule allowing tcp 3389 from source 0.0.0.0/0 (any). the associated vm is directly reachable for rdp brute-force. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-net-007">
       <span class="fh-sev"><span class="pill sev sev-high">High</span></span>
       <span class="fh-id">AZ-NET-007</span>
@@ -452,6 +476,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-NET-RDP-OPEN</span><span class="kv"><span class="muted">RG</span> rg-infra</span><span class="kv"><span class="muted">Region</span> eastus</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-infra/providers/Microsoft.Network/networkSecurityGroups/nsg-jumpbox</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>NSG 'nsg-jumpbox' has an inbound rule allowing TCP 3389 from source 0.0.0.0/0 (Any). The associated VM is directly reachable for RDP brute-force.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Internet-wide RDP brute force / credential stuffing against the jumpbox.</p></div><div class="detail-block"><h4>Risk</h4><p>Initial access foothold on a management host with line of sight to internal resources.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az network nsg rule list</div><div class="ev-summary">Rule 'allow-rdp' — protocol TCP, destPort 3389, source Any, access Allow.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Remove the 0.0.0.0/0 RDP rule. Use Azure Bastion or just-in-time VM access, and restrict management ports to known admin IP ranges.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1190</span><span class="chip c-mitre">T1110</span><span class="chip c-cis">CIS 6.1</span><span class="chip c-dfc">Management ports should be closed on your virtual machines</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/bastion/bastion-overview" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/bastion/bastion-overview</a></li></ul></div>
     </div>
   </div>
@@ -462,7 +487,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Storage"
        data-status="open"
        data-finding-id="AZ-STOR-001"
-       data-search="az-stor-001 storage account allows anonymous public blob access storage data-protection high open contosopublicdata /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-data/providers/microsoft.storage/storageaccounts/contosopublicdata chk-stor-public-blob storage account &#39;contosopublicdata&#39; has allowblobpublicaccess enabled and a container with an anonymous access level of &#39;container&#39;, allowing unauthenticated enumeration and download of all blobs.">
+       data-search="az-stor-001 storage account allows anonymous public blob access storage data-protection high open contosopublicdata /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-data/providers/microsoft.storage/storageaccounts/contosopublicdata chk-stor-public-blob  storage account &#39;contosopublicdata&#39; has allowblobpublicaccess enabled and a container with an anonymous access level of &#39;container&#39;, allowing unauthenticated enumeration and download of all blobs. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-stor-001">
       <span class="fh-sev"><span class="pill sev sev-high">High</span></span>
       <span class="fh-id">AZ-STOR-001</span>
@@ -479,6 +504,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-STOR-PUBLIC-BLOB</span><span class="kv"><span class="muted">RG</span> rg-data</span><span class="kv"><span class="muted">Region</span> eastus</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-data/providers/Microsoft.Storage/storageAccounts/contosopublicdata</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>Storage account 'contosopublicdata' has allowBlobPublicAccess enabled and a container with an anonymous access level of 'container', allowing unauthenticated enumeration and download of all blobs.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Unauthenticated internet user lists and downloads blobs directly over HTTPS.</p></div><div class="detail-block"><h4>Risk</h4><p>Exposure of any sensitive data stored in the public container; reconnaissance aid for further attacks.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az storage account show</div><div class="ev-summary">allowBlobPublicAccess = true.</div></li><li><div class="ev-source">az storage container list</div><div class="ev-summary">Container 'public-assets' has publicAccess = container.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set allowBlobPublicAccess=false on the storage account and set every container's public access level to 'private'. Use SAS or Entra-authenticated access for legitimate sharing.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1530</span><span class="chip c-cis">CIS 3.7</span><span class="chip c-dfc">Storage account public access should be disallowed</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/storage/blobs/anonymous-read-access-prevent" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/storage/blobs/anonymous-read-access-prevent</a></li></ul></div>
     </div>
   </div>
@@ -489,7 +515,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Identity"
        data-status="open"
        data-finding-id="AZ-IDEN-003"
-       data-search="az-iden-003 privileged accounts without multi-factor authentication identity identity-posture high open globaladministrator /tenants/00000000-0000-0000-0000-0000000000aa/directoryroles/globaladministrator chk-iden-mfa-priv three accounts holding the global administrator role have no registered mfa method and are not covered by a conditional access policy requiring mfa.">
+       data-search="az-iden-003 privileged accounts without multi-factor authentication identity identity-posture high open globaladministrator /tenants/00000000-0000-0000-0000-0000000000aa/directoryroles/globaladministrator chk-iden-mfa-priv  three accounts holding the global administrator role have no registered mfa method and are not covered by a conditional access policy requiring mfa. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-iden-003">
       <span class="fh-sev"><span class="pill sev sev-high">High</span></span>
       <span class="fh-id">AZ-IDEN-003</span>
@@ -506,6 +532,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-IDEN-MFA-PRIV</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/tenants/00000000-0000-0000-0000-0000000000aa/directoryRoles/GlobalAdministrator</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>Three accounts holding the Global Administrator role have no registered MFA method and are not covered by a Conditional Access policy requiring MFA.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Password-only access to tenant-wide admin; phishing or credential stuffing yields Global Admin.</p></div><div class="detail-block"><h4>Risk</h4><p>Compromise of any one account grants full control of the Entra tenant and all subscriptions.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">msgraph-sdk (az rest)</div><div class="ev-summary">3 of 4 Global Administrators have no strong auth method registered.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Enforce phishing-resistant MFA for all privileged roles via Conditional Access, and make the roles PIM-eligible rather than permanently active.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1078.004</span><span class="chip c-cis">CIS 1.1.1</span><span class="chip c-nist">IA-2(1)</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-admin-mfa" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-admin-mfa</a></li></ul></div>
     </div>
   </div>
@@ -516,7 +543,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="AI"
        data-status="open"
        data-finding-id="AZ-AI-002"
-       data-search="az-ai-002 azure openai deployment reachable over public network ai ai-foundry medium open contoso-openai /subscriptions/00000000-0000-0000-0000-000000000001/resourcegroups/rg-ai/providers/microsoft.cognitiveservices/accounts/contoso-openai chk-ai-public-network the azure openai account &#39;contoso-openai&#39; has publicnetworkaccess=enabled with no ip restrictions, exposing the inference endpoint and any deployed models to the internet (key-based auth only).">
+       data-search="az-ai-002 azure openai deployment reachable over public network ai ai-foundry medium open contoso-openai /subscriptions/00000000-0000-0000-0000-000000000001/resourcegroups/rg-ai/providers/microsoft.cognitiveservices/accounts/contoso-openai chk-ai-public-network  the azure openai account &#39;contoso-openai&#39; has publicnetworkaccess=enabled with no ip restrictions, exposing the inference endpoint and any deployed models to the internet (key-based auth only). ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-ai-002">
       <span class="fh-sev"><span class="pill sev sev-medium">Medium</span></span>
       <span class="fh-id">AZ-AI-002</span>
@@ -533,6 +560,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-AI-PUBLIC-NETWORK</span><span class="kv"><span class="muted">RG</span> rg-ai</span><span class="kv"><span class="muted">Region</span> eastus2</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000001</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>The Azure OpenAI account 'contoso-openai' has publicNetworkAccess=Enabled with no IP restrictions, exposing the inference endpoint and any deployed models to the internet (key-based auth only).</p></div><div class="detail-block"><h4>Attack vector</h4><p>If an API key leaks (e.g. in client code), the endpoint is directly callable from anywhere.</p></div><div class="detail-block"><h4>Risk</h4><p>Model abuse, data exfiltration via prompts, and unbudgeted spend.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az cognitiveservices account show</div><div class="ev-summary">publicNetworkAccess = Enabled; networkAcls default action = Allow.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set publicNetworkAccess=Disabled and use a private endpoint, or restrict to known IP ranges. Prefer Entra ID (managed identity) auth over API keys and rotate keys.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1133</span><span class="chip c-dfc">Cognitive Services accounts should restrict network access</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/ai-services/cognitive-services-virtual-networks</a></li></ul></div>
     </div>
   </div>
@@ -543,7 +571,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Logging"
        data-status="open"
        data-finding-id="AZ-LOG-005"
-       data-search="az-log-005 key vault has no diagnostic logging to a log analytics workspace logging logging-coverage medium open kv-web-prod /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.keyvault/vaults/kv-web-prod chk-log-kv-diag key vault &#39;kv-web-prod&#39; (the vault on the critical attack path) has no diagnostic setting sending auditevent logs anywhere, so secret-read activity is invisible.">
+       data-search="az-log-005 key vault has no diagnostic logging to a log analytics workspace logging logging-coverage medium open kv-web-prod /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.keyvault/vaults/kv-web-prod chk-log-kv-diag  key vault &#39;kv-web-prod&#39; (the vault on the critical attack path) has no diagnostic setting sending auditevent logs anywhere, so secret-read activity is invisible. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-log-005">
       <span class="fh-sev"><span class="pill sev sev-medium">Medium</span></span>
       <span class="fh-id">AZ-LOG-005</span>
@@ -560,6 +588,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-LOG-KV-DIAG</span><span class="kv"><span class="muted">RG</span> rg-web-prod</span><span class="kv"><span class="muted">Region</span> eastus</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.KeyVault/vaults/kv-web-prod</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>Key Vault 'kv-web-prod' (the vault on the Critical attack path) has no diagnostic setting sending AuditEvent logs anywhere, so secret-read activity is invisible.</p></div><div class="detail-block"><h4>Attack vector</h4><p>An attacker reading secrets through the managed identity leaves no audit trail.</p></div><div class="detail-block"><h4>Risk</h4><p>The most dangerous step in the Critical chain is undetectable — exploitable AND invisible.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az monitor diagnostic-settings list</div><div class="ev-summary">No diagnostic settings configured on kv-web-prod.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Add a diagnostic setting on the vault sending AuditEvent (and AllMetrics) to a Log Analytics workspace, and alert on anomalous secret reads.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1562.008</span><span class="chip c-cis">CIS 5.1.5</span><span class="chip c-nist">AU-12</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/key-vault/general/logging" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/key-vault/general/logging</a></li></ul></div>
     </div>
   </div>
@@ -570,7 +599,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Web"
        data-status="open"
        data-finding-id="AZ-WEB-009"
-       data-search="az-web-009 web app served over tls 1.0 with no web application firewall web web-exposure low open contoso-public-portal /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.web/sites/contoso-public-portal chk-web-tls-min the public portal accepts tls 1.0/1.1 and is not fronted by azure front door or application gateway waf.">
+       data-search="az-web-009 web app served over tls 1.0 with no web application firewall web web-exposure low open contoso-public-portal /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod/providers/microsoft.web/sites/contoso-public-portal chk-web-tls-min  the public portal accepts tls 1.0/1.1 and is not fronted by azure front door or application gateway waf. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-web-009">
       <span class="fh-sev"><span class="pill sev sev-low">Low</span></span>
       <span class="fh-id">AZ-WEB-009</span>
@@ -587,6 +616,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-WEB-TLS-MIN</span><span class="kv"><span class="muted">RG</span> rg-web-prod</span><span class="kv"><span class="muted">Region</span> eastus</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod/providers/Microsoft.Web/sites/contoso-public-portal</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>The public portal accepts TLS 1.0/1.1 and is not fronted by Azure Front Door or Application Gateway WAF.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Downgrade attacks and direct exploitation of the origin without a WAF inspection layer.</p></div><div class="detail-block"><h4>Risk</h4><p>Weak transport security and no edge protection for the most-exposed app.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az webapp config show</div><div class="ev-summary">minTlsVersion = 1.0; no WAF resource associated.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Set minimum TLS to 1.2+, and place the app behind Front Door or App Gateway with WAF in Prevention mode.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-mitre">T1557</span><span class="chip c-cis">CIS 9.3</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/web-application-firewall/overview" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/web-application-firewall/overview</a></li></ul></div>
     </div>
   </div>
@@ -597,7 +627,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
        data-category="Governance"
        data-status="accepted_risk"
        data-finding-id="AZ-GOV-011"
-       data-search="az-gov-011 no resource locks on production resource groups governance governance-posture informational accepted_risk rg-web-prod /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod chk-gov-locks production resource groups have no cannotdelete or readonly locks, so a compromised or mistaken contributor can delete production resources.">
+       data-search="az-gov-011 no resource locks on production resource groups governance governance-posture informational accepted_risk rg-web-prod /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg-web-prod chk-gov-locks  production resource groups have no cannotdelete or readonly locks, so a compromised or mistaken contributor can delete production resources. ">
     <button class="finding-head" aria-expanded="false" aria-controls="detail-az-gov-011">
       <span class="fh-sev"><span class="pill sev sev-informational">Informational</span></span>
       <span class="fh-id">AZ-GOV-011</span>
@@ -614,6 +644,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
         <span class="kv"><span class="muted">Check</span> CHK-GOV-LOCKS</span><span class="kv"><span class="muted">RG</span> rg-web-prod</span><span class="kv"><span class="muted">Sub</span> 00000000-0000-0000-0000-000000000000</span>
       </div>
       <div class="detail-block"><h4>Resource</h4><code class="resfull">/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-web-prod</code></div>
+      
       <div class="detail-block"><h4>Description</h4><p>Production resource groups have no CanNotDelete or ReadOnly locks, so a compromised or mistaken Contributor can delete production resources.</p></div><div class="detail-block"><h4>Attack vector</h4><p>Destructive action (resource deletion) by any Contributor.</p></div><div class="detail-block"><h4>Risk</h4><p>Availability impact; not a confidentiality issue on its own.</p></div><div class="detail-block"><h4>Evidence</h4><ul class="evidence"><li><div class="ev-source">az lock list</div><div class="ev-summary">No management locks found on rg-web-prod.</div></li></ul></div><div class="detail-block rec"><h4>Recommendation</h4><p>Apply CanNotDelete locks to production resource groups and critical resources.</p></div><div class="detail-block"><h4>Control mapping</h4><div class="chips"><span class="chip c-nist">CP-2</span></div></div><div class="detail-block"><h4>References</h4><ul class="refs"><li><a href="https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources" rel="noopener noreferrer" target="_blank">https://learn.microsoft.com/azure/azure-resource-manager/management/lock-resources</a></li></ul></div>
     </div>
   </div></div>
@@ -713,6 +744,8 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
     <div class="sec-head"><span class="sec-num">5</span><h2>Resources &amp; Scope</h2></div>
     <p class="sec-intro">Assets referenced by findings, deduplicated and ranked by worst observed severity, with a roll-up of in-scope tenants and subscriptions.</p>
     <div class="scope-strip"><div class="scope-chip"><span class="scope-label">Subscription 00000000-0000-0000-0000-000000000000</span><span class="scope-nums">6 assets · 7 findings</span></div><div class="scope-chip"><span class="scope-label">Tenant 00000000-0000-0000-0000-0000000000aa</span><span class="scope-nums">1 asset · 1 finding</span></div><div class="scope-chip"><span class="scope-label">Subscription 00000000-0000-0000-0000-000000000001</span><span class="scope-nums">1 asset · 1 finding</span></div></div>
+    <div class="resources-count muted">8 distinct assets referenced across 8 resource types.</div>
+    <div class="type-strip"><div class="type-chip"><span class="type-sev"><span class="pill sev sev-critical">Critical</span></span><code class="type-name">Microsoft.Web/sites</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-high">High</span></span><code class="type-name">Microsoft.Authorization/roleAssignments</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-high">High</span></span><code class="type-name">Microsoft.Network/networkSecurityGroups</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-high">High</span></span><code class="type-name">Microsoft.Storage/storageAccounts</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-high">High</span></span><code class="type-name">tenant/directoryRoles</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-medium">Medium</span></span><code class="type-name">Microsoft.CognitiveServices/accounts</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-medium">Medium</span></span><code class="type-name">Microsoft.KeyVault/vaults</code><span class="type-n">1</span></div><div class="type-chip"><span class="type-sev"><span class="pill sev sev-informational">Informational</span></span><code class="type-name">resourceGroups</code><span class="type-n">1</span></div></div>
     <table class="restable">
       <thead><tr><th>Severity</th><th>Asset</th><th>Type</th><th>Scope</th><th>Findings</th></tr></thead>
       <tbody><tr>
@@ -765,6 +798,7 @@ Finding AZ-AUTH-014</title><rect x="540" y="60" width="168" height="64" rx="9"/>
       <td><button class="linkbtn rec-fid" data-target="finding-az-gov-011">AZ-GOV-011</button></td>
     </tr></tbody>
     </table>
+    
   </section>
 
   <section id="attack-graph" class="section">
@@ -817,7 +851,7 @@ Finding AZ-PATH-001 (Critical)</title><rect x="1080" y="53" width="172" height="
       <p>This document is a self-contained HTML report. It loads no external scripts, styles, fonts, or network resources, and is safe to open offline or archive as evidence. Use <em>Print / Save PDF</em> to produce a paginated copy.</p>
       <table class="restable about">
         <tbody>
-          <tr><td>Generated</td><td>2026-06-09T21:16:36.601Z</td></tr>
+          <tr><td>Generated</td><td>2026-06-10T13:20:06.614Z</td></tr>
           <tr><td>Generator version</td><td>2.0.0</td></tr>
           <tr><td>Findings</td><td>9</td></tr>
           <tr><td>Attack paths</td><td>2 (1 modeled, 1 derived)</td></tr>
@@ -828,7 +862,7 @@ Finding AZ-PATH-001 (Critical)</title><rect x="1080" y="53" width="172" height="
   </section>
 </main>
 </div>
-<script type="application/json" id="report-meta">{"generator":"2.0.0","generated":"2026-06-09T21:16:36.601Z","title":"Contoso Cloud — Sample Assessment","total":9,"counts":{"Critical":1,"High":4,"Medium":2,"Low":1,"Informational":1},"openRisk":9,"chainFindings":4}</script>
+<script type="application/json" id="report-meta">{"generator":"2.0.0","generated":"2026-06-10T13:20:06.614Z","title":"Contoso Cloud — Sample Assessment","total":9,"counts":{"Critical":1,"High":4,"Medium":2,"Low":1,"Informational":1},"openRisk":9,"chainFindings":4}</script>
 <script>
 (function(){
   'use strict';

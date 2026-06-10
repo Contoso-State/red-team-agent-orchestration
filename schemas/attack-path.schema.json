@@ -69,11 +69,11 @@
         },
         "resource_id": {
           "type": "string",
-          "description": "Azure resource ID this node represents, if it maps to a concrete resource."
+          "description": "Azure resource ID this node represents, if it maps to a concrete resource. When the node also sets finding_id and that finding is aggregated (has affected_resources[]), this MUST be one of that finding's affected_resources[].resource_id — so a path traverses a SPECIFIC affected instance, not the whole rollup. See knowledge/scaling.md (Attack paths at scale)."
         },
         "finding_id": {
           "type": "string",
-          "description": "Finding that this node corresponds to (click-through target in the report).",
+          "description": "Finding that this node corresponds to (click-through target in the report). Pair with resource_id to name the specific affected instance this path step traverses.",
           "pattern": "^AZ-[A-Z]+-[0-9]{3}$"
         }
       }

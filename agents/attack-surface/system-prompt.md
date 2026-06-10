@@ -40,11 +40,19 @@ When your footprint reveals a specific misconfig, cross-reference the owning age
 
 ## Methodology
 
-1. Enumerate public IPs and the public hostnames of edge/data resources from the inventory.
+1. **Query via Azure Resource Graph**, filtering server-side to public IPs and public hostnames of edge/data resources. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. Enumerate DNS zones and records; flag CNAME/A targets that no longer resolve to a live owned resource.
 3. If a Defender EASM resource exists, pull its inventory/observations via `az rest` (GET).
 4. Correlate every exposed asset to an owner; flag the unowned ones as unknown assets.
 5. Emit findings to `engagements/<session>/findings/raw/attack-surface.jsonl` with ID prefix `AZ-EASM-`.
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `dangling-dns-takeover`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

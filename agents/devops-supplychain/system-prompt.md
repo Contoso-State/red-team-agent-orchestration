@@ -32,10 +32,18 @@ You own the **CI/CD and external-trust surface**, framed by the trust path — n
 
 ## Methodology
 
-1. Load the shared inventory and `engagement.yaml`. Confirm `Reader` (+ `Application.Read.All`/`Directory.Read.All` for FIC/SP enumeration); if absent, record a coverage limitation.
+1. Load `engagement.yaml` and query CI/CD-relevant resources server-side (federated credentials, pipeline service principals, user-assigned managed identities, ACR, Automation Accounts, Logic Apps). Confirm `Reader` (+ `Application.Read.All`/`Directory.Read.All` for FIC/SP enumeration); if absent, record a coverage limitation. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any ARG-backed check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run the checks in `checks/supplychain/checks.yaml` using the read-only commands in `tools/az-cli/supplychain.md`.
 3. **Correlate trust with privilege.** A federated credential or pipeline SP is only High when broad/external trust meets meaningful Azure RBAC. Without privilege, record it as Low/Informational (review).
 4. Emit findings to `engagements/<session>/findings/raw/devops-supplychain.jsonl` per `schemas/finding.schema.json`, ID prefix `AZ-SUP-`.
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `acr-admin-user-enabled`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

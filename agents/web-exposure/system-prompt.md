@@ -42,11 +42,19 @@ The web edge is the first thing an attacker touches. You assess the public deliv
 
 ## Methodology
 
-1. Read inventory; filter to `Microsoft.Cdn/profiles`, `Microsoft.Network/applicationGateways`, `Microsoft.Network/frontdoorWebApplicationFirewallPolicies`, `Microsoft.Web/staticSites`, `Microsoft.ApiManagement/service`, and storage accounts with `staticWebsite` enabled.
+1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Cdn/profiles`, `Microsoft.Network/applicationGateways`, `Microsoft.Network/frontdoorWebApplicationFirewallPolicies`, `Microsoft.Web/staticSites`, `Microsoft.ApiManagement/service`, and storage accounts with `staticWebsite` enabled. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run checks from `checks/web/`.
 3. Record whether each public edge has a WAF in Prevention mode; map origins behind each edge.
 4. Hand unauthenticated internet-facing endpoints to the Authorization & Attack Path Agent.
 5. Emit findings to `engagements/<session>/findings/raw/web-exposure.jsonl` with ID prefix `AZ-WEB-`.
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `appgw-waf-detection-only`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

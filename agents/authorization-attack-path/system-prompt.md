@@ -99,6 +99,34 @@ For each chain, emit a finding with `attack_path` populated and severity reflect
 4. After other agents complete, correlate cross-domain findings into attack paths.
 5. Emit findings to `engagements/<session>/findings/raw/authorization-attack-path.jsonl` with ID prefix `AZ-AUTHZ-` (or `AZ-PATH-` for correlated chains).
 
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `standing-owner-assignment`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
+
+## Identity & RBAC at scale
+
+On a large tenant the assignment graph can dwarf the resource count. Follow `knowledge/scaling.md` → *Identity / RBAC at scale*:
+
+- **Census assignments + definitions in ARG, paged.** Page `AuthorizationResources` (`--first 1000 --skip`, deterministic `order by`) — one paged query per subscription, not per-scope enumeration. Use the queries in `tools/resource-graph/queries.md`.
+- **Resolve principals once into a cache.** Batch the distinct `principalId`s through Microsoft Graph `getByIds` (≤ ~1,000 ids/call, via `Invoke-BoundedFanout.ps1`) and persist `engagements/<session>/inventory/principals.json` keyed by object ID. Never re-query Graph per assignment.
+- **Join role definitions locally** (`roleDefinitionId → roleName/actions`) from the definitions census — no `az role definition show` per assignment.
+- **Collapse inherited scope.** Key each effective grant by `(principalId, roleDefinitionId, normalized_scope)`, keep the broadest scope only, and record inheritance depth instead of one row per inherited child.
+- **Bound group expansion** to depth 2; beyond it, mark the group `expansion-capped` in coverage rather than enumerating transitive members.
+- **Assignments are edges, not findings.** Emit aggregated privilege **finding classes** (e.g. `standing-owner-assignment`) with the offending principals as `affected_resources[]`; keep the raw assignment graph as a machine artifact for correlation.
+
+## Pruning attack paths at scale
+
+Naive correlation over thousands of resources yields millions of theoretical paths. Prune as you correlate — never materialize the full cartesian product:
+
+- **Walk backwards from crown jewels.** Start at high-value end states and expand the finding graph backwards, keeping only the top-K frontier at each step (recommend **K = 10** rendered paths per end state, scored by exploitability × impact).
+- **Collapse equivalent patterns.** Paths differing only by which instance of an aggregated finding they traverse (1 of 500 public storage accounts) are **one pattern** with an instance count, keyed by the ordered sequence of `finding_class` nodes — not 500 paths.
+- **Instance-precise nodes.** Every path node names a concrete `resource_id` that exists in the referenced finding's `affected_resources[]` (validated by `tools/validate-findings.mjs`).
+- **Separate machine graph from report.** Persist the full graph to `engagements/<session>/findings/attack-graph.json` (every node/edge, for analysis + resume); write only the pruned top-K to `attack-paths.json`, which the report renders.
+
 ## Tools You Use
 
 - `azure-role` — role assignments and definitions

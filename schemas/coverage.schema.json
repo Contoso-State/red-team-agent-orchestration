@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/coverage.schema.json",
+  "title": "Coverage Record",
+  "description": "One cell of the domain × check × subscription × resource type coverage matrix described in knowledge/scaling.md. Partial or sampled runs use these canonical cells to make clear what was assessed, skipped, failed, permission-denied, sampled, or partial.",
+  "type": "object",
+  "required": ["domain", "check_id", "subscription_id", "type", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "type": "string",
+      "description": "Assessment domain, e.g. network-exposure."
+    },
+    "check_id": {
+      "type": "string",
+      "description": "The check that produced this cell, e.g. nsg-mgmt-port-open-internet."
+    },
+    "subscription_id": {
+      "type": "string",
+      "description": "Azure subscription ID for this coverage cell."
+    },
+    "type": {
+      "type": "string",
+      "description": "ARM resource type, e.g. microsoft.storage/storageaccounts."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "assessed",
+        "skipped-by-scope",
+        "skipped-by-budget",
+        "failed",
+        "permission-denied",
+        "sampled",
+        "partial"
+      ],
+      "description": "Coverage outcome for this domain × check × subscription × resource type cell."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 1,
+      "description": "Number of resources this cell represents."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Optional explanation for a skipped, failed, permission-denied, sampled, or partial cell."
+    }
+  }
+}

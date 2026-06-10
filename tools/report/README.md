@@ -43,6 +43,7 @@ node tools/report/generate-report.mjs \
 | `--engagement` | no | `engagement.yaml`/`.json` for report metadata (name, id, mode, subscriptions). Falls back to values derived from the findings. |
 | `--out` | no | Output path. Defaults to `report.html` next to the findings file. |
 | `--title` | no | Override the report title. |
+| `--inventory-summary` | no | `summary.json` type rollup from `Export-Inventory.ps1` (array of `{type,count}`, or an object with `byType[]`/`total`). Surfaces a **"Resources assessed: N"** line on the cover so a large estate is quantified without listing every resource. |
 
 If `--attack-paths` is omitted, the generator **derives** a linear node chain
 from any finding whose `id` starts with `AZ-PATH-` or whose `attack_path[]` is
@@ -69,13 +70,20 @@ table of contents (with scroll-spy) mirrors the cover's printed contents list.
 4. **Findings** — a dense, filterable list (severity / domain / agent / text
    search). Click a row to expand description, attack vector, attack-path steps,
    evidence, risk, recommendation, and CIS/MITRE/Defender/NIST control chips.
+   When a finding is **aggregated** (one misconfiguration class spanning many
+   resources — see `knowledge/scaling.md`), the row header shows an **"N affected"**
+   badge and the detail pane lists the affected resources as a per-type roll-up
+   plus a (capped) instance table sourced from the finding's `affected_resources[]`.
 5. **Recommendations** — findings consolidated (by `check_id`, else normalized
    recommendation text) into prioritized tiers — **Immediate**, **Short-term**,
    **Hardening** — with control mappings and the findings each item addresses.
    Items that sever a modeled attack path are flagged and weighted higher.
 6. **Resources & Scope** — an asset inventory deduplicated by resource id and
    ranked by worst observed severity, plus a per-tenant / per-subscription
-   roll-up of assets and findings.
+   roll-up of assets and findings. Aggregated findings are **expanded over their
+   `affected_resources[]`**, so every affected instance is counted; for large
+   estates the table is preceded by a per-type roll-up and capped to the
+   highest-severity assets (the full per-finding rosters live in the JSON).
 7. **Consolidated Attack Graph** — all **modeled** attack paths merged into one
    deduplicated, **pan/zoom** interactive graph (drag to pan, scroll to zoom,
    click a node to open its finding, hover to highlight shared paths). Falls back

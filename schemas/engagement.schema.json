@@ -50,6 +50,67 @@
             "resource_groups": { "type": "array", "items": { "type": "string" } },
             "resources": { "type": "array", "items": { "type": "string" } }
           }
+        },
+        "resource_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional ARM resource-type allow-list to bound a large estate, e.g. ['microsoft.storage/storageaccounts', 'microsoft.compute/virtualmachines']. Case-insensitive; a trailing '/*' matches a whole provider (e.g. 'microsoft.compute/*'). Empty/omitted means all in-scope types. Filtering is applied server-side in Azure Resource Graph (see knowledge/scaling.md)."
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "identity-posture",
+              "authorization-attack-path",
+              "network-exposure",
+              "compute-platform",
+              "data-protection",
+              "web-exposure",
+              "ai-foundry",
+              "attack-surface",
+              "logging-coverage",
+              "email-security",
+              "governance-posture",
+              "devops-supplychain"
+            ]
+          },
+          "description": "Optional assessment-domain allow-list (maps to the domain sub-agents). Lets an operator target e.g. identity + data + public exposure across the whole estate and defer the long tail. Empty/omitted means all domains."
+        }
+      }
+    },
+    "scale": {
+      "type": "object",
+      "description": "Optional scale controls for large deployments (thousands of resources per subscription). Bounds the expensive per-resource tail without sacrificing the cheap server-side ARG census. See knowledge/scaling.md for the full execution contract.",
+      "properties": {
+        "sample_per_type": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Max resources of a single type to subject to expensive per-resource (data-plane) checks. 0 or omitted = no sampling cap (full census). ARG-only checks always run against the full census regardless of this value."
+        },
+        "max_resource_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Hard ceiling on the total number of per-resource control-plane/data-plane 'az' calls across the engagement. The bounded fan-out helper stops scheduling new per-resource calls once this budget is exhausted and records the remainder as skipped-by-budget in the coverage matrix."
+        },
+        "time_budget_min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Soft wall-clock budget in minutes. The orchestrator prioritizes highest-risk work first and marks unreached work as skipped-by-budget rather than aborting."
+        },
+        "prioritize_exposed": {
+          "type": "boolean",
+          "description": "When true, rank per-resource candidates by exposure (public IP / internet-facing / privileged / prod-tagged) so the highest-risk resources are assessed first within any sampling or time budget. Recommended true for large estates."
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max concurrent per-resource 'az' calls in the bounded fan-out helper. Keep low enough to stay under ARM/ARG throttling across all fanned-out agents (see knowledge/scaling.md). Defaults to a conservative value when omitted."
+        },
+        "max_arg_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Safety cap on the number of 1,000-row ARG pages a single paged check will fetch before recording the result as partial. Guards against a runaway check on a pathologically large type. Omit for the tool default."
         }
       }
     },

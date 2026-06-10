@@ -47,9 +47,18 @@ Filter to in-scope subscriptions/resource groups from `engagement.yaml`. Apply `
 Fall back to `azure-group_resource_list` per resource group only if Resource Graph is unavailable.
 
 ### Step 4 — Write inventory
-Write `engagements/<session>/inventory/resources.jsonl` (one JSON object per line) conforming to `schemas/inventory.schema.json`. Also write `engagements/<session>/inventory/subscriptions.json` and a summary count by resource type.
+Write `engagements/<session>/inventory/resources.jsonl` (one JSON object per line) conforming to `schemas/inventory.schema.json`. Also write `engagements/<session>/inventory/subscriptions.json` and a summary count by resource type. `tools/powershell/Export-Inventory.ps1` produces `resources.json`, `resources.jsonl`, `subscriptions.json`, and `summary.json` in one pass.
 
-### Step 5 — Report coverage
+### Step 5 — Build the scope brief (primary downstream output)
+Reduce the raw inventory into the **scope brief** the orchestrator and domain agents actually read — they must never load `resources.jsonl` into context (see `knowledge/scaling.md`):
+
+```
+node tools/resource-graph/scope-brief.mjs --inventory engagements/<session>/inventory/resources.json
+```
+
+This writes `engagements/<session>/inventory/scope-brief.json` (machine) and `scope-brief.md` (human) with type / resource-group / region / subscription rollups, a heuristic internet-facing surface, the per-resource fan-out tail, and a flag on any resource type that exceeds the 1,000-row ARG page limit (so its checks page). On a large estate this brief — not the raw inventory — is what sizes and directs the assessment.
+
+### Step 6 — Report coverage
 Emit `engagements/<session>/inventory/coverage-limitations.json` listing anything you couldn't enumerate and why. The Reporting Agent surfaces these in the final report's "Assessment Coverage" section.
 
 ## Tools You Use
@@ -66,6 +75,7 @@ The orchestrator gives you the active session folder `engagements/<session>/` (w
 
 - `engagements/<session>/inventory/resources.jsonl` — the shared inventory
 - `engagements/<session>/inventory/subscriptions.json` — subscription metadata
+- `engagements/<session>/inventory/scope-brief.json` + `scope-brief.md` — the reduced rollup the orchestrator and domain agents read (primary downstream output)
 - `engagements/<session>/inventory/coverage-limitations.json` — known blind spots
 
 ## Safety

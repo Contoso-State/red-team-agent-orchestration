@@ -44,10 +44,18 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 
 ## Methodology
 
-1. Read inventory; filter to `Microsoft.Storage`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.DocumentDB`, `Microsoft.DBforPostgreSQL`, `Microsoft.DBforMySQL`, `Microsoft.RecoveryServices`.
+1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Storage`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.DocumentDB`, `Microsoft.DBforPostgreSQL`, `Microsoft.DBforMySQL`, `Microsoft.RecoveryServices`. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run checks from `checks/storage/` and `checks/database/`.
 3. For any Key Vault holding credentials, flag for the Authorization & Attack Path Agent to trace which identities can read them.
 4. Emit findings to `engagements/<session>/findings/raw/data-protection.jsonl` with ID prefix `AZ-DATA-` (or `AZ-STOR-`, `AZ-KV-`, `AZ-SQL-`).
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `storage-public-blob`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

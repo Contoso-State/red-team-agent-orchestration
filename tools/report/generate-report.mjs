@@ -129,6 +129,12 @@ function slugId(value) {
     .replace(/^-+|-+$/g, '') || 'x';
 }
 
+function fmtInt(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return String(n ?? '');
+  return Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 // ---------------------------------------------------------------------------
 // CLI parsing
 // ---------------------------------------------------------------------------
@@ -142,12 +148,14 @@ function parseArgs(args) {
     else if (a === '--engagement') out.engagement = args[++i];
     else if (a === '--out') out.out = args[++i];
     else if (a === '--title') out.title = args[++i];
+    else if (a === '--inventory-summary') out.inventorySummary = args[++i];
     else if (a === '-h' || a === '--help') out.help = true;
     else if (a.startsWith('--findings=')) out.findings = a.slice(11);
     else if (a.startsWith('--attack-paths=')) out.attackPaths = a.slice(15);
     else if (a.startsWith('--engagement=')) out.engagement = a.slice(13);
     else if (a.startsWith('--out=')) out.out = a.slice(6);
     else if (a.startsWith('--title=')) out.title = a.slice(8);
+    else if (a.startsWith('--inventory-summary=')) out.inventorySummary = a.slice(20);
   }
   return out;
 }
@@ -165,6 +173,8 @@ function usage() {
     '  --engagement <path>     engagement.yaml/.json for metadata (optional)',
     '  --out <path>            Output HTML (default: alongside findings as report.html)',
     '  --title <text>          Override report title',
+    '  --inventory-summary <p> summary.json type rollup from Export-Inventory (optional;',
+    '                          surfaces "N resources assessed" on the cover without listing them)',
     '  -h, --help              Show this help',
   ].join('\n');
 }
@@ -253,9 +263,91 @@ function asArray(v) {
   return [];
 }
 
+/**
+ * Load the inventory summary.json type rollup produced by Export-Inventory.ps1.
+ * Accepts either the canonical array form ([{type,count}, ...]) or an object with
+ * a byType[] array and/or explicit total/subscription/resourceGroup counts.
+ * Returns a normalized { total, types, byType[] } or null on failure.
+ */
+function loadInventorySummary(path) {
+  let raw;
+  try {
+    raw = loadJson(path, 'inventory-summary');
+  } catch (err) {
+    warn(`Inventory summary not loaded (${err.message}); cover will omit the resource total.`);
+    return null;
+  }
+  let byType = [];
+  let total = 0;
+  let subscriptions = 0;
+  let resourceGroups = 0;
+  if (Array.isArray(raw)) {
+    byType = raw;
+  } else if (raw && typeof raw === 'object') {
+    byType = Array.isArray(raw.byType) ? raw.byType : (Array.isArray(raw.types) ? raw.types : []);
+    if (Number.isFinite(Number(raw.total))) total = Number(raw.total);
+    if (Number.isFinite(Number(raw.totalRecords))) total = Number(raw.totalRecords);
+    if (Number.isFinite(Number(raw.subscriptions))) subscriptions = Number(raw.subscriptions);
+    if (Number.isFinite(Number(raw.resourceGroups))) resourceGroups = Number(raw.resourceGroups);
+  }
+  const types = byType
+    .filter((t) => t && typeof t === 'object')
+    .map((t) => ({ type: String(t.type ?? ''), count: Number(t.count) || 0 }));
+  if (!total) total = types.reduce((sum, t) => sum + t.count, 0);
+  if (!total && !types.length) return null;
+  return { total, typeCount: types.length, subscriptions, resourceGroups, byType: types };
+}
+
 // ---------------------------------------------------------------------------
 // Normalization
 // ---------------------------------------------------------------------------
+
+/**
+ * Normalize a finding's affected_resources[] (the aggregation model: one finding
+ * class spanning N resource instances). Each entry is coerced to a stable object
+ * shape. When affected_resources[] is absent/empty the finding is the N=1 case,
+ * so we synthesize a single entry from the representative resource_id. The
+ * representative is guaranteed to appear first when present in the list.
+ */
+function normalizeAffectedResources(f, representativeId) {
+  const out = [];
+  const seen = new Set();
+  const push = (entry) => {
+    const rid = String(entry.resource_id ?? '').trim();
+    if (!rid) return;
+    const key = rid.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      resource_id: rid,
+      subscription_id: entry.subscription_id ? String(entry.subscription_id) : '',
+      resource_group: entry.resource_group ? String(entry.resource_group) : '',
+      type: entry.type ? String(entry.type) : '',
+      region: entry.region ? String(entry.region) : '',
+      name: entry.name ? String(entry.name) : '',
+      evidence_ref: entry.evidence_ref ? String(entry.evidence_ref) : '',
+    });
+  };
+  const rep = String(representativeId || '').trim();
+  if (Array.isArray(f.affected_resources) && f.affected_resources.length) {
+    // Ensure the representative sorts first if it is one of the instances.
+    const entries = f.affected_resources.filter((e) => e && typeof e === 'object');
+    const repEntry = rep
+      ? entries.find((e) => String(e.resource_id ?? '').trim().toLowerCase() === rep.toLowerCase())
+      : null;
+    if (repEntry) push(repEntry);
+    for (const e of entries) push(e);
+  }
+  if (out.length === 0 && rep) {
+    push({
+      resource_id: rep,
+      subscription_id: f.subscription_id,
+      resource_group: f.resource_group,
+      region: f.region,
+    });
+  }
+  return out;
+}
 
 function normalizeFindings(rawFindings) {
   const findings = [];
@@ -292,6 +384,7 @@ function normalizeFindings(rawFindings) {
     if (id.startsWith('AZ-PATH-') && attackPath.length === 0) {
       warn(`Attack-path finding "${id}" has an empty attack_path[].`);
     }
+    const affectedResources = normalizeAffectedResources(f, String(f.resource_id ?? ''));
     findings.push({
       id,
       title: String(f.title ?? '(untitled)'),
@@ -301,7 +394,11 @@ function normalizeFindings(rawFindings) {
       agent: String(f.agent ?? 'unknown'),
       category: String(f.category ?? 'Uncategorized'),
       check_id: f.check_id ? String(f.check_id) : '',
+      finding_class: f.finding_class ? String(f.finding_class) : '',
+      dedupe_key: f.dedupe_key ? String(f.dedupe_key) : '',
       resource_id: String(f.resource_id ?? ''),
+      affected_resources: affectedResources,
+      affected_count: affectedResources.length,
       subscription_id: String(f.subscription_id ?? ''),
       resource_group: f.resource_group ? String(f.resource_group) : '',
       region: f.region ? String(f.region) : '',
@@ -560,9 +657,16 @@ function controlsSummary(controls) {
 
 /** Render one finding row. `anchor` is a precomputed, collision-safe DOM id. */
 function renderFindingRow(f, anchor) {
+  const affected = Array.isArray(f.affected_resources) ? f.affected_resources : [];
+  const affCount = affected.length || (f.resource_id ? 1 : 0);
+  const aggregated = affCount > 1;
+  const affNames = aggregated
+    ? affected.slice(0, 50).map((r) => r.name || shortResource(r.resource_id)).join(' ')
+    : '';
   const searchCorpus = [
     f.id, f.title, f.category, f.agent, f.severity, f.status,
-    shortResource(f.resource_id), f.resource_id, f.check_id, f.description,
+    shortResource(f.resource_id), f.resource_id, f.check_id, f.finding_class, f.description,
+    affNames,
   ].join(' ').toLowerCase();
 
   const resShort = shortResource(f.resource_id);
@@ -584,12 +688,17 @@ function renderFindingRow(f, anchor) {
 
   const meta = [
     f.check_id ? `<span class="kv"><span class="muted">Check</span> ${escText(f.check_id)}</span>` : '',
+    f.finding_class ? `<span class="kv"><span class="muted">Class</span> ${escText(f.finding_class)}</span>` : '',
     f.resource_group ? `<span class="kv"><span class="muted">RG</span> ${escText(f.resource_group)}</span>` : '',
     f.region ? `<span class="kv"><span class="muted">Region</span> ${escText(f.region)}</span>` : '',
     f.subscription_id ? `<span class="kv"><span class="muted">Sub</span> ${escText(f.subscription_id)}</span>` : '',
   ].filter(Boolean).join('');
   const resFull = f.resource_id
-    ? `<div class="detail-block"><h4>Resource</h4><code class="resfull">${escText(f.resource_id)}</code></div>`
+    ? `<div class="detail-block"><h4>${aggregated ? 'Representative resource' : 'Resource'}</h4><code class="resfull">${escText(f.resource_id)}</code></div>`
+    : '';
+  const affectedBlock = aggregated ? renderAffectedResources(affected) : '';
+  const affChip = aggregated
+    ? `<span class="fh-aff" title="${affCount} affected resources">${fmtInt(affCount)} affected</span>`
     : '';
 
   return `
@@ -604,7 +713,7 @@ function renderFindingRow(f, anchor) {
     <button class="finding-head" aria-expanded="false" aria-controls="${escAttr(detailId)}">
       <span class="fh-sev">${sevPill(f.severity)}</span>
       <span class="fh-id">${escText(f.id)}</span>
-      <span class="fh-title">${escText(f.title)}</span>
+      <span class="fh-title">${escText(f.title)}${affChip}</span>
       <span class="fh-domain">${escText(f.category)}</span>
       <span class="fh-res" title="${escAttr(f.resource_id)}">${escText(resShort)}</span>
       <span class="fh-status">${statusBadge(f.status)}</span>
@@ -617,8 +726,54 @@ function renderFindingRow(f, anchor) {
         ${meta}
       </div>
       ${resFull}
+      ${affectedBlock}
       ${detail}
     </div>
+  </div>`;
+}
+
+/**
+ * Render the affected-resources roster for an aggregated finding. Shows a per-type
+ * rollup plus an instance table, capped so a finding spanning thousands of
+ * resources stays readable (the full list lives in the findings JSON).
+ */
+function renderAffectedResources(affected) {
+  const ROW_CAP = 200;
+  const total = affected.length;
+  const typeCounts = new Map();
+  for (const r of affected) {
+    const t = r.type || parseResourceId(r.resource_id, r).displayType || 'other';
+    typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
+  }
+  const rollup = [...typeCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, c]) => `<span class="aff-type"><code>${escText(t)}</code> <span class="aff-type-n">${fmtInt(c)}</span></span>`)
+    .join('');
+  const shown = affected.slice(0, ROW_CAP);
+  const rows = shown.map((r) => {
+    const p = parseResourceId(r.resource_id, r);
+    const name = r.name || p.name || shortResource(r.resource_id) || '\u2014';
+    const type = r.type || p.displayType || '\u2014';
+    const sub = r.subscription_id || p.subscriptionId || '\u2014';
+    const rg = r.resource_group || p.resourceGroup || '\u2014';
+    return `<tr>
+      <td><span class="asset-name" title="${escAttr(r.resource_id)}">${escText(name)}</span></td>
+      <td><code class="asset-type">${escText(type)}</code></td>
+      <td>${escText(rg)}</td>
+      <td class="asset-scope">${escText(sub)}</td>
+    </tr>`;
+  }).join('');
+  const moreNote = total > ROW_CAP
+    ? `<p class="aff-more muted">Showing ${fmtInt(ROW_CAP)} of ${fmtInt(total)} affected resources. The full roster is in the findings JSON (<code>affected_resources[]</code>).</p>`
+    : '';
+  return `<div class="detail-block aff-block">
+    <h4>Affected resources <span class="aff-count">${fmtInt(total)}</span></h4>
+    <div class="aff-rollup">${rollup}</div>
+    <table class="aff-table">
+      <thead><tr><th>Resource</th><th>Type</th><th>Resource group</th><th>Subscription</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${moreNote}
   </div>`;
 }
 
@@ -771,52 +926,83 @@ function buildAssetInventory(findings) {
   const assets = new Map();
   const scopeMap = new Map();
   for (const f of findings) {
-    const parsed = parseResourceId(f.resource_id, f);
-    const key = f.resource_id ? f.resource_id.toLowerCase() : 'finding:' + f.id;
-    let a = assets.get(key);
-    if (!a) {
-      a = {
-        key,
-        name: parsed.name || shortResource(f.resource_id) || f.id,
-        displayType: parsed.displayType || 'other',
-        scope: parsed.scope,
-        subscriptionId: parsed.subscriptionId,
-        resourceGroup: parsed.resourceGroup,
-        tenantId: parsed.tenantId,
-        resourceId: f.resource_id,
-        findingIds: [],
-        maxSevRank: 0,
-        maxSev: 'Informational',
+    // Expand over the aggregation model: every affected instance is its own asset.
+    // findings with no resource_id at all collapse to a single finding-scoped row.
+    const instances = (Array.isArray(f.affected_resources) && f.affected_resources.length)
+      ? f.affected_resources
+      : [{ resource_id: f.resource_id, subscription_id: f.subscription_id, resource_group: f.resource_group, region: f.region }];
+    for (const inst of instances) {
+      const rid = inst && inst.resource_id ? String(inst.resource_id) : '';
+      const parseCtx = {
+        subscription_id: (inst && inst.subscription_id) || f.subscription_id,
+        resource_group: (inst && inst.resource_group) || f.resource_group,
       };
-      assets.set(key, a);
+      const parsed = parseResourceId(rid, parseCtx);
+      const key = rid ? rid.toLowerCase() : 'finding:' + f.id;
+      let a = assets.get(key);
+      if (!a) {
+        a = {
+          key,
+          name: (inst && inst.name) || parsed.name || shortResource(rid) || f.id,
+          displayType: (inst && inst.type) || parsed.displayType || 'other',
+          scope: parsed.scope,
+          subscriptionId: parsed.subscriptionId,
+          resourceGroup: parsed.resourceGroup,
+          tenantId: parsed.tenantId,
+          resourceId: rid,
+          findingIds: [],
+          maxSevRank: 0,
+          maxSev: 'Informational',
+        };
+        assets.set(key, a);
+      }
+      if (!a.findingIds.includes(f.id)) a.findingIds.push(f.id);
+      if (f.severityRank > a.maxSevRank) {
+        a.maxSevRank = f.severityRank;
+        a.maxSev = f.severity;
+      }
+      const scopeLabel = parsed.tenantId
+        ? 'Tenant ' + parsed.tenantId
+        : parsed.subscriptionId
+          ? 'Subscription ' + parsed.subscriptionId
+          : '(unscoped)';
+      let s = scopeMap.get(scopeLabel);
+      if (!s) {
+        s = { label: scopeLabel, assets: new Set(), findings: new Set() };
+        scopeMap.set(scopeLabel, s);
+      }
+      s.assets.add(key);
+      s.findings.add(f.id);
     }
-    a.findingIds.push(f.id);
-    if (f.severityRank > a.maxSevRank) {
-      a.maxSevRank = f.severityRank;
-      a.maxSev = f.severity;
-    }
-    const scopeLabel = parsed.tenantId
-      ? 'Tenant ' + parsed.tenantId
-      : parsed.subscriptionId
-        ? 'Subscription ' + parsed.subscriptionId
-        : '(unscoped)';
-    let s = scopeMap.get(scopeLabel);
-    if (!s) {
-      s = { label: scopeLabel, assets: new Set(), findings: 0 };
-      scopeMap.set(scopeLabel, s);
-    }
-    s.assets.add(key);
-    s.findings++;
   }
   const assetList = [...assets.values()].sort((a, b) => {
     if (b.maxSevRank !== a.maxSevRank) return b.maxSevRank - a.maxSevRank;
     if (a.displayType !== b.displayType) return a.displayType.localeCompare(b.displayType);
     return a.name.localeCompare(b.name);
   });
+  // Per-type rollup so a large estate is summarized rather than enumerated.
+  const typeMap = new Map();
+  for (const a of assetList) {
+    let t = typeMap.get(a.displayType);
+    if (!t) {
+      t = { displayType: a.displayType, count: 0, maxSevRank: 0, maxSev: 'Informational' };
+      typeMap.set(a.displayType, t);
+    }
+    t.count++;
+    if (a.maxSevRank > t.maxSevRank) {
+      t.maxSevRank = a.maxSevRank;
+      t.maxSev = a.maxSev;
+    }
+  }
+  const typeRollup = [...typeMap.values()].sort((a, b) => {
+    if (b.maxSevRank !== a.maxSevRank) return b.maxSevRank - a.maxSevRank;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.displayType.localeCompare(b.displayType);
+  });
   const scopes = [...scopeMap.values()]
-    .map((s) => ({ label: s.label, assets: s.assets.size, findings: s.findings }))
+    .map((s) => ({ label: s.label, assets: s.assets.size, findings: s.findings.size }))
     .sort((a, b) => b.findings - a.findings);
-  return { assets: assetList, scopes };
+  return { assets: assetList, scopes, typeRollup, totalAssets: assetList.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -1282,12 +1468,19 @@ function buildHtml(findings, paths, meta, title) {
     .filter((s) => counts[s])
     .map((s) => `<span class="cover-sev sev-${slugId(s)}">${counts[s]} ${escText(s)}</span>`)
     .join('');
+  const inv = meta.inventorySummary;
+  const invLabel = inv
+    ? fmtInt(inv.total) + ' resources'
+      + (inv.typeCount ? '  ·  ' + fmtInt(inv.typeCount) + ' types' : '')
+      + (inv.resourceGroups ? '  ·  ' + fmtInt(inv.resourceGroups) + ' RGs' : '')
+    : null;
   const coverMetaRows = [
     meta.client ? ['Client', meta.client] : null,
     meta.id ? ['Engagement ID', meta.id] : null,
     meta.mode ? ['Mode', meta.mode] : ['Mode', 'read-only-assessment'],
     meta.date ? ['Assessment date', meta.date] : null,
     subs.length ? ['Subscriptions', subs.join('  ·  ')] : null,
+    invLabel ? ['Resources assessed', invLabel] : null,
   ].filter(Boolean)
     .map(([k, v]) => `<div class="cm-row"><span class="cm-k">${escText(k)}</span><span class="cm-v">${escText(v)}</span></div>`)
     .join('');
@@ -1447,9 +1640,15 @@ function buildHtml(findings, paths, meta, title) {
 
   // ---- §5 Resources & scope ---------------------------------------------
   const scopeChips = inventory.scopes
-    .map((s) => `<div class="scope-chip"><span class="scope-label">${escText(s.label)}</span><span class="scope-nums">${s.assets} asset${s.assets === 1 ? '' : 's'} · ${s.findings} finding${s.findings === 1 ? '' : 's'}</span></div>`)
+    .map((s) => `<div class="scope-chip"><span class="scope-label">${escText(s.label)}</span><span class="scope-nums">${fmtInt(s.assets)} asset${s.assets === 1 ? '' : 's'} · ${fmtInt(s.findings)} finding${s.findings === 1 ? '' : 's'}</span></div>`)
     .join('');
-  const assetRows = inventory.assets.map((a) => {
+  const ASSET_ROW_CAP = 300;
+  const totalAssets = inventory.totalAssets || inventory.assets.length;
+  const shownAssets = inventory.assets.slice(0, ASSET_ROW_CAP);
+  const typeRollupStrip = (inventory.typeRollup || [])
+    .map((t) => `<div class="type-chip"><span class="type-sev">${sevPill(t.maxSev)}</span><code class="type-name">${escText(t.displayType)}</code><span class="type-n">${fmtInt(t.count)}</span></div>`)
+    .join('');
+  const assetRows = shownAssets.map((a) => {
     const fids = a.findingIds.map((id) => {
       const anc = anchors.get(id);
       return anc ? `<button class="linkbtn rec-fid" data-target="${escAttr(anc)}">${escText(id)}</button>` : escText(id);
@@ -1463,15 +1662,21 @@ function buildHtml(findings, paths, meta, title) {
       <td>${fids}</td>
     </tr>`;
   }).join('');
+  const assetCapNote = totalAssets > ASSET_ROW_CAP
+    ? `<p class="aff-more muted">Showing the ${fmtInt(ASSET_ROW_CAP)} highest-severity assets of ${fmtInt(totalAssets)} total. The per-type roll-up above covers the full estate; complete instance lists live in each finding's <code>affected_resources[]</code>.</p>`
+    : '';
   const sec5 = `
   <section id="resources" class="section">
     <div class="sec-head"><span class="sec-num">5</span><h2>Resources &amp; Scope</h2></div>
     <p class="sec-intro">Assets referenced by findings, deduplicated and ranked by worst observed severity, with a roll-up of in-scope tenants and subscriptions.</p>
     <div class="scope-strip">${scopeChips || '<span class="muted">No scope information available.</span>'}</div>
+    <div class="resources-count muted">${fmtInt(totalAssets)} distinct asset${totalAssets === 1 ? '' : 's'} referenced across ${fmtInt((inventory.typeRollup || []).length)} resource type${(inventory.typeRollup || []).length === 1 ? '' : 's'}.</div>
+    <div class="type-strip">${typeRollupStrip || ''}</div>
     <table class="restable">
       <thead><tr><th>Severity</th><th>Asset</th><th>Type</th><th>Scope</th><th>Findings</th></tr></thead>
       <tbody>${assetRows || '<tr><td colspan="5" class="muted">No assets.</td></tr>'}</tbody>
     </table>
+    ${assetCapNote}
   </section>`;
 
   // ---- §6 Consolidated attack graph -------------------------------------
@@ -1748,6 +1953,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .fh-title{font-weight:600; min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35}
 .fh-domain{font-size:12px; color:var(--muted)}
 .fh-res{font-size:12px; color:var(--muted); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fh-aff{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:700; font-family:var(--sans,inherit); color:#fff; background:var(--navy2,#1b4b73); vertical-align:middle; white-space:nowrap}
 .fh-caret{justify-self:end; color:var(--muted); transition:transform .15s}
 .finding.open .fh-caret{transform:rotate(90deg)}
 .flash{animation:flash 1.2s ease-out}
@@ -1794,6 +2000,21 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .asset-name{font-weight:600}
 .asset-type{font-size:11.5px; color:var(--muted)}
 .asset-scope{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
+.resources-count{font-size:12.5px; margin-bottom:10px}
+.type-strip{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px}
+.type-chip{display:flex; align-items:center; gap:7px; border:1px solid var(--line2); border-radius:8px; padding:5px 10px; background:var(--panel2); font-size:12px}
+.type-name{font-size:11.5px; color:var(--muted)}
+.type-n{font-weight:700; font-size:12px}
+.aff-block{margin-top:14px}
+.aff-count{display:inline-block; margin-left:6px; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:700; color:#fff; background:var(--navy2,#1b4b73)}
+.aff-rollup{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px}
+.aff-type{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line2); border-radius:7px; padding:3px 9px; background:var(--panel); font-size:11.5px}
+.aff-type-n{font-weight:700}
+.aff-table{width:100%; border-collapse:collapse; font-size:12.5px}
+.aff-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:6px 9px; border-bottom:1.5px solid var(--line)}
+.aff-table td{padding:6px 9px; border-bottom:1px solid var(--line); vertical-align:top}
+.aff-table tbody tr:hover{background:var(--panel)}
+.aff-more{font-size:12px; margin-top:8px}
 .cov td:first-child{font-weight:600}
 
 /* Consolidated graph */
@@ -1829,6 +2050,12 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .warnbox ul{margin:0; padding-left:18px; font-size:13px}
 
 /* Responsive */
+@media (max-width:1300px) and (min-width:981px){
+  /* Reclaim header width for the title: the domain is still shown in the
+     expanded detail meta, so it is the safest column to drop first. */
+  .finding-head{grid-template-columns:auto 84px minmax(0,1fr) 150px 92px auto; gap:10px}
+  .fh-domain{display:none}
+}
 @media (max-width:980px){
   .layout{grid-template-columns:1fr}
   .toc{display:none}
@@ -2090,6 +2317,9 @@ function main() {
     const rawFindings = asArray(loadJson(args.findings, 'findings'));
     const explicitGraph = args.attackPaths ? loadJson(args.attackPaths, 'attack-paths') : null;
     meta = args.engagement ? loadEngagement(args.engagement) : {};
+    if (args.inventorySummary) {
+      meta.inventorySummary = loadInventorySummary(args.inventorySummary);
+    }
     findings = normalizeFindings(rawFindings);
     paths = buildAttackPaths(findings, explicitGraph);
   } catch (err) {

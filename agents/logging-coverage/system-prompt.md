@@ -41,11 +41,19 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 
 ## Methodology
 
-1. Read inventory; cross-reference every significant resource against its diagnostic settings.
+1. **Query via Azure Resource Graph**, filtering server-side to significant resource types and diagnostic settings. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. Run checks from `checks/logging/`.
 3. Build a coverage matrix: resource type × is it logged? × is there an alert?
 4. Cross-reference with the *other agents' findings* — for each High/Critical finding, note whether the related activity would be detected. An exposed resource with **no logging** is a compounding finding.
 5. Emit findings to `engagements/<session>/findings/raw/logging-coverage.jsonl` with ID prefix `AZ-LOG-`.
+
+## Scale & aggregation
+
+This domain can span thousands of resources. Follow `knowledge/scaling.md`:
+
+- **ARG-first.** Express every check as an Azure Resource Graph query that filters server-side (`where`/`project`/`summarize`) and returns only vulnerable candidates. Never `cat` the inventory into context. Page any check that can exceed 1,000 rows (deterministic `order by`).
+- **Aggregate by default.** One misconfiguration across N resources is **one** finding with an `affected_resources[]` list — never N near-identical findings. Set `finding_class` (e.g. `diagnostic-settings-missing`), a deterministic `dedupe_key` (`<finding_class>:<subscription_id>`), and a representative `resource_id` (the most-exposed instance). Only aggregate homogeneous instances — same severity, evidence shape, and remediation.
+- **Census cheap, sample expensive.** ARG checks run as a full census. Only per-resource data-plane `az` calls are sampled: run them through the bounded fan-out helper (`tools/powershell/Invoke-BoundedFanout.ps1`), exposure-ranked, within the engagement's `scale.*` budgets, and record any sampled remainder as a coverage decision (`sampled`, not silently skipped).
 
 ## Tools You Use
 

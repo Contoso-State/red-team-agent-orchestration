@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Contoso-State/red-team-agent-orchestration/schemas/task.schema.json",
+  "title": "Orchestration task record",
+  "description": "One record in the durable task manifest engagements/<session>/runs/tasks.jsonl. The manifest is append-only JSONL — the latest record for a given task_id is the current state. A task is the unit of work keyed by (agent, subscription_id, check_id, scope_hash); this lets a long run resume (skip 'done' tasks, retry 'failed'/'throttled'), enforce budgets, write to per-task output paths, and turn a partial/failed task into a recorded coverage gap instead of aborting the whole engagement. See knowledge/scaling.md -> 'Orchestration at scale'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "agent", "subscription_id", "check_id", "status"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Deterministic identifier: <agent>:<subscription_id>:<check_id>:<scope_hash[0:8]>. Stable across re-runs so the manifest is idempotent."
+    },
+    "agent": {
+      "type": "string",
+      "description": "Domain agent that owns the task, e.g. network-exposure."
+    },
+    "subscription_id": {
+      "type": "string",
+      "description": "Subscription the task runs against (a subscription is the unit of work; multi-sub runs are fan-out)."
+    },
+    "check_id": {
+      "type": "string",
+      "description": "The check the task executes, e.g. nsg-mgmt-port-open-internet."
+    },
+    "scope_hash": {
+      "type": "string",
+      "description": "Hash over the canonical (agent, subscription_id, check_id, scope) tuple. Distinguishes the same check run against different scope parameters."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "done", "failed", "throttled", "partial", "skipped"],
+      "description": "pending=not started; running=in flight; done=completed; failed=errored (retryable); throttled=hit rate limit (retryable); partial=completed with a recorded coverage gap (e.g. paging/budget cut short); skipped=intentionally not run (scope/budget)."
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of times this task has been started. Drives retry/backoff decisions on resume."
+    },
+    "output_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Per-task output paths (e.g. findings/raw/<agent>/<subscription>/<check>.jsonl). Each task writes its OWN files; a deterministic reduce step merges them. Parallel workers never append to one shared file."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable explanation for failed / skipped / partial / throttled statuses. Becomes the coverage-gap reason."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp this record was written."
+    }
+  }
+}

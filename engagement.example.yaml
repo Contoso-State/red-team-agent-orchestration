@@ -37,6 +37,37 @@ scope:
     resources:
       - "/subscriptions/.../resourceGroups/shared/providers/Microsoft.KeyVault/vaults/payroll-kv"
 
+  # --- Large-estate scoping (optional) ----------------------------------
+  # Bound the work BEFORE it runs. Biggest lever first. Filtering is applied
+  # server-side in Azure Resource Graph. See knowledge/scaling.md.
+  #
+  # resource_types: ARM type allow-list. Trailing '/*' matches a whole
+  #   provider. Omit/empty = all in-scope types.
+  resource_types: []
+    # - "microsoft.storage/storageaccounts"
+    # - "microsoft.compute/*"
+    # - "microsoft.keyvault/vaults"
+  #
+  # domains: assessment-domain allow-list (maps to the domain sub-agents).
+  #   Target a few high-value domains across the whole estate and defer the
+  #   long tail. Omit/empty = all domains.
+  domains: []
+    # - identity-posture
+    # - authorization-attack-path
+    # - data-protection
+    # - network-exposure
+
+# Scale controls for large deployments (thousands of resources / subscription).
+# ARG-based checks always run a full server-side census; these knobs only bound
+# the expensive per-resource (data-plane) tail. See knowledge/scaling.md.
+scale:
+  sample_per_type: 0        # 0 = full census; e.g. 50 = at most 50 of each type get per-resource checks
+  max_resource_calls: 0     # 0 = unlimited; hard ceiling on total per-resource `az` calls
+  time_budget_min: 0        # 0 = no soft time budget; e.g. 120 = prioritize highest-risk work within ~2h
+  prioritize_exposed: true  # assess public/internet-facing/privileged/prod resources first within any budget
+  concurrency: 8            # max concurrent per-resource `az` calls (keep under ARM/ARG throttling)
+  max_arg_pages: 50         # safety cap on 1,000-row ARG pages per paged check before marking it partial
+
 # What the agents are permitted and forbidden from doing
 permissions:
   allowed_actions:
