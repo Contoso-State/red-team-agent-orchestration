@@ -77,6 +77,18 @@ desktop.ini
 *.swp
 *.swo
 
+# Scratch / ad-hoc files — defense-in-depth so an interactive command that dumps
+# intermediate data to the repo root (e.g. an `az graph query` result, a debug
+# JSON, a screenshot) can never stage real target data by accident. Keep all
+# durable assessment output under engagements/<session>/ instead.
+_tmp*
+*.tmp
+*.tmp.*
+.playwright-mcp/
+
+# Agent/session planning notes are kept in the session-state folder, never the repo.
+plan.md
+
 # MyST / docs build output
 doc/_build/
 node_modules/
