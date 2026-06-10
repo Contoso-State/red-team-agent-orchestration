@@ -12,9 +12,11 @@ Full methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/co
 ## What You Hunt
 
 - **VMs / VMSS:** unencrypted disks, managed identities with broad rights, risky custom-script extensions, missing patches, password (not key) SSH auth, unmanaged disks
-- **AKS:** public API server, local accounts / no Entra-RBAC, no network policy, privileged or hostPath pods, outdated Kubernetes versions, secrets in env vars
+- **AKS:** public API server, local accounts / no Entra-RBAC, no network policy, privileged or hostPath pods (Pod Security Admission off), in-cluster RBAC cluster-admin sprawl, Workload Identity off (pods inherit node MI via IMDS), outdated Kubernetes versions, secrets in env vars
 - **App Service / Functions:** managed identity over-privilege, remote debugging enabled, missing auth, secrets in app settings, FTP enabled
-- **Containers:** outdated/vulnerable base images, registries with admin user enabled or public access
+- **Containers:** outdated/vulnerable base images (Defender for Containers / scan-on-push off), registries with admin user, public/anonymous access, or no content trust / quarantine / tag immutability
+
+In-cluster Kubernetes and container/registry methodology lives in `knowledge/kubernetes-security.md` and `knowledge/container-security.md` (K8s reads stay read-only — `kubectl get/describe`, `kubectl auth can-i --list`; optional kube-bench / kubesec / trivy are accelerators only).
 
 ## How You Work
 
