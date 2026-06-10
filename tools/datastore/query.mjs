@@ -50,7 +50,8 @@ function cmdResources(db, args) {
   let sql = `SELECT ${cols} FROM resources`;
   if (where.length) sql += ' WHERE ' + where.join(' AND ');
   sql += ' ORDER BY type, resource_id';
-  if (args.limit) sql += ` LIMIT ${parseInt(args.limit, 10)}`;
+  const lim = parseInt(args.limit, 10);
+  if (Number.isFinite(lim)) sql += ` LIMIT ${lim}`;
   const rows = db.prepare(sql).all(...params);
   if (args.ids) return print(rows.map((r) => r.resource_id));
   print(rows);
@@ -73,10 +74,11 @@ function cmdFacts(db, args) {
 function cmdFresh(db, args) {
   if (!args.resource || !args.key) { console.error('Error: --resource and --key are required.'); process.exit(1); }
   const ttl = parseInt(args.ttl, 10);
+  if (!Number.isFinite(ttl)) { console.error('Error: fresh requires a numeric --ttl <seconds>.'); process.exit(1); }
   const row = db.prepare('SELECT collected_at FROM resource_facts WHERE resource_id = ? AND fact_key = ?').get(args.resource, args.key);
   if (!row || !row.collected_at) { console.log('miss'); process.exit(3); }
   const ageSec = (Date.now() - Date.parse(row.collected_at)) / 1000;
-  if (Number.isFinite(ttl) && ageSec > ttl) { console.log(`stale (${Math.round(ageSec)}s)`); process.exit(3); }
+  if (ageSec > ttl) { console.log(`stale (${Math.round(ageSec)}s)`); process.exit(3); }
   console.log(`fresh (${Math.round(ageSec)}s)`);
 }
 
@@ -125,7 +127,8 @@ function cmdNeighbors(db, args) {
 
 function cmdNextTasks(db, args) {
   let sql = "SELECT * FROM tasks WHERE status IN ('pending','failed','throttled') ORDER BY task_id";
-  if (args.limit) sql += ` LIMIT ${parseInt(args.limit, 10)}`;
+  const lim = parseInt(args.limit, 10);
+  if (Number.isFinite(lim)) sql += ` LIMIT ${lim}`;
   print(db.prepare(sql).all().map((t) => ({ ...t, output_refs: t.output_refs_json ? JSON.parse(t.output_refs_json) : [] })));
 }
 

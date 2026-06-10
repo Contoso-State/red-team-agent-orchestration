@@ -79,18 +79,42 @@ function main() {
   tx(hist, () => {
     if (!getMeta(hist, 'engagement_id')) setMeta(hist, 'engagement_id', engagementId);
 
-    // Prior run for this engagement (before recording the current one).
+    // Prior run for this engagement (strictly before the run being promoted).
     const prior = hist.prepare(
       'SELECT run_id FROM runs WHERE engagement_id = ? AND run_id <> ? ORDER BY started_at DESC, run_id DESC LIMIT 1'
     ).get(engagementId, runId);
     delta.prior_run_id = prior ? prior.run_id : null;
 
-    // Latest lifecycle state per identity from history *so far* (excludes the run we
-    // are about to write). Map identity -> { lifecycle, severity, title, first_seen }.
+    // Idempotency: re-promoting an already-recorded run_id is a true no-op. Report the
+    // counts as previously stored and leave runs/finding_history/resource_history intact.
+    const existingRun = hist.prepare(
+      'SELECT new_count, persisting_count, resolved_count, regressed_count FROM runs WHERE run_id = ? AND engagement_id = ?'
+    ).get(runId, engagementId);
+    if (existingRun) {
+      delta.counts.new = existingRun.new_count || 0;
+      delta.counts.persisting = existingRun.persisting_count || 0;
+      delta.counts.resolved = existingRun.resolved_count || 0;
+      delta.counts.regressed = existingRun.regressed_count || 0;
+      delta.already_promoted = true;
+      return;
+    }
+
+    // Latest lifecycle state per identity among runs STRICTLY EARLIER than the run being
+    // promoted. Reading the unfiltered v_finding_lifecycle view would include the current
+    // run (re-promote) or a later out-of-order run, so we compute it directly from
+    // finding_history restricted to run_id < runId. Map identity -> { lifecycle, ... }.
     const priorLatest = new Map();
     for (const r of hist.prepare(
-      'SELECT identity_key, lifecycle, severity, title, first_seen FROM v_finding_lifecycle WHERE engagement_id = ?'
-    ).all(engagementId)) {
+      `SELECT fh.identity_key, fh.lifecycle, fh.severity, fh.title, fh.first_seen
+         FROM finding_history fh
+         JOIN (
+           SELECT identity_key, MAX(run_id) AS max_run
+           FROM finding_history
+           WHERE engagement_id = ? AND run_id < ?
+           GROUP BY identity_key
+         ) latest ON latest.identity_key = fh.identity_key AND latest.max_run = fh.run_id
+        WHERE fh.engagement_id = ? AND fh.run_id < ?`
+    ).all(engagementId, runId, engagementId, runId)) {
       priorLatest.set(r.identity_key, r);
     }
 

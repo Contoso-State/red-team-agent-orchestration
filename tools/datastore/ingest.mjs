@@ -28,7 +28,7 @@
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
-import { openDb, initDb, getMeta, setMeta, tx, nowIso } from './db.mjs';
+import { openDb, initDb, migrate, getMeta, setMeta, tx, nowIso } from './db.mjs';
 
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4, informational: 4 };
 
@@ -307,7 +307,16 @@ function main() {
   const factsPath = args.facts;
   const relPath = args.relationships ?? src.relationships;
 
-  const db = existsSync(resolve(process.cwd(), args.db)) ? openDb(args.db, { create: true }) : initDb(args.db, {});
+  // Open (creating if needed). For a pre-existing file ensure the schema is present and
+  // current so an empty or older-schema DB self-heals instead of failing "no such table".
+  // migrate() is idempotent (every object is IF NOT EXISTS) and never wipes data.
+  let db;
+  if (existsSync(resolve(process.cwd(), args.db))) {
+    db = openDb(args.db, { create: true });
+    tx(db, () => migrate(db));
+  } else {
+    db = initDb(args.db, {});
+  }
   const etlRunId = nowIso();
   const stats = {};
 
