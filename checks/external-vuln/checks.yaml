@@ -283,6 +283,52 @@
   required_permissions: []
 
 # ---------------------------------------------------------------------------
+# Tier 2 — active-dast (authentication-flow testing against allowlisted auth endpoints)
+# See knowledge/oauth-saml-jwt.md. Crafted-but-benign requests only; privileged-claim
+# proof-of-forgery is Tier 3 (exploit-validation) and opt-in per finding.
+# ---------------------------------------------------------------------------
+
+- check_id: CHK-EVA-021
+  title: OAuth2 / OIDC authorization-flow weaknesses
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: An in-scope OAuth 2.0 / OpenID Connect authorization endpoint mis-validates the flow — lax redirect_uri matching (prefix/substring rather than exact), missing or unenforced PKCE, absent/weak state, reusable authorization codes, scope escalation, or a still-enabled implicit flow — enabling token/code theft or CSRF.
+  detection:
+    method: dast
+    tool: "tools/external/Invoke-ScopedScan.ps1 (crafted authorization/token requests; OIDC discovery via safe-prober); EsPReSSO/ZAP as available"
+    logic: A tampered redirect_uri is accepted, a code is issued without state/PKCE, the same code is exchangeable twice, an over-broad scope is granted, or implicit flow returns a token in the fragment.
+  attack_vector: Authorization-code/token theft via redirect_uri abuse, CSRF on the OAuth flow, or scope escalation leading to account takeover of an in-scope application.
+  recommendation: Enforce exact-string redirect_uri matching, require PKCE (S256), validate state in the callback, make codes single-use with a short TTL, disable the implicit flow, and validate token audience.
+  controls:
+    owasp: ["A07:2021", "A01:2021"]
+    cwe: ["CWE-601", "CWE-352", "CWE-287", "CWE-863"]
+    mitre: ["T1190", "T1528", "T1550.001"]
+  required_permissions: []
+
+- check_id: CHK-EVA-022
+  title: JWT signature / algorithm validation weaknesses
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: Critical
+  description: An in-scope endpoint accepts JWTs whose signature is not properly verified — alg:none acceptance, RS256→HS256 algorithm confusion (public key used as the HMAC secret), kid/jku/x5u key-injection, or missing claim/expiry validation — allowing token forgery and authentication bypass. Detection uses a token carrying the caller's own unmodified claims as a benign marker; forging privileged claims to prove impact is Tier 3 (exploit-validation), opt-in per finding.
+  detection:
+    method: dast
+    tool: "tools/external/Invoke-ScopedScan.ps1 (jwt_tool / Burp JWT Editor against allowlisted hosts); JWKS fetched read-only"
+    logic: A forged token (alg:none, or HS256 signed with the server's RSA public key, or kid/jku-injected key) carrying unmodified claims is accepted, or an expired/wrong-audience token is honored.
+  attack_vector: Authentication bypass and privilege escalation by forging JWTs for arbitrary users/roles; exposed or weak signing material enables offline token minting.
+  recommendation: Pin the expected algorithm server-side (never trust the header alg), reject alg:none, prefer EdDSA/ES256, validate iss/aud/exp/nbf, avoid kid/jku/x5u key lookup from untrusted input, and use strong HMAC secrets with revocation.
+  controls:
+    owasp: ["A02:2021", "A07:2021"]
+    cwe: ["CWE-347", "CWE-345", "CWE-290"]
+    mitre: ["T1190", "T1606", "T1552.001"]
+  required_permissions: []
+
+# ---------------------------------------------------------------------------
 # Tier: static-analysis (offline; opt-in feature, code pulled from Azure — never executed)
 # ---------------------------------------------------------------------------
 
