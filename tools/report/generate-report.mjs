@@ -53,6 +53,7 @@ const KNOWN_AGENTS = new Set([
   'email-security',
   'governance-posture',
   'devops-supplychain',
+  'external-vuln',
   'reporting',
 ]);
 const FINDING_ID_RE = /^AZ-[A-Z]+-[0-9]{3}$/;
@@ -250,7 +251,48 @@ function loadEngagement(path) {
     }
   }
   if (subs.length) meta.subscriptions = subs;
+  // Capture the external_testing authorization block (best-effort, nested) so the
+  // report can render an "External Active Testing" authorization/coverage banner.
+  meta.externalTesting = parseExternalTesting(text);
   return meta;
+}
+
+/**
+ * Lightweight nested scan of the external_testing block in engagement.yaml.
+ * No YAML dependency — tracks indentation under `external_testing:` and reads the
+ * scalars we surface in the report banner. Returns null if the block is absent.
+ */
+function parseExternalTesting(text) {
+  const lines = text.split(/\r?\n/);
+  let baseIndent = -1;
+  const block = [];
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/#.*$/, '');
+    if (!line.trim()) continue;
+    const indent = line.match(/^\s*/)[0].length;
+    if (baseIndent === -1) {
+      if (/^external_testing\s*:/.test(line)) baseIndent = indent;
+      continue;
+    }
+    if (indent <= baseIndent) break;
+    block.push(line);
+  }
+  if (baseIndent === -1) return null;
+  const blob = block.join('\n');
+  const scalar = (key) => {
+    const m = blob.match(new RegExp('(?:^|\\n)\\s*' + key + '\\s*:\\s*([^\\n#]*)'));
+    return m ? stripQuotes(m[1].trim()) : '';
+  };
+  const truthy = (v) => /^(true|yes|on|1)$/i.test(String(v).trim());
+  return {
+    enabled: truthy(scalar('enabled')),
+    tier: scalar('tier') || null,
+    attested_by: scalar('attested_by') || null,
+    attestation_id: scalar('attestation_id') || null,
+    window_start: scalar('authorized_window_start') || null,
+    window_end: scalar('authorized_window_end') || null,
+    static_analysis: /static_analysis\s*:[\s\S]*?\benabled\s*:\s*["']?(true|yes|on|1)\b/i.test(blob),
+  };
 }
 
 function stripQuotes(v) {
@@ -1113,6 +1155,47 @@ function buildExecSummary(findings, paths, counts, total, openRisk, chainFinding
   return out;
 }
 
+/**
+ * Authorization + coverage banner for active external testing (EVA). Renders only
+ * when external testing actually happened: either the engagement mode is
+ * external-active-testing, or the dataset contains external-vuln findings. It makes
+ * the authorization reference and scope-lock explicit on the report itself.
+ */
+function buildExternalTestingBanner(findings, meta) {
+  const et = meta.externalTesting || null;
+  const extFindings = findings.filter((f) => f.agent === 'external-vuln' || /^AZ-EVA-/.test(String(f.id || '')));
+  const modeActive = String(meta.mode || '').trim() === 'external-active-testing';
+  if (!modeActive && extFindings.length === 0 && !(et && et.enabled)) return '';
+
+  const rows = [];
+  if (et && et.tier) rows.push(['Max tier', et.tier]);
+  if (et && et.attested_by) rows.push(['Authorized by', et.attested_by]);
+  if (et && et.attestation_id) rows.push(['Authorization ref', et.attestation_id]);
+  if (et && (et.window_start || et.window_end)) {
+    rows.push(['Authorized window', [et.window_start, et.window_end].filter(Boolean).join('  \u2192  ') || '\u2014']);
+  }
+  if (et && et.static_analysis) rows.push(['Offline static analysis', 'enabled']);
+  rows.push(['External findings', String(extFindings.length)]);
+
+  const meta_rows = rows
+    .map(([k, v]) => `<div class="cm-row"><span class="cm-k">${escText(k)}</span><span class="cm-v">${escText(v)}</span></div>`)
+    .join('');
+
+  const authMissing = !et || !et.attested_by || !et.attestation_id;
+  const authLine = authMissing
+    ? 'Authorization metadata was not fully recorded in the engagement file. Confirm written authorization (rules of engagement) is on file before relying on these results.'
+    : 'Active external testing was performed under recorded written authorization.';
+
+  return `
+    <div class="callout callout-active" role="note">
+      <div class="callout-head"><span class="callout-badge">ACTIVE EXTERNAL TESTING</span></div>
+      <p>${escText(authLine)} Testing sent real traffic <strong>only</strong> to hosts on the Azure-derived
+      target allowlist (built from in-scope resources) and was enforced fail-closed by the egress guardrail.
+      No denial-of-service, data exfiltration, or lateral movement was performed.</p>
+      <div class="cover-meta callout-meta">${meta_rows}</div>
+    </div>`;
+}
+
 // ---------------------------------------------------------------------------
 // Consolidated attack-graph model + layered layout + SVG rendering
 // ---------------------------------------------------------------------------
@@ -1528,9 +1611,11 @@ function buildHtml(findings, paths, meta, title) {
     .map((s) => `<div class="sevcard sev-${slugId(s)}" data-severity="${escAttr(s)}" role="button" tabindex="0"><span class="sc-n">${counts[s] || 0}</span><span class="sc-l">${escText(s)}</span></div>`)
     .join('');
   const summaryHtml = summary.map((p) => `<p>${escText(p)}</p>`).join('');
+  const extBanner = buildExternalTestingBanner(findings, meta);
   const sec1 = `
   <section id="exec-summary" class="section">
     <div class="sec-head"><span class="sec-num">1</span><h2>Executive Summary</h2></div>
+    ${extBanner}
     <div class="exec-grid">
       <div class="exec-prose">${summaryHtml}</div>
       <aside class="exec-stats">
@@ -1818,6 +1903,15 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .muted{color:var(--muted)}
 .num{text-align:right; font-variant-numeric:tabular-nums}
 .empty,.note{color:var(--muted); background:var(--panel2); border:1px dashed var(--line2); border-radius:var(--radius); padding:14px 16px}
+.callout{border-radius:var(--radius); padding:14px 18px; margin:0 0 18px}
+.callout p{margin:8px 0 10px}
+.callout-active{background:#fff5f5; border:1px solid #fecaca; border-left:4px solid var(--crit)}
+.callout-head{display:flex; align-items:center; gap:10px; margin-bottom:2px}
+.callout-badge{font-size:11px; font-weight:800; letter-spacing:.14em; color:#fff; background:var(--crit); padding:3px 9px; border-radius:6px}
+.callout-meta{grid-template-columns:1fr 1fr; max-width:640px}
+.callout-meta .cm-row{border-bottom:1px solid var(--line)}
+.callout-meta .cm-k{color:var(--muted); min-width:148px}
+.callout-meta .cm-v{color:var(--txt); font-weight:600}
 
 /* Cover */
 .cover{
