@@ -65,6 +65,15 @@ node tools/resource-graph/scope-brief.mjs --inventory engagements/<session>/inve
 
 This writes `engagements/<session>/inventory/scope-brief.json` (machine) and `scope-brief.md` (human) with type / resource-group / region / subscription rollups, a heuristic internet-facing surface, the per-resource fan-out tail, and a flag on any resource type that exceeds the 1,000-row ARG page limit (so its checks page). On a large estate this brief — not the raw inventory — is what sizes and directs the assessment.
 
+### Step 5b — Load the datastore (the cache every domain agent reads)
+Ingest the inventory (and `subscriptions.json`) into the engagement datastore so domain agents query it instead of re-enumerating Azure:
+
+```
+node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session>
+```
+
+Agents then resolve inventory and cached per-resource config **facts** via `node tools/datastore/query.mjs resources|facts|neighbors …`. When you collect deep per-resource config during sampling, write it back as facts (`resource_facts`) so it is cached: a later agent checks freshness with `query.mjs fresh --resource <id> --key <k> --ttl <seconds>` and only calls Azure on a miss or stale fact. This is what stops the team re-querying `az` for the same resource on every run. Store **config only — never secret values**; evidence keeps references, not secrets.
+
 ### Step 6 — Report coverage
 Emit `engagements/<session>/inventory/coverage-limitations.json` listing anything you couldn't enumerate and why. The Reporting Agent surfaces these in the final report's "Assessment Coverage" section.
 
@@ -75,6 +84,7 @@ Emit `engagements/<session>/inventory/coverage-limitations.json` listing anythin
 - `azure-arm` — Azure Resource Graph queries (preferred enumeration path)
 - `azure-role` — caller role assignment validation
 - Azure CLI (`az account show`, `az role assignment list`) — identity + permission preflight
+- `tools/datastore/ingest.mjs` · `query.mjs` — load inventory/facts into the engagement DB and read it back as the domain agents' cache
 
 ## Output
 

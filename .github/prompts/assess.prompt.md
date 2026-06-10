@@ -10,10 +10,11 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 
 - `engagement.yaml` exists and is valid.
 - `engagements/<session>/inventory/resources.jsonl` exists (run `/recon` first if not).
+- `engagements/<session>/engagement.db` exists with the inventory ingested (run `/recon` first if not).
 
 ## Steps
 
-1. **Confirm inventory** is present and current. If missing, run reconnaissance first.
+1. **Confirm inventory** is present and current. If missing, run reconnaissance first. Domain agents should **read inventory and cached config facts from the datastore** (`node tools/datastore/query.mjs resources|facts|neighbors --db engagements/<session>/engagement.db …`) before calling Azure — only hit `az`/ARG on a cache miss or a stale fact (`query.mjs fresh … --ttl <seconds>`).
 2. **Dispatch domain agents** based on resource types in the inventory. Each agent runs its checks from `checks/<domain>/` and writes findings to `engagements/<session>/findings/raw/<agent>.jsonl`:
 
    | Condition | Agent | Prompt |
@@ -33,11 +34,13 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 
 3. **Enforce scope and mode** for every agent. Skip excluded resources. Never exceed the engagement `mode`.
 4. **Validate findings** against `schemas/finding.schema.json` as they are produced.
-5. **Report progress**: finding counts by agent and severity.
+5. **Ingest findings into the datastore** as agents complete (`node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session>`) so they are deduplicated and `affected_resources[]` unioned in one place. Ingest is the single writer; agents only write their own raw JSONL.
+6. **Report progress**: finding counts by agent and severity.
 
 ## Output
 
 - `engagements/<session>/findings/raw/*.jsonl` populated by each dispatched agent
+- Findings ingested into `engagements/<session>/engagement.db` (deduplicated, query-ready)
 - An assessment summary table (agent × findings × severity)
 - Recommended next step: `/attack-paths` then `/report`
 

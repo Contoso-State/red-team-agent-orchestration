@@ -9,17 +9,19 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
 ## Preconditions
 
 - `engagements/<session>/findings/raw/*.jsonl` is populated (run `/assess` and ideally `/attack-paths` first).
+- `engagements/<session>/engagement.db` exists with findings ingested (the canonical, deduplicated source).
 
 ## Steps
 
-1. **Ingest** all `engagements/<session>/findings/raw/*.jsonl`.
-2. **Validate** each finding against `schemas/finding.schema.json`; fix or drop malformed entries.
-3. **Deduplicate** by `resource_id` + root-cause category; merge evidence and controls.
+1. **Export the canonical artifacts from the datastore.** If `/assess` ingested findings, the DB already holds the deduplicated set with `affected_resources[]` unioned — regenerate the JSON the report consumes: `node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all` (writes `findings/normalized/findings.json`, `reports/findings.json`, `coverage.json`, `inventory/resources.jsonl`, `inventory/summary.json`). If findings were not yet ingested, run `node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session>` first, then export.
+2. **Validate** the exported `engagements/<session>/reports/findings.json` against `schemas/finding.schema.json` (`node tools/validate-findings.mjs`); fix or drop malformed entries at the source and re-export.
+3. **Confirm deduplication.** The DB already deduplicates by `dedupe_key` (falling back to `id`) and unions `affected_resources[]`; spot-check that the same misconfiguration across resources collapsed into one aggregated finding.
 4. **Reconcile severity** using `knowledge/severity-model.md`. You set the final severity consistently.
 5. **Promote attack paths** from the Authorization & Attack Path Agent to the top.
 6. **Map controls** (CIS Azure, MITRE) from `controls/`.
 7. **Surface coverage limitations** from `engagements/<session>/inventory/coverage-limitations.json`.
-8. **Render**:
+8. **Promote the run into history and surface deltas.** `node tools/datastore/promote.mjs --db engagements/<session>/engagement.db --history engagements/_history/<engagement.id>.db --out engagements/<session>/reports/delta.json`. Lead the executive summary's "What changed" with the resulting new / persisting / resolved / regressed counts (the first run has no prior, so everything is new).
+9. **Render**:
    - `engagements/<session>/reports/executive-summary.md` (from `reports/templates/executive-summary.md`)
    - `engagements/<session>/reports/technical-report.md` (from `reports/templates/technical-report.md`)
    - `engagements/<session>/reports/assessment-deck.md` (from `reports/templates/assessment-deck.md`) — the
@@ -53,5 +55,6 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
   `npx @marp-team/marp-cli engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx`
   or `pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx --slide-level=2`
 - A prioritized remediation roadmap (quick wins vs strategic)
+- A `reports/delta.json` of what changed since the prior run (new / persisting / resolved / regressed), surfaced in the executive summary
 
 Apply `data_handling` redaction. Never include secret values. Generated reports are gitignored.
