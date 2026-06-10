@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Azure Red Team ninja favicon">
+  <defs>
+    <linearGradient id="fv-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10151f"/>
+      <stop offset="1" stop-color="#1c0406"/>
+    </linearGradient>
+    <linearGradient id="fv-edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff3b4d"/>
+      <stop offset="1" stop-color="#7a0010"/>
+    </linearGradient>
+    <linearGradient id="fv-hood" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#5bb6ff"/>
+      <stop offset="0.5" stop-color="#1f8ae0"/>
+      <stop offset="1" stop-color="#0a63bd"/>
+    </linearGradient>
+    <linearGradient id="fv-hoodHi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bfe3ff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#bfe3ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fv-band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a2845"/>
+      <stop offset="1" stop-color="#041523"/>
+    </linearGradient>
+    <linearGradient id="fv-eye" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a86"/>
+      <stop offset="1" stop-color="#e10600"/>
+    </linearGradient>
+    <radialGradient id="fv-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="fv-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <clipPath id="fv-hoodClip">
+      <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- rounded-square app-icon background with brand-red edge -->
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#fv-bg)" stroke="url(#fv-edge)" stroke-width="6"/>
+
+  <!-- ninja head, centred and enlarged to read at small sizes -->
+  <g transform="translate(128,128) scale(1.5) translate(-128,-132)">
+    <!-- hood -->
+    <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#fv-hood)"/>
+    <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#fv-hoodHi)"/>
+    <!-- mask band across the eyes -->
+    <g clip-path="url(#fv-hoodClip)">
+      <path d="M58 100 C 92 112 164 112 198 100 L 198 138 C 164 150 92 150 58 138 Z" fill="url(#fv-band)"/>
+      <path d="M58 100 C 92 112 164 112 198 100" fill="none" stroke="#5bb6ff" stroke-opacity="0.5" stroke-width="1.5"/>
+    </g>
+    <!-- glowing red eyes -->
+    <g>
+      <ellipse cx="106" cy="122" rx="18" ry="10" fill="url(#fv-glow)" filter="url(#fv-soft)"/>
+      <ellipse cx="150" cy="122" rx="18" ry="10" fill="url(#fv-glow)" filter="url(#fv-soft)"/>
+      <g transform="translate(105,121) rotate(-15)">
+        <rect x="-16" y="-5.5" width="32" height="11" rx="5.5" fill="url(#fv-eye)"/>
+        <rect x="-16" y="-5.5" width="14" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+      </g>
+      <g transform="translate(151,121) rotate(15)">
+        <rect x="-16" y="-5.5" width="32" height="11" rx="5.5" fill="url(#fv-eye)"/>
+        <rect x="2" y="-5.5" width="14" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+      </g>
+    </g>
+  </g>
+</svg>

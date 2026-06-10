@@ -29,7 +29,7 @@ site:
   options:
     logo: assets/ninja-logo.svg
     logo_text: Azure Red Team
-    favicon: assets/ninja-logo.svg
+    favicon: assets/ninja-favicon.svg
     hide_outline: false
     style: assets/custom.css
   nav:
