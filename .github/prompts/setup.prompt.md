@@ -15,7 +15,9 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
    **replace** it. Only continue if they want to create or replace.
 
 2. **Confirm Azure sign-in.** Run `az account show`. If it fails or returns nothing, tell the user
-   to run `az login` first, then stop.
+   to run `az login` first, then stop. *(Tip: `node tools/preflight/check-environment.mjs` verifies
+   sign-in plus the rest of the toolchain — Node, the Azure CLI, and the `resource-graph` extension
+   — in one read-only step.)*
 
 3. **List the subscriptions the user can assess.** Run:
 

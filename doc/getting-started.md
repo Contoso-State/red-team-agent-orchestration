@@ -14,6 +14,29 @@ Prefer to talk to the team in natural language? Just ask Copilot to *"run an Azu
 assessment"* — it loads the orchestrator skill and follows the same flow described below.
 :::
 
+## Prerequisites
+
+Install these once, then verify your machine is ready:
+
+| Requirement | Why | Install / verify |
+|---|---|---|
+| **GitHub Copilot CLI** | Hosts the agents, skills, and guardrail | [Copilot CLI install guide](https://docs.github.com/copilot/github-copilot-in-the-cli) |
+| **Azure CLI** (`az`) | Every domain agent runs read-only `az` queries | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+| **`resource-graph` extension** | Inventory + scope brief run `az graph query` | `az extension add --name resource-graph` |
+| **Node.js ≥ 22.5** | Datastore + report generator use the built-in `node:sqlite` (no `npm install`) | [nodejs.org](https://nodejs.org/) |
+| **Azure sign-in** | Assessments run as your identity | `az login` |
+
+Minimum Azure RBAC on the target scope is **`Reader` + `Security Reader`**; `Log Analytics
+Reader`, `Directory Reader`, and `Key Vault Reader` improve coverage. Keep it read-only —
+assign your identity read roles only.
+
+Run the environment doctor to confirm everything in one shot (it's read-only and tells you
+how to fix anything missing):
+
+```bash
+node tools/preflight/check-environment.mjs
+```
+
 ## 1. Define engagement scope
 
 Run the guided setup — it lists the subscriptions you can access, asks which one to assess,

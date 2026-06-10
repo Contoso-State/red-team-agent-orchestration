@@ -222,6 +222,16 @@ Each skill stays thin and delegates to the detailed methodology in `agents/<name
 
 ## 🚀 Quick Start
 
+> **First time?** See [Prerequisites](#-prerequisites) (Azure CLI + `resource-graph`
+> extension, Node.js ≥ 22.5, `az login`). Then verify your machine is ready:
+>
+> ```bash
+> node tools/preflight/check-environment.mjs
+> ```
+>
+> It confirms Node, the Azure CLI, your sign-in, and the `resource-graph` extension,
+> and tells you exactly how to fix anything missing — all read-only.
+
 ### 1. Define engagement scope
 
 Run the guided setup — it lists the subscriptions you can access, asks which one to assess, asks
@@ -408,6 +418,7 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 ├── controls/                    # CIS, MITRE ATT&CK, Defender mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs, scaling, datastore
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
+│   ├── preflight/              # Environment doctor — verifies az, sign-in, resource-graph ext, Node
 │   ├── orchestration/          # Scale: task manifest, coverage matrix, preflight cost estimate
 │   ├── datastore/              # SQLite engagement datastore: ingest / query / export / promote
 │   ├── resource-graph/         # ARG queries + scope-brief generator
@@ -467,9 +478,26 @@ Severity is determined by five factors — agents propose, the reporting agent n
 - **Evidence redaction**: Secrets are never stored; PII redaction is configurable
 - **Audit trail**: All agent actions and findings are logged with timestamps
 
-## ✅ Requirements
+## ✅ Prerequisites
 
-- GitHub Copilot with Azure MCP tools enabled
-- Azure CLI authenticated (`az login`)
-- Minimum Azure RBAC: `Reader` + `Security Reader` on target scope
-- Recommended: `Log Analytics Reader`, `Directory Reader`, `Key Vault Reader`
+Install these once before your first run (the [environment doctor](#-quick-start) checks them all for you):
+
+| Requirement | Why | Install / verify |
+|---|---|---|
+| **GitHub Copilot CLI** | Hosts the agents, skills, and guardrail | [Copilot CLI install guide](https://docs.github.com/copilot/github-copilot-in-the-cli) |
+| **Azure CLI** (`az`) | Every domain agent runs read-only `az` queries | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+| **`resource-graph` extension** | Inventory + scope brief run `az graph query` | `az extension add --name resource-graph` |
+| **Node.js ≥ 22.5** | Engagement datastore + report generator use the built-in `node:sqlite` (no `npm install`) | [nodejs.org](https://nodejs.org/) · `node --version` |
+| **Azure sign-in** | Assessments run as your identity | `az login` |
+
+**Minimum Azure RBAC on the target scope:** `Reader` + `Security Reader`.
+**Recommended (improves coverage):** `Log Analytics Reader`, `Directory Reader`, `Key Vault Reader`.
+
+> The assessment is **read-only** — assign your identity only read roles. The guardrail
+> blocks state-changing `az`/`azd` commands regardless, but Reader-only RBAC is the real
+> protection (defense in depth).
+
+## 📄 License
+
+Released under the [MIT License](LICENSE). This is a template — fork it, scope it to your
+own tenant, and run it against environments you are **authorized** to assess.
