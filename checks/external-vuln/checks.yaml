@@ -1,0 +1,307 @@
+# External Vulnerability Checks (EVA)
+# Executed by the External Vulnerability Agent against the Azure-derived target allowlist
+# ONLY. Conforms to schemas/check.schema.json.
+#
+# mode: active  -> every check here sends real traffic and runs ONLY when the engagement is
+#   in mode: external-active-testing with an enabled + authorized external_testing block.
+# tier         -> minimum EVA intensity required:
+#   safe-active        benign, unauthenticated, low-volume (headers/TLS/methods/CORS) — Tier 1
+#   active-dast        automated scanners / fuzzing (nuclei, ZAP, sqlmap) — Tier 2
+#   exploit-validation careful proof-of-exploit, opt-in per finding — Tier 3
+#   static-analysis    offline source/code analysis of artifacts pulled from Azure
+#
+# Targets are always the public FQDNs/IPs published by in-scope Azure resources
+# (engagements/<session>/scope/external-targets.json). The redteam-guardrails egress hook
+# blocks any probe to a host that is not on that allowlist.
+
+# ---------------------------------------------------------------------------
+# Tier 1 — safe-active (benign HTTP/TLS hygiene; runnable via tools/external/safe-prober.mjs)
+# ---------------------------------------------------------------------------
+
+- check_id: CHK-EVA-001
+  title: Missing HTTP security response headers
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Medium
+  description: An in-scope public endpoint omits one or more hardening response headers (HSTS, Content-Security-Policy, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy).
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (benign GET to /)"
+    logic: A successful response lacks one or more of the expected security headers.
+  attack_vector: Clickjacking, MIME sniffing, downgrade, and info leakage due to missing browser-side protections.
+  recommendation: Add the missing headers at the app or edge (Front Door / App Gateway) and set a restrictive CSP.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-693", "CWE-1021"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-002
+  title: Server / framework version disclosure
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Low
+  description: A public endpoint reveals server or framework details (Server, X-Powered-By, X-AspNet-Version, X-Generator), aiding attacker fingerprinting.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (response header inspection)"
+    logic: A disclosure header is present, especially when it includes a version number.
+  attack_vector: Targeted exploitation of known CVEs for the disclosed product/version.
+  recommendation: Suppress or genericize banner/version headers at the app and edge.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-200"]
+    mitre: ["T1592"]
+  required_permissions: []
+
+- check_id: CHK-EVA-003
+  title: Insecure cookie attributes
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Medium
+  description: A Set-Cookie issued by an in-scope endpoint is missing Secure, HttpOnly, or SameSite, weakening session protection.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (Set-Cookie inspection)"
+    logic: A cookie lacks Secure and/or HttpOnly and/or a SameSite attribute.
+  attack_vector: Session theft via XSS (no HttpOnly) or transport interception (no Secure); CSRF (no SameSite).
+  recommendation: Set Secure, HttpOnly, and an explicit SameSite (Lax/Strict) on session cookies.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-1004", "CWE-614"]
+    mitre: ["T1539"]
+  required_permissions: []
+
+- check_id: CHK-EVA-004
+  title: Permissive CORS configuration
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Medium
+  description: An in-scope endpoint returns Access-Control-Allow-Origin of '*' or reflects an arbitrary Origin, especially in combination with Allow-Credentials.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (Origin reflection probe with a random origin)"
+    logic: ACAO is '*' or equals the random probe Origin; severity raised when Allow-Credentials is true.
+  attack_vector: Cross-origin reads of authenticated responses; data exfiltration from the browser.
+  recommendation: Restrict ACAO to a fixed trusted-origin allowlist; never reflect arbitrary origins with credentials.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-942"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-005
+  title: Risky HTTP methods enabled
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Low
+  description: An in-scope endpoint advertises state-changing or dangerous HTTP methods (PUT, DELETE, TRACE, CONNECT, PATCH) via an OPTIONS Allow header.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (OPTIONS request)"
+    logic: The Allow/Public header lists PUT, DELETE, TRACE, CONNECT, or PATCH.
+  attack_vector: Unauthorized content modification or cross-site tracing.
+  recommendation: Disable unused HTTP methods at the web server / application gateway.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-650"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-006
+  title: Weak TLS configuration or certificate near/at expiry
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Medium
+  description: An in-scope endpoint negotiates a TLS version below 1.2, or presents a certificate that is expired or expiring within 14 days.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (TLS handshake inspection) / testssl.sh (Tier 2)"
+    logic: Negotiated protocol < TLS 1.2, or certificate validity window expired/near expiry.
+  attack_vector: Protocol downgrade / interception; outage and trust failure on cert expiry.
+  recommendation: Require TLS 1.2+ (prefer 1.3), disable legacy protocols/ciphers, and automate certificate renewal.
+  controls:
+    owasp: ["A02:2021"]
+    cwe: ["CWE-326", "CWE-298"]
+    mitre: ["T1557"]
+  required_permissions: []
+
+- check_id: CHK-EVA-007
+  title: Plaintext HTTP reachable without HTTPS redirect
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: safe-active
+  severity_default: Medium
+  description: An in-scope endpoint serves content over plaintext HTTP and does not redirect to HTTPS.
+  detection:
+    method: http-probe
+    tool: "tools/external/safe-prober.mjs (HEAD over http://)"
+    logic: HTTP returns 2xx/3xx without a redirect to an https:// location.
+  attack_vector: Credential/session interception and content tampering over cleartext.
+  recommendation: Force HTTP->HTTPS redirect and enable HSTS.
+  controls:
+    owasp: ["A02:2021"]
+    cwe: ["CWE-319"]
+    mitre: ["T1557"]
+  required_permissions: []
+
+# ---------------------------------------------------------------------------
+# Tier 2 — active-dast (automated scanners; tools/external/Invoke-ScopedScan.ps1)
+# ---------------------------------------------------------------------------
+
+- check_id: CHK-EVA-010
+  title: Known-vulnerability / misconfiguration templates (nuclei)
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: Automated template-based scanning of in-scope endpoints for known CVEs, default credentials, exposed panels, and common misconfigurations.
+  detection:
+    method: dast
+    tool: "nuclei -l <scope hosts> (via Invoke-ScopedScan)"
+    logic: A nuclei template matches against an in-scope target.
+  attack_vector: Exploitation of a known vulnerability or exposed administrative interface.
+  recommendation: Patch/upgrade the affected component, remove exposed panels, and rotate any default credentials.
+  controls:
+    owasp: ["A06:2021"]
+    cwe: ["CWE-1035", "CWE-1104"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-011
+  title: Reflected / DOM cross-site scripting (XSS)
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: An in-scope web application reflects unsanitized input into responses, enabling script execution in a victim browser.
+  detection:
+    method: dast
+    tool: "ZAP active scan / nuclei dast (via Invoke-ScopedScan)"
+    logic: An injected benign marker payload is reflected and executes in an HTML/JS context.
+  attack_vector: Session theft, credential capture, and action-on-behalf-of-user via injected script.
+  recommendation: Context-aware output encoding, input validation, and a strict Content-Security-Policy.
+  controls:
+    owasp: ["A03:2021"]
+    cwe: ["CWE-79"]
+    mitre: ["T1059.007"]
+  required_permissions: []
+
+- check_id: CHK-EVA-012
+  title: SQL / NoSQL injection
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: Critical
+  description: An in-scope endpoint constructs database queries from unsanitized input, allowing injection.
+  detection:
+    method: dast
+    tool: "sqlmap / ZAP (via Invoke-ScopedScan); error- and boolean-based detection only by default"
+    logic: A crafted but non-destructive payload alters query behavior (e.g., boolean/time differential).
+  attack_vector: Database read/exfiltration or authentication bypass; potential full compromise.
+  recommendation: Use parameterized queries / ORM bindings and least-privilege database accounts.
+  controls:
+    owasp: ["A03:2021"]
+    cwe: ["CWE-89"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-013
+  title: Sensitive path / file exposure
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: An in-scope endpoint exposes sensitive paths or files (.git, .env, backups, admin consoles, swagger, actuator) to anonymous users.
+  detection:
+    method: dast
+    tool: "nuclei exposures templates / curated path list (via Invoke-ScopedScan)"
+    logic: A request to a sensitive path returns content rather than 404/401/403.
+  attack_vector: Source/secret disclosure or unauthenticated administrative access.
+  recommendation: Remove or authenticate sensitive paths; block dotfiles and management endpoints at the edge.
+  controls:
+    owasp: ["A05:2021"]
+    cwe: ["CWE-538", "CWE-552"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-014
+  title: Server-side request forgery (SSRF) surface
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: An in-scope endpoint accepts a user-controlled URL/host that the server fetches, a classic SSRF vector that is especially dangerous in Azure (IMDS at 169.254.169.254).
+  detection:
+    method: dast
+    tool: "ZAP / nuclei (via Invoke-ScopedScan); out-of-band callback to an operator-controlled, in-scope canary only"
+    logic: The server initiates a request to an operator-supplied marker URL.
+  attack_vector: Access to internal services and the Azure Instance Metadata Service (managed-identity token theft).
+  recommendation: Disallow user-supplied fetch targets; enforce allowlists and block link-local/metadata ranges; use IMDSv2-style protections.
+  controls:
+    owasp: ["A10:2021"]
+    cwe: ["CWE-918"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+- check_id: CHK-EVA-015
+  title: Broken access control / IDOR on exposed endpoints
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: active-dast
+  severity_default: High
+  description: An in-scope application exposes object references or functions that are accessible without proper authorization checks.
+  detection:
+    method: dast
+    tool: "ZAP / manual-assisted (via Invoke-ScopedScan); non-destructive read probes only"
+    logic: An unauthenticated or lower-privileged request reaches data/functionality it should not.
+  attack_vector: Unauthorized data access or privileged actions.
+  recommendation: Enforce server-side authorization on every object and function; deny by default.
+  controls:
+    owasp: ["A01:2021"]
+    cwe: ["CWE-639", "CWE-284"]
+    mitre: ["T1190"]
+  required_permissions: []
+
+# ---------------------------------------------------------------------------
+# Tier: static-analysis (offline; opt-in feature, code pulled from Azure — never executed)
+# ---------------------------------------------------------------------------
+
+- check_id: CHK-EVA-020
+  title: Static analysis of application source pulled from Azure
+  domain: external-vuln
+  agent: external-vuln
+  mode: active
+  tier: static-analysis
+  severity_default: High
+  description: Offline SAST (e.g., Semgrep) over application source/artifacts retrieved from in-scope Azure resources (App Service /home, Storage $web, Functions package) to find injection sinks, hardcoded secrets, and insecure patterns. Code is analyzed only, never executed.
+  detection:
+    method: static-analysis
+    tool: "semgrep --config auto over the retrieved source (offline)"
+    logic: A SAST rule matches an insecure code pattern or a secret in the retrieved artifacts.
+  attack_vector: Injection, secret leakage, or insecure deserialization rooted in the application code.
+  recommendation: Remediate the flagged code, remove hardcoded secrets (use Key Vault / managed identity), and add SAST to CI.
+  controls:
+    owasp: ["A03:2021", "A02:2021"]
+    cwe: ["CWE-79", "CWE-89", "CWE-798"]
+    mitre: ["T1190"]
+  required_permissions: []

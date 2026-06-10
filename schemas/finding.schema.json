@@ -51,6 +51,7 @@
         "web-exposure",
         "ai-foundry",
         "attack-surface",
+        "external-vuln",
         "logging-coverage",
         "email-security",
         "governance-posture",

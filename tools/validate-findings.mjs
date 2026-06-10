@@ -27,7 +27,8 @@ const NODE_TYPES = new Set(['entry', 'pivot', 'target', 'step']);
 const AGENTS = new Set([
   'inventory-scope', 'identity-posture', 'authorization-attack-path', 'network-exposure',
   'compute-platform', 'data-protection', 'web-exposure', 'ai-foundry', 'attack-surface',
-  'logging-coverage', 'email-security', 'governance-posture', 'devops-supplychain', 'reporting',
+  'external-vuln', 'logging-coverage', 'email-security', 'governance-posture',
+  'devops-supplychain', 'reporting',
 ]);
 const FINDING_ID_RE = /^AZ-[A-Z]+-[0-9]{3}$/;
 const FINDING_CLASS_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

@@ -366,7 +366,7 @@ export async function runProber(cwd, opts = {}) {
     for (const f of frags) {
       seq += 1;
       findings.push({
-        id: `AZ-EVA-${String(seq).padStart(4, '0')}`,
+        id: `AZ-EVA-${String(seq).padStart(3, '0')}`,
         agent: 'external-vuln',
         tier: 'safe-active',
         target: t.host,
