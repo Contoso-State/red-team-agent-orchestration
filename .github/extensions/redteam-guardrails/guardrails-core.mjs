@@ -54,7 +54,7 @@ export function splitSegments(command) {
 // Windows/script extension. So `'az'`, "az", az.exe, C:\tools\az.cmd all become `az`,
 // and `& 'Remove-AzVM'` resolves to Remove-AzVM. Keeps invocation detection from being
 // bypassed by trivially quoting or qualifying the program name.
-function normalizeExe(token) {
+export function normalizeExe(token) {
   return token
     .replace(/^['"]+/, "")
     .replace(/['"]+$/, "")

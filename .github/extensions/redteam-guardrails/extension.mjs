@@ -12,6 +12,7 @@
 
 import { joinSession } from "@github/copilot-sdk/extension";
 import { evaluate, engagementMode } from "./guardrails-core.mjs";
+import { evaluateEgress } from "./egress-core.mjs";
 
 const session = await joinSession({
   hooks: {
@@ -21,7 +22,12 @@ const session = await joinSession({
         "Only read/query Azure commands are permitted (az list/show/get/query, Get-Az*, " +
         "az rest --method GET). Mutating az/azd/Az PowerShell commands are blocked unless " +
         "engagement.yaml sets mode: controlled-validation, in which case they require explicit " +
-        "human approval. The orchestrator must dispatch specialist agents — it does not run az itself.",
+        "human approval. The orchestrator must dispatch specialist agents — it does not run az itself. " +
+        "Active external probing (curl/nuclei/zap/sqlmap/nikto/httpx/testssl/nmap and similar) against " +
+        "public hosts is BLOCKED by default and only permitted for the External Vulnerability Agent " +
+        "(EVA) when the engagement is in mode: external-active-testing with external_testing enabled + " +
+        "authorized, and only against hosts on the Azure-derived allowlist " +
+        "(engagements/<session>/scope/external-targets.json).",
     }),
 
     onPreToolUse: async (input) => {
@@ -45,6 +51,47 @@ const session = await joinSession({
             "Azure command (list/show/get/query/Get-Az*), or report this guardrail error.",
         };
       }
+
+      // Scope-lock for the External Vulnerability Agent (EVA). EVA is the only agent that
+      // sends real traffic to live endpoints, and it may ONLY ever touch a host that maps
+      // back to an in-scope Azure resource. This check also fails closed: any active-probe
+      // tool (curl/nuclei/zap/sqlmap/...) reaching a public host is DENIED unless the
+      // engagement is in external-active-testing mode, external_testing is enabled +
+      // authorized, and every target is on the Azure-derived allowlist. Evaluated even when
+      // the read-only matcher allowed the command (curl/nuclei aren't az commands).
+      let egress;
+      try {
+        egress = evaluateEgress(input.toolArgs, input.workingDirectory, input.toolName);
+      } catch (err) {
+        await session.log(
+          `redteam-guardrails egress evaluation error — failing closed (deny): ${err?.stack || err}`,
+          { level: "error" }
+        );
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            "Red team egress guardrail could not evaluate this command, so it was blocked " +
+            "(fail-closed) to preserve the External Vulnerability Agent scope lock. Active " +
+            "external probing is only permitted against the Azure-derived allowlist under an " +
+            "authorized external-active-testing engagement.",
+        };
+      }
+      if (egress && egress.deny) {
+        const mode = engagementMode(input.workingDirectory);
+        await session.log(
+          `Blocked out-of-scope external probe (mode: ${mode}, tool: ${egress.tool}): ${egress.segment}`,
+          { level: "warning" }
+        );
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            `External Vulnerability Agent scope lock: ${egress.reason}. ` +
+            `Blocked: \`${egress.segment}\`. EVA may only probe hosts on the Azure-derived ` +
+            `allowlist (engagements/<session>/scope/external-targets.json) under an authorized ` +
+            `external-active-testing engagement.`,
+        };
+      }
+
       if (!decision || (!decision.deny && !decision.ask)) return undefined;
 
       const mode = engagementMode(input.workingDirectory);
