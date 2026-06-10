@@ -5,7 +5,7 @@ project:
     An agentic red team for Azure cloud security — a coordinated team of read-only
     AI agents that pentest your Azure environment and produce consulting-grade reports.
   github: https://github.com/Contoso-State/red-team-agent-orchestration
-  thumbnail: assets/banner.svg
+  thumbnail: assets/social-card.png
   error_rules:
     # Local methodology pages intentionally link to repo files (skills, agents,
     # checks) that aren't part of the rendered doc tree.

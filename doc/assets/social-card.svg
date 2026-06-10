@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Azure Red Team ninja emblem">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0d14"/>
+      <stop offset="0.55" stop-color="#120308"/>
+      <stop offset="1" stop-color="#1c0406"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2496ed" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#ff2b40" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#ff2b40" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="redBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a5a"/>
+      <stop offset="1" stop-color="#e10600"/>
+    </linearGradient>
+
+    <!-- ninja emblem gradients/filters -->
+    <linearGradient id="nl-hood" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#5bb6ff"/>
+      <stop offset="0.5" stop-color="#1f8ae0"/>
+      <stop offset="1" stop-color="#0a63bd"/>
+    </linearGradient>
+    <linearGradient id="nl-hoodHi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bfe3ff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#bfe3ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="nl-band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a2845"/>
+      <stop offset="1" stop-color="#041523"/>
+    </linearGradient>
+    <linearGradient id="nl-eye" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a86"/>
+      <stop offset="1" stop-color="#e10600"/>
+    </linearGradient>
+    <linearGradient id="nl-tail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2a9bf0"/>
+      <stop offset="1" stop-color="#0a63bd"/>
+    </linearGradient>
+    <radialGradient id="nl-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="nl-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <clipPath id="nl-hoodClip">
+      <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#centerGlow)"/>
+
+  <!-- ninja head only, centred and enlarged -->
+  <g transform="translate(596,300) scale(3.05) translate(-130,-132)">
+    <!-- headband tails -->
+    <g fill="url(#nl-tail)" stroke="#0a63bd" stroke-width="1" stroke-opacity="0.5">
+      <path d="M172 112 C 204 104 222 116 240 106 C 224 124 204 122 184 128 Z"/>
+      <path d="M176 132 C 206 134 222 145 242 142 C 221 153 199 149 182 144 Z"/>
+    </g>
+    <!-- ninja hood -->
+    <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#nl-hood)"/>
+    <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#nl-hoodHi)"/>
+    <!-- mask band across the eyes -->
+    <g clip-path="url(#nl-hoodClip)">
+      <path d="M58 100 C 92 112 164 112 198 100 L 198 138 C 164 150 92 150 58 138 Z" fill="url(#nl-band)"/>
+      <path d="M58 100 C 92 112 164 112 198 100" fill="none" stroke="#5bb6ff" stroke-opacity="0.5" stroke-width="1.5"/>
+    </g>
+    <!-- glowing red eyes -->
+    <g>
+      <ellipse cx="106" cy="122" rx="17" ry="9" fill="url(#nl-glow)" filter="url(#nl-soft)"/>
+      <ellipse cx="150" cy="122" rx="17" ry="9" fill="url(#nl-glow)" filter="url(#nl-soft)"/>
+      <g transform="translate(105,121) rotate(-15)">
+        <rect x="-15" y="-5" width="30" height="10" rx="5" fill="url(#nl-eye)"/>
+        <rect x="-15" y="-5" width="13" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+      </g>
+      <g transform="translate(151,121) rotate(15)">
+        <rect x="-15" y="-5" width="30" height="10" rx="5" fill="url(#nl-eye)"/>
+        <rect x="2" y="-5" width="13" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+      </g>
+    </g>
+  </g>
+
+  <rect x="0" y="620" width="1200" height="10" fill="url(#redBar)"/>
+</svg>
