@@ -13,6 +13,17 @@ engagements/*
 *.sarif
 *.ndjson
 
+# Engagement datastore — SQLite databases ALWAYS hold raw inventory/config/findings
+# (customer data). They live under engagements/<session>/ (already ignored) and
+# engagements/_history/ (cross-run history), but ignore the DB files everywhere as
+# defense-in-depth, including SQLite's WAL/shared-memory sidecar files.
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+
 # Defense-in-depth: assessment artifacts (raw inventory, findings, coverage,
 # orchestration state) MUST always be written under engagements/<session>/ and
 # are already ignored by the rule above. These belt-and-suspenders patterns also
