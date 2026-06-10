@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Azure Red Team ninja emblem">
+  <defs>
+    <linearGradient id="nl-hood" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#5bb6ff"/>
+      <stop offset="0.5" stop-color="#1f8ae0"/>
+      <stop offset="1" stop-color="#0a63bd"/>
+    </linearGradient>
+    <linearGradient id="nl-hoodHi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bfe3ff" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#bfe3ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="nl-band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a2845"/>
+      <stop offset="1" stop-color="#041523"/>
+    </linearGradient>
+    <linearGradient id="nl-steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e6f1fb"/>
+      <stop offset="0.5" stop-color="#9fb4c8"/>
+      <stop offset="1" stop-color="#5d7286"/>
+    </linearGradient>
+    <linearGradient id="nl-eye" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a86"/>
+      <stop offset="1" stop-color="#e10600"/>
+    </linearGradient>
+    <linearGradient id="nl-hex" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e1420"/>
+      <stop offset="1" stop-color="#191f2b"/>
+    </linearGradient>
+    <linearGradient id="nl-hexStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff3b4d"/>
+      <stop offset="1" stop-color="#7a0010"/>
+    </linearGradient>
+    <linearGradient id="nl-tail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2a9bf0"/>
+      <stop offset="1" stop-color="#0a63bd"/>
+    </linearGradient>
+    <radialGradient id="nl-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff2b40" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff2b40" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="nl-soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <clipPath id="nl-hoodClip">
+      <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- hexagon shield -->
+  <g transform="translate(128,128)">
+    <polygon points="104,0 52,90 -52,90 -104,0 -52,-90 52,-90" fill="url(#nl-hex)" stroke="url(#nl-hexStroke)" stroke-width="4"/>
+    <polygon points="86,0 43,74 -43,74 -86,0 -43,-74 43,-74" fill="none" stroke="#ff2b40" stroke-opacity="0.4" stroke-width="1.5"/>
+  </g>
+
+  <!-- crossed katana behind the head -->
+  <g>
+    <g transform="translate(128,128) rotate(55)">
+      <path d="M0 -96 L3.5 -86 L3.5 20 L-3.5 20 L-3.5 -86 Z" fill="url(#nl-steel)"/>
+      <rect x="-11" y="20" width="22" height="6" rx="2" fill="#16202c"/>
+      <rect x="-5" y="26" width="10" height="44" rx="3" fill="#0c141d"/>
+      <rect x="-6" y="68" width="12" height="7" rx="2" fill="#16202c"/>
+      <g stroke="#e10600" stroke-width="2" stroke-opacity="0.85">
+        <line x1="-4.5" y1="34" x2="4.5" y2="38"/>
+        <line x1="-4.5" y1="44" x2="4.5" y2="48"/>
+        <line x1="-4.5" y1="54" x2="4.5" y2="58"/>
+      </g>
+    </g>
+    <g transform="translate(128,128) rotate(-55)">
+      <path d="M0 -96 L3.5 -86 L3.5 20 L-3.5 20 L-3.5 -86 Z" fill="url(#nl-steel)"/>
+      <rect x="-11" y="20" width="22" height="6" rx="2" fill="#16202c"/>
+      <rect x="-5" y="26" width="10" height="44" rx="3" fill="#0c141d"/>
+      <rect x="-6" y="68" width="12" height="7" rx="2" fill="#16202c"/>
+      <g stroke="#e10600" stroke-width="2" stroke-opacity="0.85">
+        <line x1="-4.5" y1="34" x2="4.5" y2="38"/>
+        <line x1="-4.5" y1="44" x2="4.5" y2="48"/>
+        <line x1="-4.5" y1="54" x2="4.5" y2="58"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- headband tails (right) -->
+  <g fill="url(#nl-tail)" stroke="#0a63bd" stroke-width="1" stroke-opacity="0.5">
+    <path d="M172 112 C 204 104 222 116 240 106 C 224 124 204 122 184 128 Z"/>
+    <path d="M176 132 C 206 134 222 145 242 142 C 221 153 199 149 182 144 Z"/>
+  </g>
+
+  <!-- ninja hood -->
+  <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#nl-hood)"/>
+  <path d="M128 62 C 163 62 186 91 186 124 C 186 161 159 202 128 202 C 97 202 70 161 70 124 C 70 91 93 62 128 62 Z" fill="url(#nl-hoodHi)"/>
+
+  <!-- mask band across the eyes -->
+  <g clip-path="url(#nl-hoodClip)">
+    <path d="M58 100 C 92 112 164 112 198 100 L 198 138 C 164 150 92 150 58 138 Z" fill="url(#nl-band)"/>
+    <path d="M58 100 C 92 112 164 112 198 100" fill="none" stroke="#5bb6ff" stroke-opacity="0.5" stroke-width="1.5"/>
+  </g>
+
+  <!-- glowing red eyes (angled / determined) -->
+  <g>
+    <ellipse cx="106" cy="122" rx="17" ry="9" fill="url(#nl-glow)" filter="url(#nl-soft)"/>
+    <ellipse cx="150" cy="122" rx="17" ry="9" fill="url(#nl-glow)" filter="url(#nl-soft)"/>
+    <g transform="translate(105,121) rotate(-15)">
+      <rect x="-15" y="-5" width="30" height="10" rx="5" fill="url(#nl-eye)"/>
+      <rect x="-15" y="-5" width="13" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+    </g>
+    <g transform="translate(151,121) rotate(15)">
+      <rect x="-15" y="-5" width="30" height="10" rx="5" fill="url(#nl-eye)"/>
+      <rect x="2" y="-5" width="13" height="4" rx="2" fill="#ffd2d2" fill-opacity="0.85"/>
+    </g>
+  </g>
+</svg>

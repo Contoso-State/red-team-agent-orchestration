@@ -27,8 +27,9 @@ site:
   template: book-theme
   title: Azure Red Team Agent Orchestration
   options:
+    logo: assets/ninja-logo.svg
     logo_text: Azure Red Team
-    favicon: assets/banner.svg
+    favicon: assets/ninja-logo.svg
     hide_outline: false
     style: assets/custom.css
   nav:
