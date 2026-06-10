@@ -20,13 +20,19 @@ This is a **read-only methodology template**. Every Azure interaction goes throu
 session-wide guardrail that **denies by default** — only recognized read/query operations
 on `az`/`azd`/Azure PowerShell are allowed. Nothing in this repo performs live scanning on
 its own; you run the agents against your own authorized, in-scope environment.
+
+The one exception is the **gated External Vulnerability Agent (EVA)** — off by default —
+which performs active outside-in web testing against **only** the URLs/IPs already
+discovered in your Azure subscription, and only after a signed authorization. See
+[Safety & Authorization](safety.md#active-external-testing-eva).
 :::
 
 ## What you get
 
 - **A dispatchable agent team** — one user-facing Orchestrator that coordinates fourteen
   read-only domain specialists (identity, network, compute, data, web, AI, EASM, logging,
-  governance, supply chain, email, authorization/attack-path, inventory, reporting).
+  governance, supply chain, email, authorization/attack-path, inventory, reporting), plus a
+  **gated** active-testing agent (EVA) that stays off until explicitly authorized.
 - **Atomic security checks** across 13 domains, each mapped to CIS Azure and MITRE
   ATT&CK cloud techniques.
 - **Attack-path correlation** that chains single-domain findings into multi-step
@@ -76,6 +82,11 @@ The interactive HTML report, deliverables, and the structured findings model.
 :::{card} 🛡️ Safety & Authorization
 :link: safety.md
 The read-only guardrail, operating modes, and engagement authorization.
+:::
+
+:::{card} 🎯 External Vulnerability Agent
+:link: external-vuln.md
+The gated, scope-locked active web-testing agent (EVA) — off by default.
 :::
 
 :::{card} 🗂️ Repository Layout

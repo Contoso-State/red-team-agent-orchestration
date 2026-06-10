@@ -6,8 +6,8 @@
   <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
-  <img src="https://img.shields.io/badge/agents-15-ff2b40" alt="15 agents (orchestrator + 14 specialists)">
-  <img src="https://img.shields.io/badge/checks-97-2496ed" alt="97 security checks">
+  <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
+  <img src="https://img.shields.io/badge/checks-111-2496ed" alt="111 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
 </p>
@@ -70,9 +70,12 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 | **Governance & Posture** | Governance / Posture | Azure Policy guardrails & exemptions, Defender for Cloud secure score, management-group hierarchy, resource locks |
 | **DevOps & Supply Chain** | CI/CD / Supply chain | Workload identity federation (OIDC), pipeline service principals, ACR admin/tasks, Automation Accounts, Logic Apps |
 | **Email Security** *(optional)* | Microsoft 365 | SPF/DKIM/DMARC, Exchange Online Protection, Defender for Office 365, mail-flow rules |
+| **External Vulnerability (EVA)** *(gated, active)* | Active external testing | OWASP Top 10 validation of Azure-discovered URLs/IPs + optional offline static analysis — scope-locked, **off by default** |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
 > The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only when M365 is in engagement scope. EntraID, RBAC, SQL/databases, and Kubernetes/containers are covered by the Identity, Authorization, Data, and Compute agents respectively.
+
+> **The External Vulnerability Agent (EVA)** is the only agent that sends real traffic to live endpoints. It is **off by default** and dispatched only when the engagement `mode` is `external-active-testing` with a signed authorization. EVA tests **only** hosts on an Azure-derived allowlist, enforced fail-closed by a second egress guardrail. See [Operating Modes](#-operating-modes) and the [EVA docs](https://contoso-state.github.io/red-team-agent-orchestration/external-vuln).
 
 ## 🧭 How It Works
 
@@ -218,7 +221,7 @@ human-approval prompt. Decision logic lives in `guardrails-core.mjs` and is unit
 agent — and the orchestrator additionally has **no shell access at all** (dispatch-only), so it can
 never run `az` itself.
 
-Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`) are convenient entry points that drive the same team.
+Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`, and the gated `/external`) are convenient entry points that drive the same team.
 
 ## 🚀 Quick Start
 
@@ -384,18 +387,22 @@ Full reference: [`knowledge/datastore.md`](knowledge/datastore.md).
 | `read-only-assessment` | Enumerate and analyze configurations only | 🟢 Safe |
 | `attack-path-analysis` | Read-only + build attack path graphs | 🟡 Low |
 | `controlled-validation` | Read-only + state-changing actions require explicit human approval (the guardrail prompts, never auto-allows) | 🟠 Medium |
+| `external-active-testing` | Unlocks the gated **External Vulnerability Agent (EVA)** for active OWASP Top 10 testing of Azure-discovered URLs/IPs — scope-locked to an Azure-derived allowlist, requires a signed authorization, **off by default** | 🔴 High |
 
 Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook across all agents.
+`external-active-testing` additionally arms a second, independent fail-closed **egress** guardrail so
+EVA can never reach a host that isn't on the Azure-derived target allowlist. Run it with `/external`.
+See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orchestration/external-vuln) for the full safety model.
 
 ## 🗂️ Repository Structure
 
 ```
 ├── engagement.example.yaml      # Engagement scope template
 ├── .github/
-│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists)
+│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists + gated EVA)
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
-│   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny)
-│   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck
+│   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny) + EVA egress lock
+│   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck /external (gated)
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
 │   ├── inventory-scope/         # Preflight — enumeration and permission checks
@@ -411,6 +418,7 @@ Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook a
 │   ├── logging-coverage/        # Monitoring, Sentinel, diagnostic settings
 │   ├── governance-posture/      # Azure Policy, Defender posture, MG hierarchy, resource locks
 │   ├── devops-supplychain/      # OIDC/federated creds, pipeline SPs, ACR, automation, Logic Apps
+│   ├── external-vuln/           # External Vulnerability Agent (EVA) — gated active OWASP testing
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies

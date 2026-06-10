@@ -22,6 +22,7 @@ project:
     - url: https://contoso-state.github.io/red-team-agent-orchestration/report.sample.html
       title: Sample Report
     - file: safety.md
+    - file: external-vuln.md
     - file: repository.md
 site:
   template: book-theme

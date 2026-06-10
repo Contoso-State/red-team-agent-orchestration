@@ -30,6 +30,13 @@ and maps to the severity model and control frameworks.
 | Storage | `checks/storage/checks.yaml` |
 | Supply Chain | `checks/supplychain/checks.yaml` |
 | Web | `checks/web/checks.yaml` |
+| External Vulnerability (EVA) *(active, gated)* | `checks/external-vuln/checks.yaml` |
+
+:::{note}
+The **External Vulnerability** checks are **active** (they describe outside-in web tests, not
+read-only `az` queries) and run only when the engagement is in the gated
+`external-active-testing` mode. See [Safety & Authorization](safety.md#active-external-testing-eva).
+:::
 
 ## Playbooks (`playbooks/`)
 
@@ -48,6 +55,9 @@ Playbooks are multi-step assessment methodologies that combine checks across dom
 - **`scaling.md`** — how the assessment scales to estates with thousands of resources
   (aggregation, sampling, ARG paging, and the datastore as the working set).
 - **`datastore.md`** — the canonical spec for the SQLite [engagement datastore](datastore.md).
+- **`owasp-top10.md`**, **`web-vuln-testing.md`**, **`xss.md`**, **`static-analysis.md`** —
+  the web-application testing knowledge base used by the gated External Vulnerability Agent
+  (OWASP Top 10, outside-in DAST technique, XSS, and offline static analysis).
 
 ## Control mappings (`controls/`)
 
@@ -64,8 +74,14 @@ defenders:
 - **`tools/resource-graph/queries.md`** — Azure Resource Graph queries for fast inventory.
 - **`tools/kql/`** — KQL for detection-coverage analysis.
 - **`tools/powershell/`** — preflight and inventory-export helpers.
+- **`tools/external/`** — the **gated** active external-testing toolchain: `build-targets.mjs`
+  (derives the Azure-scoped target allowlist), `safe-prober.mjs` (dependency-free Tier-1
+  probes), `Invoke-ScopedScan.ps1` (scope-locked DAST wrapper), and `Invoke-StaticAnalysis.ps1`
+  (offline SAST). These run only in `external-active-testing` mode and are bounded by a
+  second fail-closed egress guardrail.
 
-All commands are **read-only** and pass through the guardrail described in
-[Safety & Authorization](safety.md). Results are cached in the
+All read-only commands pass through the guardrail described in
+[Safety & Authorization](safety.md). The `tools/external/` toolchain is the **one active
+exception** and is independently gated and scope-locked. Results are cached in the
 [engagement datastore](datastore.md), so agents query the database instead of re-running the
 same `az` calls — essential on large estates.

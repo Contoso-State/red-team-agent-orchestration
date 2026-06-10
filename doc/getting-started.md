@@ -132,6 +132,14 @@ pandoc engagements/<session>/reports/assessment-deck.md -o assessment-deck.pptx 
 | `/attack-paths` | Correlate findings into attack chains |
 | `/report` | Render executive + technical + HTML report + deck |
 | `/deck` | Render the slide deck only |
+| `/external` *(gated)* | Active outside-in OWASP Top 10 testing of Azure-discovered URLs/IPs — only in `external-active-testing` mode |
+
+:::{warning}
+`/external` dispatches the **External Vulnerability Agent (EVA)**, the one agent that sends
+real traffic. It is **off by default** and refuses to run unless the engagement is in
+`external-active-testing` mode with a signed authorization. See
+[External Vulnerability Agent](external-vuln.md).
+:::
 
 Next: see the [Agent Team](agent-team.md) that powers these commands, or review
 [Safety & Authorization](safety.md) before running against a real environment.

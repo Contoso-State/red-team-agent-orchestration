@@ -8,9 +8,10 @@ description: The Orchestrator and its fourteen Azure domain specialists, and how
 ![Orchestrator dispatches fourteen domain specialists](assets/agent-team.svg)
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
-hands tasks to fourteen domain specialists via Copilot's `agent` (Task) tool. The
-orchestrator is **dispatch-only** — it has no shell access and never runs `az` itself; it
-assigns work to specialists and aggregates the findings they return.
+hands tasks to fourteen domain specialists via Copilot's `agent` (Task) tool — plus one
+**gated** active-testing specialist (EVA) that is off by default. The orchestrator is
+**dispatch-only** — it has no shell access and never runs `az` itself; it assigns work to
+specialists and aggregates the findings they return.
 
 | Agent | Domain | Key Focus |
 |---|---|---|
@@ -28,12 +29,21 @@ assigns work to specialists and aggregates the findings they return.
 | **Governance & Posture** | Governance / Posture | Azure Policy guardrails & exemptions, Defender for Cloud secure score, MG hierarchy, resource locks |
 | **DevOps & Supply Chain** | CI/CD / Supply chain | Workload identity federation (OIDC), pipeline service principals, ACR admin/tasks, Automation Accounts, Logic Apps |
 | **Email Security** *(optional)* | Microsoft 365 | SPF/DKIM/DMARC, Exchange Online Protection, Defender for Office 365, mail-flow rules |
+| **External Vulnerability (EVA)** *(gated)* | Active external testing | OWASP Top 10 validation of Azure-discovered URLs/IPs; optional offline static analysis — scope-locked, off by default |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
 :::{note}
 The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only
 when M365 is in engagement scope. Entra ID, RBAC, SQL/databases, and Kubernetes/containers
 are covered by the Identity, Authorization, Data, and Compute agents respectively.
+:::
+
+:::{important}
+The **External Vulnerability Agent (EVA)** is the only agent that sends real traffic to live
+endpoints. It is **off by default** and dispatched only when the engagement `mode` is
+`external-active-testing` with an enabled, signed `external_testing` authorization. It tests
+**only** hosts on the Azure-derived target allowlist, enforced fail-closed by a second egress
+guardrail. See [Safety & Authorization](safety.md#active-external-testing-eva).
 :::
 
 ## How it works

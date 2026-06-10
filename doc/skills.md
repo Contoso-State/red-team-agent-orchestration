@@ -27,6 +27,7 @@ methodology and read-only `az` runner without manual wiring.
 | `azure-redteam-governance` | Azure Policy, Defender for Cloud posture, MG hierarchy, resource locks |
 | `azure-redteam-supplychain` | OIDC/federated credentials, pipeline SPs, ACR, automation, Logic Apps |
 | `azure-redteam-email` | M365 email security (SPF/DKIM/DMARC, Defender for Office 365) — optional |
+| `azure-redteam-external-vuln` | **Gated active testing.** OWASP Top 10 validation of Azure-discovered URLs/IPs + optional offline static analysis — scope-locked, off by default |
 | `azure-redteam-reporting` | Normalize findings, render deliverables |
 
 :::{note}
@@ -63,6 +64,7 @@ This keeps the skill, the agent, and the checks in lock-step without duplicating
 | `redteam-governance.agent.md` | Red Team Governance & Posture | Orchestrator |
 | `redteam-supplychain.agent.md` | Red Team DevOps & Supply Chain | Orchestrator |
 | `redteam-email.agent.md` | Red Team Email Security *(optional, M365)* | Orchestrator |
+| `redteam-external-vuln.agent.md` | Red Team External Vulnerability (EVA) *(gated active testing)* | Orchestrator (only in `external-active-testing` mode) |
 | `redteam-reporting.agent.md` | Red Team Reporting | Orchestrator |
 
 See [Methodology](methodology.md) for the checks, playbooks, and knowledge base that the

@@ -8,10 +8,10 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 ```text
 ├── engagement.example.yaml      # Engagement scope template
 ├── .github/
-│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists)
+│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists + gated EVA)
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
-│   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny)
-│   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck
+│   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny) + EVA egress lock
+│   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck /external (gated)
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
 │   ├── inventory-scope/         # Preflight — enumeration and permission checks
@@ -27,14 +27,16 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 │   ├── logging-coverage/        # Monitoring, Sentinel, diagnostic settings
 │   ├── governance-posture/      # Azure Policy, Defender posture, MG hierarchy, resource locks
 │   ├── devops-supplychain/      # OIDC/federated creds, pipeline SPs, ACR, automation, Logic Apps
+│   ├── external-vuln/           # External Vulnerability Agent (EVA) — gated active OWASP testing
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
 ├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
 ├── controls/                    # CIS, MITRE ATT&CK mappings
-├── knowledge/                   # Azure attack matrix, common misconfigs, severity model
+├── knowledge/                   # Azure attack matrix, common misconfigs, severity model, web/OWASP testing (EVA)
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, datastore, HTML report generator
-│   └── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle
+│   ├── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle
+│   └── external/                # Gated EVA toolchain — Azure-scoped target allowlist, safe prober, scope-locked DAST + offline SAST wrappers
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
 ```
