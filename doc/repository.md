@@ -33,7 +33,8 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 ├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
 ├── controls/                    # CIS, MITRE ATT&CK mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs, severity model
-├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
+├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, datastore, HTML report generator
+│   └── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
 ```
@@ -46,12 +47,14 @@ named for the engagement and the moment it ran — nothing is scattered across t
 
 ```text
 engagements/
+├── _history/                         # longitudinal lifecycle DBs (one per engagement id, gitignored)
 └── <session>/                        # <engagement-id>-<YYYY-MM-DD-HHMMSS>
     ├── engagement.yaml               # scope snapshot used by this run
+    ├── engagement.db                 # SQLite datastore — cache + canonical store (gitignored)
     ├── inventory/                    # resources.jsonl, subscriptions.json, coverage-limitations.json
     ├── findings/                     # raw/<agent>.jsonl + normalized/findings.json
     ├── evidence/                     # raw + sanitized artifacts
-    └── reports/                      # executive-summary, technical-report, report.html, assessment-deck, findings.json
+    └── reports/                      # executive-summary, technical-report, report.html, assessment-deck, findings.json, delta.json
 ```
 
 - **Timestamped, never overwritten** — `<session>` = `<engagement.id>` + a UTC

@@ -61,7 +61,8 @@ The orchestrator will:
 ```
 
 Dispatches all domain agents against the inventory. Each agent produces structured findings
-in `engagements/<session>/findings/raw/`.
+in `engagements/<session>/findings/raw/`. Agents read cached resource config from the
+[engagement datastore](datastore.md) instead of re-querying Azure, so large estates stay fast.
 
 ## 5. Analyze attack paths
 
@@ -79,7 +80,8 @@ Correlates findings across domains to identify multi-step compromise chains.
 
 Normalizes findings, deduplicates, reconciles severity, and generates the executive
 summary, technical report, normalized `findings.json`, and an **interactive HTML report**.
-See [Reporting](reporting.md) for the full deliverable set and a live sample.
+It also folds the run into the datastore's history and emits a `delta.json` of what changed
+since last time. See [Reporting](reporting.md) for the full deliverable set and a live sample.
 
 ## 7. Build the presentation deck
 

@@ -30,6 +30,9 @@ its own; you run the agents against your own authorized, in-scope environment.
   ATT&CK cloud techniques.
 - **Attack-path correlation** that chains single-domain findings into multi-step
   compromise scenarios.
+- **An incremental SQLite datastore** that caches Azure config so agents stop re-querying,
+  joins findings across domains, and tracks what changed between runs (new / persisting /
+  resolved / regressed).
 - **Consulting-grade deliverables** — executive summary, technical report, an interactive
   self-contained HTML report, and a slide deck, all rendered from a normalized
   `findings.json`.
@@ -58,6 +61,12 @@ The auto-loaded Copilot skills that give each agent its Azure domain methodology
 Atomic checks, multi-step playbooks, control mappings, and the Azure attack knowledge base.
 :::
 
+:::{card} 🗄️ Engagement Datastore
+:link: datastore.md
+The SQLite cache that stops agents re-querying Azure, joins findings across domains, and
+tracks what changed between runs.
+:::
+
 :::{card} 📊 Reporting
 :link: reporting.md
 The interactive HTML report, deliverables, and the structured findings model.
@@ -81,11 +90,13 @@ How agents, skills, hooks, checks, and session output are organized.
 graph TD
     User[Security Engineer] -->|/recon or /assess| Orchestrator
     Orchestrator -->|1. Preflight| Preflight[Inventory & Scope Agent]
-    Preflight -->|Resource inventory| Orchestrator
+    Preflight -->|Resource inventory| DB[(Engagement Datastore)]
+    DB -->|cached config| Orchestrator
     Orchestrator -->|2. Dispatch| Agents[Domain Agents]
-    Agents -->|Structured findings| Orchestrator
+    Agents -->|query cache / structured findings| DB
+    DB -->|joined facts + findings| Orchestrator
     Orchestrator -->|3. Correlate| APA[Attack Path Analysis]
     APA -->|Attack chains| Orchestrator
-    Orchestrator -->|4. Report| Reporter[Reporting Agent]
+    Orchestrator -->|4. Report + delta| Reporter[Reporting Agent]
     Reporter -->|Final report| User
 ```

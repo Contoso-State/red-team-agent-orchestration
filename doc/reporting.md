@@ -18,6 +18,9 @@ Every run writes these into `engagements/<session>/reports/`:
 - **Interactive HTML report** (`report.html`) — the flagship deliverable (below).
 - **Slide deck** (`assessment-deck.md`) — PowerPoint-convertible via Marp or Pandoc.
 - **`findings.json`** — the normalized, machine-readable source of truth.
+- **`delta.json`** — what changed since the prior run (new / persisting / resolved /
+  regressed), produced from the [engagement datastore](datastore.md)'s history. The executive
+  summary leads with it.
 
 ## The interactive HTML report
 

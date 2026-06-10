@@ -17,6 +17,7 @@ project:
     - file: agent-team.md
     - file: skills.md
     - file: methodology.md
+    - file: datastore.md
     - file: reporting.md
     - url: https://contoso-state.github.io/red-team-agent-orchestration/report.sample.html
       title: Sample Report

@@ -45,6 +45,9 @@ Playbooks are multi-step assessment methodologies that combine checks across dom
 - **`azure-attack-matrix.md`** — Azure-specific attack techniques mapped to tactics.
 - **`common-misconfigs.md`** — the recurring misconfigurations the agents hunt for.
 - **`severity-model.md`** — how findings are scored and normalized for the report.
+- **`scaling.md`** — how the assessment scales to estates with thousands of resources
+  (aggregation, sampling, ARG paging, and the datastore as the working set).
+- **`datastore.md`** — the canonical spec for the SQLite [engagement datastore](datastore.md).
 
 ## Control mappings (`controls/`)
 
@@ -63,4 +66,6 @@ defenders:
 - **`tools/powershell/`** — preflight and inventory-export helpers.
 
 All commands are **read-only** and pass through the guardrail described in
-[Safety & Authorization](safety.md).
+[Safety & Authorization](safety.md). Results are cached in the
+[engagement datastore](datastore.md), so agents query the database instead of re-running the
+same `az` calls — essential on large estates.
