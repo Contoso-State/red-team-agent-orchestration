@@ -10,6 +10,14 @@
 --   * Every table carries provenance (source / collected_at) where it makes sense.
 --   * NEVER store secret values. Evidence keeps a reference into evidence/raw/ only.
 --   * Applied idempotently: every object uses IF NOT EXISTS so re-applying is a no-op.
+--   * Integrity (see db.mjs openDb): foreign_keys=ON enforces the *ownership* edges —
+--     a finding's children (affected_resources/evidence/findings_controls) and an attack
+--     path's steps cannot outlive their parent (ON DELETE CASCADE). Columns that point at
+--     the inventory (affected_resources.resource_id, resource_facts.resource_id,
+--     relationships.src/dst) are intentionally NOT hard FKs: inventory can be sampled or
+--     ingested independently of findings, so those references are kept soft and enforced
+--     by the single-writer ingest. Enum-like columns carry CHECK constraints; ingest.mjs
+--     normalizes values before insert so the checks never reject valid runs.
 
 PRAGMA foreign_keys = ON;
 
@@ -39,7 +47,7 @@ CREATE TABLE IF NOT EXISTS resources (
   tags_json       TEXT,
   raw_json        TEXT,
   collected_at    TEXT,
-  etl_run_id      TEXT
+  etl_run_id      TEXT       -- provenance: id of the ingest run that last wrote this row
 );
 CREATE INDEX IF NOT EXISTS idx_resources_type    ON resources(type);
 CREATE INDEX IF NOT EXISTS idx_resources_sub     ON resources(subscription_id);
@@ -77,14 +85,14 @@ CREATE TABLE IF NOT EXISTS findings (
   dedupe_key      TEXT,
   finding_class   TEXT,
   title           TEXT,
-  severity        TEXT,
-  confidence      TEXT,
+  severity        TEXT CHECK (severity IS NULL OR severity IN ('Critical','High','Medium','Low','Informational')),
+  confidence      TEXT CHECK (confidence IS NULL OR confidence IN ('High','Medium','Low')),
   agent           TEXT,
   category        TEXT,
   check_id        TEXT,
   subscription_id TEXT,
   resource_id     TEXT,                        -- representative instance
-  status          TEXT,                        -- open|confirmed|false_positive|remediated|accepted_risk
+  status          TEXT CHECK (status IS NULL OR status IN ('open','confirmed','false_positive','remediated','accepted_risk')),
   first_seen      TEXT,
   last_seen       TEXT,
   description     TEXT,
@@ -98,6 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_findings_severity ON findings(severity);
 CREATE INDEX IF NOT EXISTS idx_findings_agent    ON findings(agent);
 CREATE INDEX IF NOT EXISTS idx_findings_sub      ON findings(subscription_id);
 CREATE INDEX IF NOT EXISTS idx_findings_class    ON findings(finding_class);
+CREATE INDEX IF NOT EXISTS idx_findings_check    ON findings(check_id);
 
 -- The N aggregated instances exhibiting a finding (affected_resources[]).
 CREATE TABLE IF NOT EXISTS affected_resources (
@@ -109,17 +118,20 @@ CREATE TABLE IF NOT EXISTS affected_resources (
   region          TEXT,
   name            TEXT,
   evidence_ref    TEXT,
-  PRIMARY KEY (finding_id, resource_id)
+  PRIMARY KEY (finding_id, resource_id),
+  FOREIGN KEY (finding_id) REFERENCES findings(finding_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_affected_resource ON affected_resources(resource_id);
+CREATE INDEX IF NOT EXISTS idx_affected_sub      ON affected_resources(subscription_id);
 
 -- Evidence items (redacted; never secret values). raw_ref points into evidence/raw/.
 CREATE TABLE IF NOT EXISTS evidence (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  id          INTEGER PRIMARY KEY,             -- rowid alias; id is not referenced elsewhere
   finding_id  TEXT NOT NULL,
   source      TEXT,
   summary     TEXT,
-  raw_ref     TEXT
+  raw_ref     TEXT,
+  FOREIGN KEY (finding_id) REFERENCES findings(finding_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_evidence_finding ON evidence(finding_id);
 
@@ -128,7 +140,8 @@ CREATE TABLE IF NOT EXISTS findings_controls (
   finding_id TEXT NOT NULL,
   framework  TEXT NOT NULL,               -- cis_azure|mitre|defender_for_cloud|nist_800_53
   control_id TEXT NOT NULL,
-  PRIMARY KEY (finding_id, framework, control_id)
+  PRIMARY KEY (finding_id, framework, control_id),
+  FOREIGN KEY (finding_id) REFERENCES findings(finding_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_controls_fw ON findings_controls(framework, control_id);
 
@@ -146,8 +159,11 @@ CREATE TABLE IF NOT EXISTS attack_path_steps (
   finding_id  TEXT,
   resource_id TEXT,
   note        TEXT,
-  PRIMARY KEY (path_id, step_no)
+  PRIMARY KEY (path_id, step_no),
+  FOREIGN KEY (path_id) REFERENCES attack_paths(path_id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_aps_finding  ON attack_path_steps(finding_id);
+CREATE INDEX IF NOT EXISTS idx_aps_resource ON attack_path_steps(resource_id);
 
 -- Coverage matrix cell (schemas/coverage.schema.json). Supersedes coverage.json.
 CREATE TABLE IF NOT EXISTS coverage (
@@ -155,7 +171,7 @@ CREATE TABLE IF NOT EXISTS coverage (
   check_id        TEXT NOT NULL,
   subscription_id TEXT NOT NULL,
   type            TEXT NOT NULL,
-  status          TEXT NOT NULL,           -- assessed|skipped-by-scope|skipped-by-budget|failed|permission-denied|sampled|partial
+  status          TEXT NOT NULL CHECK (status IN ('assessed','skipped-by-scope','skipped-by-budget','failed','permission-denied','sampled','partial')),
   count           INTEGER DEFAULT 1,
   reason          TEXT,
   collected_at    TEXT,
@@ -170,7 +186,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   subscription_id  TEXT,
   check_id         TEXT,
   scope_hash       TEXT,
-  status           TEXT,                    -- pending|running|done|failed|throttled|partial|skipped
+  status           TEXT CHECK (status IS NULL OR status IN ('pending','running','done','failed','throttled','partial','skipped')),
   attempts         INTEGER DEFAULT 0,
   reason           TEXT,
   output_refs_json TEXT,

@@ -16,6 +16,7 @@
  *   inventory/subscriptions.json          -> subscriptions
  *   findings/raw/*.jsonl                  -> findings (+ affected_resources, evidence, controls)
  *   coverage.json                         -> coverage
+ *   reports/attack-paths.json (--attack-paths) -> attack_paths (+ attack_path_steps)
  *   <facts>.json (--facts)                -> resource_facts
  *   runs/tasks.jsonl (--tasks)            -> tasks
  *
@@ -31,6 +32,47 @@ import { join, resolve, isAbsolute } from 'node:path';
 import { openDb, initDb, migrate, getMeta, setMeta, tx, nowIso } from './db.mjs';
 
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4, informational: 4 };
+
+// Enum normalization. ingest is the SOLE writer, so canonicalizing here keeps the DB's
+// CHECK constraints (schema.sql) from ever rejecting a valid run AND stops casing/typo
+// drift from fragmenting rollups (e.g. "High"/"high"/"HIGH" -> "High"). Each helper maps
+// recognized spellings to the canonical value and coerces anything unrecognized to NULL
+// (honest "unknown") after warning once, rather than throwing.
+const SEVERITY_CANON = {
+  critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low',
+  info: 'Informational', informational: 'Informational',
+};
+const CONFIDENCE_CANON = { high: 'High', medium: 'Medium', low: 'Low' };
+const FINDING_STATUS = new Set(['open', 'confirmed', 'false_positive', 'remediated', 'accepted_risk']);
+const COVERAGE_STATUS = new Set(['assessed', 'skipped-by-scope', 'skipped-by-budget', 'failed', 'permission-denied', 'sampled', 'partial']);
+const TASK_STATUS = new Set(['pending', 'running', 'done', 'failed', 'throttled', 'partial', 'skipped']);
+
+const _warned = new Set();
+function warnOnce(kind, value) {
+  const k = `${kind}:${value}`;
+  if (_warned.has(k)) return;
+  _warned.add(k);
+  process.stderr.write(`[ingest] dropping unrecognized ${kind} value: ${JSON.stringify(value)}\n`);
+}
+function canonFrom(map, kind, v) {
+  if (v == null || v === '') return null;
+  const c = map[String(v).trim().toLowerCase()];
+  if (c) return c;
+  warnOnce(kind, v);
+  return null;
+}
+function canonFromSet(set, kind, v) {
+  if (v == null || v === '') return null;
+  const s = String(v).trim().toLowerCase();
+  if (set.has(s)) return s;
+  warnOnce(kind, v);
+  return null;
+}
+const normSeverity = (v) => canonFrom(SEVERITY_CANON, 'severity', v);
+const normConfidence = (v) => canonFrom(CONFIDENCE_CANON, 'confidence', v);
+const normFindingStatus = (v) => canonFromSet(FINDING_STATUS, 'status', v);
+const normCoverageStatus = (v) => canonFromSet(COVERAGE_STATUS, 'coverage.status', v);
+const normTaskStatus = (v) => canonFromSet(TASK_STATUS, 'task.status', v);
 
 function parseArgs(argv) {
   const out = { _: [] };
@@ -135,9 +177,9 @@ function insertFindingRow(db, f) {
        subscription_id,resource_id,status,first_seen,last_seen,description,attack_vector,recommendation,risk,raw_json)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
-    f.id, f.dedupe_key ?? null, f.finding_class ?? null, f.title ?? null, f.severity ?? null,
-    f.confidence ?? null, f.agent ?? null, f.category ?? null, f.check_id ?? null,
-    f.subscription_id ?? null, f.resource_id ?? null, f.status ?? null, f.first_seen ?? null,
+    f.id, f.dedupe_key ?? null, f.finding_class ?? null, f.title ?? null, normSeverity(f.severity),
+    normConfidence(f.confidence), f.agent ?? null, f.category ?? null, f.check_id ?? null,
+    f.subscription_id ?? null, f.resource_id ?? null, normFindingStatus(f.status), f.first_seen ?? null,
     f.last_seen ?? null, f.description ?? null, f.attack_vector ?? null, f.recommendation ?? null,
     f.risk ?? null, JSON.stringify(f)
   );
@@ -203,7 +245,9 @@ function ingestCoverage(db, items) {
   let n = 0;
   for (const c of items) {
     if (!c || !c.domain || !c.check_id || !c.subscription_id || !c.type || !c.status) continue;
-    ins.run(c.domain, c.check_id, c.subscription_id, c.type, c.status, c.count ?? 1, c.reason ?? null, at);
+    const status = normCoverageStatus(c.status);
+    if (!status) continue; // unrecognized status would violate the NOT NULL CHECK; skip the cell
+    ins.run(c.domain, c.check_id, c.subscription_id, c.type, status, c.count ?? 1, c.reason ?? null, at);
     n++;
   }
   return n;
@@ -263,10 +307,52 @@ function ingestTasks(db, records) {
   );
   for (const t of state.values()) {
     ins.run(t.task_id, t.agent ?? null, t.subscription_id ?? null, t.check_id ?? null, t.scope_hash ?? null,
-      t.status ?? null, t.attempts ?? 0, t.reason ?? null,
+      normTaskStatus(t.status), t.attempts ?? 0, t.reason ?? null,
       t.output_refs ? JSON.stringify(t.output_refs) : null, t.updated_at ?? null);
   }
   return state.size;
+}
+
+// --- attack paths ------------------------------------------------------------
+
+/**
+ * Load correlated compromise chains into attack_paths (+ attack_path_steps). Accepts a
+ * bare array of paths or a {paths:[...]} wrapper (reports/attack-paths.json). Each path's
+ * nodes[] become ordered steps. Idempotent: the path row is upserted first (so the
+ * steps' FK parent exists), then its steps are deleted and re-inserted so a shrinking
+ * node list never leaves stale tail steps behind.
+ */
+function ingestAttackPaths(db, doc) {
+  const paths = Array.isArray(doc) ? doc : (doc && Array.isArray(doc.paths) ? doc.paths : []);
+  const insPath = db.prepare(
+    `INSERT INTO attack_paths (path_id,title,severity,description,raw_json)
+     VALUES (?,?,?,?,?)
+     ON CONFLICT(path_id) DO UPDATE SET
+       title=excluded.title, severity=excluded.severity,
+       description=excluded.description, raw_json=excluded.raw_json`
+  );
+  const delSteps = db.prepare('DELETE FROM attack_path_steps WHERE path_id = ?');
+  const insStep = db.prepare(
+    `INSERT INTO attack_path_steps (path_id,step_no,finding_id,resource_id,note) VALUES (?,?,?,?,?)`
+  );
+  let nPaths = 0, nSteps = 0;
+  for (const p of paths) {
+    const id = p && (p.id ?? p.path_id);
+    if (!id) continue;
+    insPath.run(id, p.title ?? null, normSeverity(p.severity),
+      p.description ?? p.break_chain ?? null, JSON.stringify(p));
+    delSteps.run(id);
+    const nodes = Array.isArray(p.nodes) ? p.nodes : (Array.isArray(p.steps) ? p.steps : []);
+    let step = 0;
+    for (const nd of nodes) {
+      if (!nd) continue;
+      step += 1;
+      insStep.run(id, step, nd.finding_id ?? null, nd.resource_id ?? null, nd.label ?? nd.note ?? nd.id ?? null);
+      nSteps += 1;
+    }
+    nPaths += 1;
+  }
+  return { paths: nPaths, steps: nSteps };
 }
 
 // --- source discovery --------------------------------------------------------
@@ -280,6 +366,7 @@ function discover(session) {
     subscriptions: pick(join(s, 'inventory', 'subscriptions.json')),
     relationships: pick(join(s, 'inventory', 'relationships.json'), join(s, 'relationships.json')),
     coverage: pick(join(s, 'coverage.json'), join(s, 'inventory', 'coverage.json'), join(s, 'reports', 'coverage.json')),
+    attackPaths: pick(join(s, 'reports', 'attack-paths.json'), join(s, 'attack-paths.json')),
     tasks: pick(join(s, 'runs', 'tasks.jsonl')),
     findings: existsSync(findingsDir) ? findingsDir : pick(join(s, 'findings', 'normalized', 'findings.json')),
   };
@@ -302,6 +389,7 @@ function main() {
   const resourcesPath = args.resources ?? src.resources;
   const subsPath = args.subscriptions ?? src.subscriptions;
   const coveragePath = args.coverage ?? src.coverage;
+  const attackPathsPath = args.attack_paths ?? src.attackPaths;
   const tasksPath = args.tasks ?? src.tasks;
   const findingsArg = args.findings ?? src.findings;
   const factsPath = args.facts;
@@ -344,6 +432,11 @@ function main() {
     }
 
     if (coveragePath && existsSync(coveragePath)) stats.coverage = ingestCoverage(db, readRecords(coveragePath));
+    if (attackPathsPath && existsSync(resolve(process.cwd(), attackPathsPath))) {
+      const r = ingestAttackPaths(db, readJson(attackPathsPath));
+      stats.attack_paths = r.paths;
+      stats.attack_path_steps = r.steps;
+    }
     if (tasksPath && existsSync(tasksPath)) stats.tasks = ingestTasks(db, readRecords(tasksPath));
     setMeta(db, 'last_ingest_at', etlRunId);
   });

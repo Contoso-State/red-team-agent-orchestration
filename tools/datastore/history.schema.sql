@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS meta (
 
 -- One row per promoted assessment run.
 CREATE TABLE IF NOT EXISTS runs (
-  run_id          TEXT PRIMARY KEY,   -- ISO timestamp (sortable)
+  run_id          TEXT PRIMARY KEY,   -- CONTRACT: ISO-8601 timestamp in UTC (…Z). Stored as
+                                      -- text and ordered LEXICALLY, so the format must be
+                                      -- zero-padded UTC for MAX(run_id)/`run_id < ?` (see
+                                      -- v_finding_lifecycle and promote.mjs) to mean "latest".
   engagement_id   TEXT,
   subscription_id TEXT,               -- primary subscription scope, if single-sub
   started_at      TEXT,
@@ -39,9 +42,9 @@ CREATE TABLE IF NOT EXISTS finding_history (
   engagement_id TEXT,
   finding_id    TEXT,
   title         TEXT,
-  severity      TEXT,
-  status        TEXT,
-  lifecycle     TEXT,                 -- new | persisting | resolved | regressed
+  severity      TEXT CHECK (severity IS NULL OR severity IN ('Critical','High','Medium','Low','Informational')),
+  status        TEXT,                 -- snapshot of finding status; may also be 'resolved' for synthetic close-out rows
+  lifecycle     TEXT CHECK (lifecycle IS NULL OR lifecycle IN ('new','persisting','resolved','regressed')),
   first_seen    TEXT,
   last_seen     TEXT,
   resolved_at   TEXT,

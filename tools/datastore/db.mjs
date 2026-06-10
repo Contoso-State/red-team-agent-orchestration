@@ -27,7 +27,7 @@ import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function nowIso() {
@@ -45,7 +45,12 @@ export function openDb(dbPath, { create = true } = {}) {
   else if (!existsSync(abs)) throw new Error(`Database not found: ${abs}`);
   const db = new DatabaseSync(abs, { create });
   // WAL keeps readers lock-free while a single writer ingests; busy_timeout absorbs
-  // brief write contention; foreign_keys enforces referential integrity.
+  // brief write contention; foreign_keys=ON enforces the *ownership* edges declared in
+  // schema.sql (a finding's children and an attack path's steps CASCADE-delete with the
+  // parent). Inventory references (affected_resources.resource_id, resource_facts,
+  // relationships.src/dst) are intentionally left soft — inventory may be sampled or
+  // ingested independently of findings — and are enforced by the single-writer ingest,
+  // not by the database.
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA busy_timeout = 5000;');
   db.exec('PRAGMA foreign_keys = ON;');
@@ -83,13 +88,19 @@ export function tx(db, fn) {
 }
 
 /**
- * Bring a DB up to CURRENT_SCHEMA_VERSION. For v1 this just (re)applies the schema
- * and stamps meta. Future versions append ALTER steps keyed by from-version.
+ * Bring a DB up to CURRENT_SCHEMA_VERSION.
+ *
+ * NOTE on constraint changes: SQLite bakes FK and CHECK constraints into a table at
+ * CREATE TABLE time, and every object here is CREATE … IF NOT EXISTS, so the v2 FK/CHECK
+ * additions only take effect on *freshly created* databases. New CREATE INDEX IF NOT
+ * EXISTS statements, by contrast, do apply to already-existing DBs on re-apply. Engagement
+ * and history DBs are per-run, gitignored, and recreated from JSON/JSONL each assessment,
+ * so they pick up the new constraints naturally; we deliberately avoid a brittle
+ * table-rebuild migration. The schema stays additive and idempotent.
  */
 export function migrate(db) {
   applySchema(db);
   const have = parseInt(getMeta(db, 'schema_version') || '0', 10) || 0;
-  // (No destructive migrations yet — schema.sql is additive and idempotent.)
   if (have < CURRENT_SCHEMA_VERSION) setMeta(db, 'schema_version', CURRENT_SCHEMA_VERSION);
   return CURRENT_SCHEMA_VERSION;
 }

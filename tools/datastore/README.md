@@ -14,8 +14,8 @@ Canonical design doc: [`../../knowledge/datastore.md`](../../knowledge/datastore
 | File | Role |
 |---|---|
 | `db.mjs` | Core helpers + CLI (`init` / `info` / `migrate` / `query`). `query` is read-only-guarded. |
-| `schema.sql` | Per-engagement DDL (resources, facts, relationships, findings, coverage, tasks, views). |
-| `ingest.mjs` | **Files → DB. The single writer.** Auto-discovers a session's artifacts; one transaction; merges findings (union `affected_resources[]`). |
+| `schema.sql` | Per-engagement DDL (resources, facts, relationships, findings, coverage, attack paths, tasks, views). FK ownership edges + enum CHECK constraints. |
+| `ingest.mjs` | **Files → DB. The single writer.** Auto-discovers a session's artifacts; one transaction; merges findings (union `affected_resources[]`); normalizes enum values; loads attack paths. |
 | `query.mjs` | Read-only cache API: `resources` / `facts` / `fresh` / `findings` / `coverage` / `neighbors` / `next-tasks` / `stats`. `fresh` exits `0` (fresh) or `3` (miss/stale). |
 | `export.mjs` | DB → canonical artifacts (`findings.json`, `coverage.json`, inventory). |
 | `history.schema.sql` | Longitudinal DDL (`runs`, `finding_history`, `resource_history`, lifecycle/trend views). |
@@ -30,7 +30,7 @@ SESSION=engagements/<session>
 # 1. create the DB
 node tools/datastore/db.mjs init --db "$DB" --engagement <engagement-id>
 
-# 2. ingest the session's artifacts (inventory, relationships, coverage, tasks, raw findings)
+# 2. ingest the session's artifacts (inventory, relationships, coverage, attack paths, tasks, raw findings)
 node tools/datastore/ingest.mjs --db "$DB" --session "$SESSION"
 
 # 3. read back as a cache (no Azure call on a hit)
