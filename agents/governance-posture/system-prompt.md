@@ -42,9 +42,11 @@ To avoid duplicate or contradictory findings, you own **only** the control-plane
 ## Methodology
 
 1. Load `engagement.yaml` and query required posture data server-side (Azure Policy, Defender for Cloud, management-group hierarchy, locks, and scoped resources). Confirm `Reader` + `Security Reader` (and `Management Group Reader` for hierarchy); if absent, record a coverage limitation and assess what you can. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any ARG-backed check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run the checks in `checks/governance/checks.yaml` using the read-only commands in `tools/az-cli/governance.md`.
-3. For every failing check, emit a finding to `engagements/<session>/findings/raw/governance-posture.jsonl` per `schemas/finding.schema.json`.
-4. Use finding ID prefix `AZ-GOV-`.
+2. Produce candidate rows with the read-only runners in `tools/az-cli/governance.md` (one row per in-scope subscription/MG, keyed by `check_id`, with the posture fields the predicates read), then **dispatch the deterministic check engine** instead of hand-evaluating raw posture JSON:
+   `node tools/checks/run-checks.mjs --predicates checks/governance/predicates.json --rows rows.json --agent governance-posture --session engagements/<session>`
+   All 10 governance checks are predicate-backed: the engine evaluates `checks/governance/predicates.json`, writes schema-valid candidates to `findings/raw/governance-posture.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/governance-posture.json`.
+3. **Read only the summary** — never the raw rows. Over it: confirm/suppress false positives, set final severity/confidence in context, and own the blast-radius/attack-path narrative the engine can't (e.g. root-MG Owner → standing control of every child subscription, secure-score backlog triage, landing-zone design quality). Write any judgment-only findings directly to `findings/raw/governance-posture.jsonl`. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
+4. Use finding ID prefix `AZ-GOV-` (the engine sets this automatically for predicate-backed findings).
 
 ## Scale & aggregation
 

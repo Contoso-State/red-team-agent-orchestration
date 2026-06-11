@@ -1,0 +1,244 @@
+{
+  "domain": "supplychain",
+  "predicates": [
+    {
+      "check_id": "CHK-SUP-APP-FIC-BROAD-TRUST",
+      "finding_class": "supplychain-app-fic-broad-trust",
+      "title": "App registration federated credential with broad OIDC trust and Azure privilege",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "An app registration has a federated identity credential (OIDC trust to GitHub Actions / Azure DevOps) whose subject is broad (repo-wide, all branches, environment-less, or pull_request) AND the app holds meaningful Azure RBAC. The deterministic trigger (broad subject + privileged role, both runner-projected) is mechanized; exploitability and final severity stay agentic.",
+      "attack_vector": "A push or PR in the trusted repository requests an OIDC token and acts as the privileged identity",
+      "recommendation": "Constrain FIC subjects to a specific branch/environment/tag; minimize the identity's Azure RBAC; require protected environments for privileged deployments.",
+      "controls": { "cis_azure": ["1.4"], "mitre": ["T1199", "T1078.004", "T1098.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-APP-FIC-BROAD-TRUST"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "ficSubjectBroad", "op": "eq", "value": true },
+          { "field": "holdsPrivilegedRole", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["ficSubject", "ficIssuer", "ficSubjectBroad", "holdsPrivilegedRole", "privilegedRoles"]
+    },
+    {
+      "check_id": "CHK-SUP-UAMI-FIC-BROAD-TRUST",
+      "finding_class": "supplychain-uami-fic-broad-trust",
+      "title": "User-assigned managed identity federated credential with broad trust",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "A user-assigned managed identity has a federated credential trusting an external OIDC issuer (GitHub/Azure DevOps) with a broad subject, and the identity holds privileged Azure RBAC. Same escalation path as app-registration FIC but via a UAMI.",
+      "attack_vector": "A workflow in the trusted repo obtains a token for the UAMI and exercises its Azure privileges",
+      "recommendation": "Pin the federated subject to a specific branch/environment; reduce the UAMI's role assignments to least privilege.",
+      "controls": { "mitre": ["T1199", "T1078.004"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-UAMI-FIC-BROAD-TRUST"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "ficSubjectBroad", "op": "eq", "value": true },
+          { "field": "holdsPrivilegedRole", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["ficSubject", "ficIssuer", "ficSubjectBroad", "holdsPrivilegedRole"]
+    },
+    {
+      "check_id": "CHK-SUP-CICD-SP-BROAD-ROLE",
+      "finding_class": "supplychain-cicd-sp-broad-role",
+      "title": "CI/CD-like service principal with broad subscription role",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "A service principal with a federated credential (a strong CI/CD signal) holds Owner or Contributor at subscription scope or higher. The high-signal FIC-based trigger is mechanized; the fuzzier deployment-style-name inference for non-FIC service principals stays agentic.",
+      "attack_vector": "Compromising the pipeline or its trust relationship yields subscription-wide control",
+      "recommendation": "Scope CI/CD identities to the specific resource groups they deploy to; avoid Owner; prefer per-environment identities.",
+      "controls": { "cis_azure": ["1.x"], "mitre": ["T1078.004", "T1199"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-CICD-SP-BROAD-ROLE"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "hasFederatedCredential", "op": "eq", "value": true },
+          { "field": "holdsOwnerOrContributorAtSubScope", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["displayName", "hasFederatedCredential", "holdsOwnerOrContributorAtSubScope", "subscriptionRole"]
+    },
+    {
+      "check_id": "CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET",
+      "finding_class": "supplychain-deploy-identity-static-secret",
+      "title": "Deployment identity still using a long-lived secret instead of federation",
+      "category": "Supply Chain",
+      "severity_default": "Medium",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "A CI/CD-like identity (deployment RBAC and/or an existing federated credential) still authenticates with an active long-lived client secret or certificate rather than OIDC workload identity federation. The static secret is an exfiltration target that bypasses OIDC trust constraints. Metadata only — credential existence/expiry, never the value.",
+      "attack_vector": "A leaked pipeline secret authenticates from anywhere, ignoring branch/environment OIDC constraints",
+      "recommendation": "Migrate deployment identities to workload identity federation (OIDC) and remove static client secrets.",
+      "controls": { "cis_azure": ["1.4"], "mitre": ["T1552.001", "T1078.004"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "isDeploymentIdentity", "op": "eq", "value": true },
+          {
+            "any": [
+              { "field": "activeClientSecretCount", "op": "gt", "value": 0 },
+              { "field": "activeCertCount", "op": "gt", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["isDeploymentIdentity", "activeClientSecretCount", "activeCertCount"]
+    },
+    {
+      "check_id": "CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK",
+      "finding_class": "supplychain-acr-admin-or-untrusted-task",
+      "title": "Container registry admin user enabled or task building from unreviewed source",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "An Azure Container Registry has the shared admin user enabled (a single static push/pull credential), or an ACR task builds images from a source repository outside the engagement allowlist. The adminUserEnabled trigger is fully deterministic; untrusted-source is runner-projected against the allowlist and labelled 'requires review' when no allowlist is supplied.",
+      "attack_vector": "Stolen admin credential pushes a backdoored image; a poisoned source repo or base image is built and deployed",
+      "recommendation": "Disable the ACR admin user and use Entra/token auth; restrict tasks to approved source repositories; pin and scan base images.",
+      "controls": { "mitre": ["T1525", "T1199", "T1078.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "adminUserEnabled", "op": "eq", "value": true },
+          { "field": "hasUntrustedTaskSource", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["adminUserEnabled", "hasUntrustedTaskSource"]
+    },
+    {
+      "check_id": "CHK-SUP-AUTOMATION-PRIV-IDENTITY",
+      "finding_class": "supplychain-automation-priv-identity",
+      "title": "Automation Account with privileged identity and external triggers",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "An Automation Account runs with a privileged managed identity (or legacy RunAs) and has enabled webhooks, schedules, or hybrid workers, so triggering a runbook executes privileged actions. Metadata only — runbook source and webhook URLs are not retrieved.",
+      "attack_vector": "Invoking a webhook/schedule runs a runbook as the privileged identity, executing attacker-chosen Azure actions",
+      "recommendation": "Reduce the automation identity's RBAC to least privilege; restrict/rotate webhooks; review runbook triggers and hybrid worker groups.",
+      "controls": { "mitre": ["T1078.004", "T1053", "T1648"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-AUTOMATION-PRIV-IDENTITY"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "hasPrivilegedIdentity", "op": "eq", "value": true },
+          { "field": "hasExternalTrigger", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["hasPrivilegedIdentity", "hasExternalTrigger", "triggerTypes"]
+    },
+    {
+      "check_id": "CHK-SUP-LOGICAPP-OPEN-TRIGGER",
+      "finding_class": "supplychain-logicapp-open-trigger",
+      "title": "Logic App with unauthenticated HTTP trigger or high-risk API connections",
+      "category": "Supply Chain",
+      "severity_default": "Medium",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "A Logic App workflow exposes an HTTP/request trigger without IP restrictions or additional authentication, and/or relies on stored API connections to high-risk connectors. Metadata only — signed callback URLs (listCallbackUrl, a POST) are never enumerated.",
+      "attack_vector": "An open HTTP trigger lets an unauthenticated caller drive the workflow and its connected resources",
+      "recommendation": "Add trigger IP allow-lists / SAS or AAD auth; review API connections and their connector permissions; restrict who can invoke the workflow.",
+      "controls": { "mitre": ["T1190", "T1199"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-LOGICAPP-OPEN-TRIGGER"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "hasOpenHttpTrigger", "op": "eq", "value": true },
+          { "field": "hasSensitiveApiConnection", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["hasOpenHttpTrigger", "hasSensitiveApiConnection"]
+    },
+    {
+      "check_id": "CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT",
+      "finding_class": "supplychain-plaintext-deployment-secret",
+      "title": "Plaintext secrets exposed in deployment or automation surfaces",
+      "category": "Supply Chain",
+      "severity_default": "High",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "The deployment/automation supply chain exposes secrets in cleartext rather than via Key Vault references — an unencrypted Automation variable (isEncrypted == false), a plaintext deployment parameter that should be secureString/Key Vault reference, or a secret-shaped app/Function setting that is NOT an @Microsoft.KeyVault(...) reference. Metadata only — the presence/shape is flagged, never the value.",
+      "attack_vector": "A reader of automation/deployment/app configuration harvests a live credential and reuses it, bypassing identity controls",
+      "recommendation": "Store all automation/deployment secrets as encrypted variables or Key Vault references; pass deployment secrets as secureString sourced from Key Vault; rotate any value already exposed.",
+      "controls": { "cis_azure": ["1.4"], "mitre": ["T1552.001", "T1195"], "nist_csf": ["PR.PS-01"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "artifactType", "op": "eqi", "value": "automationVariable" },
+              { "field": "isEncrypted", "op": "eq", "value": false }
+            ]
+          },
+          {
+            "all": [
+              { "field": "artifactType", "op": "eqi", "value": "appSetting" },
+              { "field": "secretShaped", "op": "eq", "value": true },
+              { "field": "isKeyVaultReference", "op": "eq", "value": false }
+            ]
+          },
+          {
+            "all": [
+              { "field": "artifactType", "op": "eqi", "value": "deploymentParameter" },
+              { "field": "isPlaintextSecretParameter", "op": "eq", "value": true }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["artifactType", "isEncrypted", "isKeyVaultReference", "secretShaped", "isPlaintextSecretParameter"]
+    },
+    {
+      "check_id": "CHK-SUP-NO-IMAGE-SCAN-ENFORCED",
+      "finding_class": "supplychain-no-image-scan-gate",
+      "title": "Container image vulnerability scanning not enforced in the deploy path",
+      "category": "Supply Chain",
+      "severity_default": "Medium",
+      "agent": "devops-supplychain",
+      "id_prefix": "AZ-SUP",
+      "description": "Images feeding the pipeline are not subject to enforced vulnerability scanning before deployment — Defender for Containers registry/image scanning is not enabled, no Azure Policy gates vulnerable/unscanned images, and/or ACR quarantine is disabled so unscanned images are immediately pullable. Framed from the supply-chain pipeline angle (push → scan → gate → deploy), distinct from logging's subscription-level Containers plan toggle.",
+      "attack_vector": "A vulnerable or backdoored image flows unscanned through the pipeline identity into running workloads",
+      "recommendation": "Enable Defender for Containers registry/image scanning, gate deployment on resolved vulnerability findings via Azure Policy, and enable ACR quarantine so only scanned images are pullable.",
+      "controls": { "mitre": ["T1525", "T1195.002"], "nist_csf": ["GV.SC-04"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/supplychain.md#CHK-SUP-NO-IMAGE-SCAN-ENFORCED"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "containersPlanScanningEnabled", "op": "eq", "value": false },
+          { "field": "imageScanGatePolicyAssigned", "op": "eq", "value": false },
+          { "field": "acrQuarantineEnabled", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["containersPlanScanningEnabled", "imageScanGatePolicyAssigned", "acrQuarantineEnabled"]
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "domain": "email",
+  "predicates": [
+    {
+      "check_id": "CHK-MAIL-SPF-MISSING-OR-WEAK",
+      "finding_class": "email-spf-missing-or-weak",
+      "title": "SPF record missing or permissive",
+      "category": "Email",
+      "severity_default": "High",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "An accepted domain has no SPF record, an SPF record ending in +all/?all, or multiple SPF records, allowing third parties to send mail as the domain.",
+      "attack_vector": "Sender spoofing -> phishing/business email compromise from a trusted domain",
+      "recommendation": "Publish a single SPF record enumerating authorized senders and ending in -all (hard fail).",
+      "controls": { "mitre": ["T1566.002", "T1656"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-SPF-MISSING-OR-WEAK"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "spfRecordPresent", "op": "eq", "value": false },
+          { "field": "spfRecord", "op": "regex", "value": "[+?]all" },
+          { "field": "spfRecordCount", "op": "gt", "value": 1 }
+        ]
+      },
+      "evidence_fields": ["domain", "spfRecordPresent", "spfRecord", "spfRecordCount"]
+    },
+    {
+      "check_id": "CHK-MAIL-DMARC-MISSING-OR-NONE",
+      "finding_class": "email-dmarc-missing-or-none",
+      "title": "DMARC missing or policy set to none",
+      "category": "Email",
+      "severity_default": "High",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "An accepted domain has no DMARC record, uses p=none, lacks an rua reporting address, or sets pct<100, so spoofed mail failing SPF/DKIM is not rejected or quarantined and abuse is not reported.",
+      "attack_vector": "Spoofed mail delivered to inbox -> phishing/BEC",
+      "recommendation": "Publish DMARC with p=quarantine then p=reject after monitoring, with rua/ruf reporting and pct=100.",
+      "controls": { "mitre": ["T1566.002", "T1656"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-DMARC-MISSING-OR-NONE"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "dmarcRecordPresent", "op": "eq", "value": false },
+          { "field": "dmarcPolicy", "op": "eqi", "value": "none" },
+          { "field": "ruaConfigured", "op": "eq", "value": false },
+          { "field": "dmarcPct", "op": "lt", "value": 100 }
+        ]
+      },
+      "evidence_fields": ["domain", "dmarcRecordPresent", "dmarcPolicy", "ruaConfigured", "dmarcPct"]
+    },
+    {
+      "check_id": "CHK-MAIL-DKIM-NOT-ENABLED",
+      "finding_class": "email-dkim-not-enabled",
+      "title": "DKIM signing not enabled for accepted domain",
+      "category": "Email",
+      "severity_default": "Medium",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "DKIM is not configured/enabled for an accepted domain, or uses a weak 1024-bit key, weakening alignment and DMARC enforcement.",
+      "attack_vector": "Missing message authentication weakens anti-spoofing and DMARC alignment",
+      "recommendation": "Enable DKIM signing for every accepted domain with 2048-bit keys; rotate periodically.",
+      "controls": { "mitre": ["T1566.002"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-DKIM-NOT-ENABLED"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "dkimEnabled", "op": "eq", "value": false },
+          { "field": "dkimKeyBits", "op": "lt", "value": 2048 }
+        ]
+      },
+      "evidence_fields": ["domain", "dkimEnabled", "dkimKeyBits"]
+    },
+    {
+      "check_id": "CHK-MAIL-ANTIPHISH-WEAK",
+      "finding_class": "email-antiphish-weak",
+      "title": "Anti-phishing / spoof protection weak or disabled",
+      "category": "Email",
+      "severity_default": "High",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "Defender for Office 365 anti-phishing protection is missing or weak — no policy applied, or spoof intelligence / mailbox intelligence / impersonation protection disabled.",
+      "attack_vector": "Impersonation and spoof phishing reach users uninspected",
+      "recommendation": "Enable anti-phishing with spoof intelligence, mailbox intelligence and impersonation protection; set actions to quarantine.",
+      "controls": { "mitre": ["T1566.002", "T1534"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-ANTIPHISH-WEAK"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "antiPhishPolicyApplied", "op": "eq", "value": false },
+          { "field": "enableSpoofIntelligence", "op": "eq", "value": false },
+          { "field": "enableMailboxIntelligence", "op": "eq", "value": false },
+          { "field": "impersonationProtectionEnabled", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["policyName", "antiPhishPolicyApplied", "enableSpoofIntelligence", "enableMailboxIntelligence", "impersonationProtectionEnabled"]
+    },
+    {
+      "check_id": "CHK-MAIL-SAFE-LINKS-ATTACH-OFF",
+      "finding_class": "email-safe-links-attachments-off",
+      "title": "Safe Links / Safe Attachments not enforced",
+      "category": "Email",
+      "severity_default": "Medium",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "Microsoft Defender for Office 365 Safe Links and/or Safe Attachments are disabled or not applied to all recipients, leaving malicious URLs and payloads uninspected.",
+      "attack_vector": "Malicious link/attachment delivered -> malware / credential theft",
+      "recommendation": "Enable Safe Links and Safe Attachments for all users (requires Defender for Office 365 licensing).",
+      "controls": { "mitre": ["T1566.001", "T1566.002"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-SAFE-LINKS-ATTACH-OFF"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "safeLinksEnabled", "op": "eq", "value": false },
+          { "field": "safeAttachmentsEnabled", "op": "eq", "value": false },
+          { "field": "coversAllRecipients", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["policyName", "safeLinksEnabled", "safeAttachmentsEnabled", "coversAllRecipients"]
+    },
+    {
+      "check_id": "CHK-MAIL-RISKY-TRANSPORT-RULE",
+      "finding_class": "email-risky-transport-rule",
+      "title": "Risky mail-flow / transport rule",
+      "category": "Email",
+      "severity_default": "High",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "A transport rule bypasses spam filtering (SCL -1), auto-forwards mail externally, or broadly allow-lists senders/domains/IPs.",
+      "attack_vector": "Filter-bypass for phishing, or external auto-forward for data exfiltration",
+      "recommendation": "Remove blanket SCL -1 and broad allow-lists; block/limit external auto-forwarding; scope exceptions narrowly.",
+      "controls": { "mitre": ["T1114.003", "T1564"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-RISKY-TRANSPORT-RULE"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "setScl", "op": "eq", "value": -1 },
+          { "field": "forwardsExternally", "op": "eq", "value": true },
+          { "field": "hasBroadAllowList", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["ruleName", "setScl", "forwardsExternally", "hasBroadAllowList"]
+    },
+    {
+      "check_id": "CHK-MAIL-OUTBOUND-FORWARD",
+      "finding_class": "email-external-autoforward",
+      "title": "External auto-forwarding not restricted",
+      "category": "Email",
+      "severity_default": "Medium",
+      "agent": "email-security",
+      "id_prefix": "AZ-MAIL",
+      "description": "The outbound spam policy permits automatic external forwarding, enabling silent mailbox data exfiltration via inbox rules.",
+      "attack_vector": "Compromised mailbox auto-forwards to attacker -> data exfiltration",
+      "recommendation": "Set outbound auto-forwarding to Off (or controlled), and alert on new forwarding rules.",
+      "controls": { "mitre": ["T1114.003"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/email.md#CHK-MAIL-OUTBOUND-FORWARD"
+      },
+      "evaluate": { "field": "autoForwardingMode", "op": "ini", "value": ["Automatic", "On"] },
+      "evidence_fields": ["policyName", "autoForwardingMode"]
+    }
+  ]
+}

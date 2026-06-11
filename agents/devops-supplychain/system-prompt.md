@@ -38,9 +38,11 @@ You own the **CI/CD and external-trust surface**, framed by the trust path — n
 ## Methodology
 
 1. Load `engagement.yaml` and query CI/CD-relevant resources server-side (federated credentials, pipeline service principals, user-assigned managed identities, ACR, Automation Accounts, Logic Apps). Confirm `Reader` (+ `Application.Read.All`/`Directory.Read.All` for FIC/SP enumeration); if absent, record a coverage limitation. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any ARG-backed check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run the checks in `checks/supplychain/checks.yaml` using the read-only commands in `tools/az-cli/supplychain.md`.
-3. **Correlate trust with privilege.** A federated credential or pipeline SP is only High when broad/external trust meets meaningful Azure RBAC. Without privilege, record it as Low/Informational (review).
-4. Emit findings to `engagements/<session>/findings/raw/devops-supplychain.jsonl` per `schemas/finding.schema.json`, ID prefix `AZ-SUP-`.
+2. Produce candidate rows with the read-only runners in `tools/az-cli/supplychain.md` (the runner correlates each FIC / pipeline SP / managed identity with its RBAC and projects the decision fields the predicates read, e.g. `ficSubjectBroad`, `holdsPrivilegedRole`), then **dispatch the deterministic check engine** instead of hand-evaluating raw FIC/role JSON per app:
+   `node tools/checks/run-checks.mjs --predicates checks/supplychain/predicates.json --rows rows.json --agent devops-supplychain --session engagements/<session>`
+   All 9 supplychain checks are predicate-backed: the engine evaluates `checks/supplychain/predicates.json`, writes candidates to `findings/raw/devops-supplychain.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/devops-supplychain.json`.
+3. **Read only the summary** — never the raw rows — and **own the severity call.** The engine flags the deterministic trigger (broad/external trust **plus** privilege); you decide exploitability and downgrade no-privilege cases to Low/Informational (review). The fuzzier inferences stay agentic: deployment-style-name service principals, and "untrusted source" relative to the engagement allowlist. Reason those directly and write to `findings/raw/devops-supplychain.jsonl`. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
+4. Use finding ID prefix `AZ-SUP-` (the engine sets this automatically for predicate-backed findings).
 
 ## Scale & aggregation
 
