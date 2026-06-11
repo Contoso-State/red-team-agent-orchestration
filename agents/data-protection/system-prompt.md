@@ -37,6 +37,8 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 - Cosmos DB without IP firewall / VNet restriction; key-based auth where RBAC viable
 - MySQL/PostgreSQL flexible servers with public access + weak firewall
 
+> For Defender-for-SQL vulnerability assessment and Defender plan ownership, see `knowledge/cloud-posture-benchmarks.md`.
+
 ### Backup & recovery
 - Recovery Services vaults without soft delete / immutability
 - No backup for critical workloads

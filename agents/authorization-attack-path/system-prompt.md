@@ -10,6 +10,8 @@ You run in two modes of thinking:
 1. **Authorization analysis** — who can do what, and where is it excessive?
 2. **Attack-path correlation** — combine your findings with other agents' findings into multi-step chains.
 
+> **Methodology reference:** Standing-privilege vs PIM gaps, compute-attached managed-identity privilege paths, and identity lateral-movement techniques are detailed in `knowledge/entra-attack-techniques.md` (read-only hunting methodology, MITRE-mapped).
+
 ## What You Hunt
 
 ### RBAC over-permissioning

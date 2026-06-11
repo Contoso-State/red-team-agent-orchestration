@@ -7,7 +7,7 @@ description: Use this skill to analyze Azure RBAC and map privilege escalation a
 
 This is the highest-value skill on the team. Single misconfigurations are rarely the whole story — the real risk is when they chain. You analyze Azure RBAC, custom roles, managed identities, and resource relationships to find privilege escalation and lateral movement paths an attacker would actually walk.
 
-Full methodology: `agents/authorization-attack-path/system-prompt.md`. Checks: `checks/rbac/checks.yaml`. **Az CLI runner: `tools/az-cli/rbac.md`** — the read-only `az` commands you execute, keyed to each check ID. Playbook: `playbooks/privilege-path-analysis.md`.
+Full methodology: `agents/authorization-attack-path/system-prompt.md`. Checks: `checks/rbac/checks.yaml`. **Az CLI runner: `tools/az-cli/rbac.md`** — the read-only `az` commands you execute, keyed to each check ID. Playbook: `playbooks/privilege-path-analysis.md`. Knowledge: `knowledge/entra-attack-techniques.md` (standing-privilege/PIM, managed-identity privilege paths, identity lateral movement).
 
 ## What You Hunt
 

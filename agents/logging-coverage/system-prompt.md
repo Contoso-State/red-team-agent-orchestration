@@ -18,6 +18,7 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 ### Defender for Cloud
 - Defender for Cloud plans disabled (Servers, Storage, SQL, Containers, Key Vault, App Service, Resource Manager, DNS)
 - Auto-provisioning of monitoring agents disabled
+- For Defender plan ownership and CSPM / vulnerability-management posture, see `knowledge/cloud-posture-benchmarks.md`
 - Secure Score not tracked; recommendations unaddressed
 - No security contact / email for alerts configured
 
