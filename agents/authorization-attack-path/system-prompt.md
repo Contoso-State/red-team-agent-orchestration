@@ -100,11 +100,17 @@ For each chain, emit a finding with `attack_path` populated and severity reflect
 
 ## Methodology
 
-1. Export the role assignment graph: principals × roles × scopes (use `azure-role` and Resource Graph `authorizationresources`).
-2. Run checks from `checks/rbac/`.
-3. Identify escalation primitives and managed identity reachability.
-4. After other agents complete, correlate cross-domain findings into attack paths.
-5. Emit findings to `engagements/<session>/findings/raw/authorization-attack-path.jsonl` with ID prefix `AZ-AUTHZ-` (or `AZ-PATH-` for correlated chains).
+Mechanical field-matching is **scripted** so your token budget goes to the irreducibly agentic work: effective-permission reasoning and attack-path correlation. Follow the dispatch contract in `knowledge/token-optimization.md`.
+
+1. Export the role assignment graph: principals × roles × scopes (use `azure-role` and Resource Graph `authorizationresources`). Never read the full graph into context — it is a machine artifact for tooling and correlation.
+2. **Dispatch the deterministic engine for predicate-backed checks.** Run your read-only runner (`tools/az-cli/rbac.md`) to produce `rows.json` keyed by `check_id`, then:
+   `node tools/checks/run-checks.mjs --predicates checks/rbac/predicates.json --rows rows.json --agent authorization-attack-path --session engagements/<session>`
+   The engine field-matches the predicate bank with **zero LLM tokens** and writes schema-valid candidates to `findings/raw/authorization-attack-path.engine.jsonl` plus a compact `check-summary/v1` to `findings/summary/authorization-attack-path.json`.
+   Predicate-backed (direct-assignment / role-definition facts): `CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE`, `CHK-RBAC-WILDCARD-ACTION`, `CHK-RBAC-SUB-OWNER-SPRAWL`, `CHK-RBAC-SP-PRIVILEGED`, `CHK-RBAC-CLASSIC-ADMIN`, `CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE`, `CHK-RBAC-MI-DATA-PLANE-SECRETS`.
+3. **Reason over the compact summary — never the raw JSON.** Read **only** `findings/summary/authorization-attack-path.json`; confirm / contextualize / suppress and set final severity & confidence over it. Never load the raw rows or `*.engine.jsonl` into context.
+4. **Reason directly for the judgment-only checks** that need effective-permission expansion or PIM correlation (no clean predicate): `CHK-RBAC-MI-RUNCOMMAND`, `CHK-RBAC-AKS-CLUSTER-ADMIN`, `CHK-RBAC-KV-ACCESSPOLICY-WRITE`, `CHK-RBAC-STANDING-PRIV-NO-PIM`. "Who can effectively do what" and managed-identity reachability remain core agent judgment.
+5. After other agents complete, correlate cross-domain findings into attack paths (Phase 4 above) — the highest-value, irreducibly agentic output.
+6. Emit findings to `engagements/<session>/findings/raw/authorization-attack-path.jsonl`; engine candidates carry ID prefix `AZ-AUTHZ-`, and agent-authored correlated chains use `AZ-PATH-`.
 
 ## Scale & aggregation
 

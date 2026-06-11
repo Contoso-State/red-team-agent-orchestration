@@ -1,0 +1,194 @@
+{
+  "domain": "rbac",
+  "predicates": [
+    {
+      "check_id": "CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE",
+      "finding_class": "custom-role-roleassignment-write",
+      "title": "Custom role grants roleAssignments/write (self-escalation primitive)",
+      "category": "RBAC",
+      "severity_default": "Critical",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "A custom role definition includes Microsoft.Authorization/roleAssignments/write (or a broader authorization write wildcard), allowing any holder to grant themselves Owner. Actions are flattened from permissions[].actions by the read-only runner.",
+      "attack_vector": "Self-assign Owner -> subscription/management group takeover",
+      "recommendation": "Remove authorization write actions from custom roles; restrict role assignment to User Access Administrators under PIM.",
+      "controls": { "cis_azure": ["1.23"], "mitre": ["T1098", "T1078"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE",
+        "kql": "authorizationresources | where type =~ 'microsoft.authorization/roledefinitions' | where properties.type == 'CustomRole' | mv-expand perm = properties.permissions | project roleName = tostring(properties.roleName), roleType = tostring(properties.type), actions = perm.actions, subscriptionId"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "roleType", "op": "eqi", "value": "CustomRole" },
+          {
+            "any": [
+              { "field": "actions", "op": "contains", "value": "Microsoft.Authorization/roleAssignments/write" },
+              { "field": "actions", "op": "contains", "value": "Microsoft.Authorization/*/write" },
+              { "field": "actions", "op": "contains", "value": "Microsoft.Authorization/*" },
+              { "field": "actions", "op": "contains", "value": "*" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["roleName", "actions"]
+    },
+    {
+      "check_id": "CHK-RBAC-WILDCARD-ACTION",
+      "finding_class": "custom-role-wildcard-action",
+      "title": "Custom role with wildcard (*) actions",
+      "category": "RBAC",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "A custom role grants '*' or a broad '*/write' action, effectively equal to Owner with less visibility.",
+      "attack_vector": "Over-broad permissions -> unintended privileged operations",
+      "recommendation": "Scope custom roles to the specific actions required.",
+      "controls": { "cis_azure": ["1.23"], "mitre": ["T1098"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-WILDCARD-ACTION",
+        "kql": "authorizationresources | where type =~ 'microsoft.authorization/roledefinitions' | where properties.type == 'CustomRole' | mv-expand perm = properties.permissions | project roleName = tostring(properties.roleName), roleType = tostring(properties.type), actions = perm.actions, subscriptionId"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "roleType", "op": "eqi", "value": "CustomRole" },
+          {
+            "any": [
+              { "field": "actions", "op": "contains", "value": "*" },
+              { "field": "actions", "op": "contains", "value": "*/write" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["roleName", "actions"]
+    },
+    {
+      "check_id": "CHK-RBAC-SUB-OWNER-SPRAWL",
+      "finding_class": "subscription-owner-sprawl",
+      "title": "Excessive subscription-level Owner assignments",
+      "category": "RBAC",
+      "severity_default": "High",
+      "confidence": "Medium",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "More principals hold Owner at subscription scope than expected, expanding blast radius. Owner count per subscription is summarized by the read-only runner. The agent confirms whether the holders are expected.",
+      "attack_vector": "Any compromised Owner = full subscription control",
+      "recommendation": "Reduce Owners; move to least-privilege roles and PIM-eligible assignments.",
+      "controls": { "cis_azure": ["1.22"], "mitre": ["T1078"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-SUB-OWNER-SPRAWL",
+        "kql": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | where tostring(properties.scope) matches regex '^/subscriptions/[^/]+$' | extend roleDefId = tolower(tostring(properties.roleDefinitionId)) | where roleDefId endswith '8e3af657-a8ff-443c-a75c-2fe8c4bcb635' | summarize ownerCount = count() by subscriptionId, scope = tostring(properties.scope)"
+      },
+      "evaluate": { "field": "ownerCount", "op": "gt", "value": 3 },
+      "evidence_fields": ["ownerCount", "scope"]
+    },
+    {
+      "check_id": "CHK-RBAC-SP-PRIVILEGED",
+      "finding_class": "sp-privileged-broad-scope",
+      "title": "Service principal with Owner/Contributor at broad scope",
+      "category": "RBAC",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "A service principal holds Owner, Contributor, or User Access Administrator at subscription or management-group scope. scopeLevel is classified from the assignment scope by the read-only runner.",
+      "attack_vector": "SP credential theft -> broad resource control",
+      "recommendation": "Scope SP permissions to specific resource groups/resources; rotate credentials; prefer managed identities.",
+      "controls": { "mitre": ["T1078.004"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-SP-PRIVILEGED",
+        "kql": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | project principalType = tostring(properties.principalType), roleDefinitionName = tostring(properties.roleDefinitionName), scopeLevel = tostring(properties.scopeLevel), principalDisplayName = tostring(properties.principalDisplayName), subscriptionId"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "principalType", "op": "eqi", "value": "ServicePrincipal" },
+          { "field": "roleDefinitionName", "op": "ini", "value": ["Owner", "Contributor", "User Access Administrator"] },
+          { "field": "scopeLevel", "op": "ini", "value": ["subscription", "managementgroup"] }
+        ]
+      },
+      "evidence_fields": ["roleDefinitionName", "scopeLevel", "principalDisplayName"]
+    },
+    {
+      "check_id": "CHK-RBAC-CLASSIC-ADMIN",
+      "finding_class": "classic-administrator-present",
+      "title": "Classic (co-)administrator assignments present",
+      "category": "RBAC",
+      "severity_default": "Medium",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "Legacy classic administrators / co-administrators retain full control outside modern Azure RBAC visibility.",
+      "attack_vector": "Forgotten classic admin = hidden full-control path",
+      "recommendation": "Remove classic administrators; manage access via Azure RBAC only.",
+      "controls": { "cis_azure": ["1.22"], "mitre": ["T1078"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-CLASSIC-ADMIN"
+      },
+      "evaluate": { "field": "roleDefinitionName", "op": "regex", "value": "Administrator" },
+      "evidence_fields": ["roleDefinitionName", "principalName"]
+    },
+    {
+      "check_id": "CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE",
+      "finding_class": "compute-mi-privileged-control-plane",
+      "title": "Compute-attached managed identity holds a privileged control-plane role",
+      "category": "RBAC",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "A managed identity attached to a compute resource (VM, VMSS, Function App, Container App, AKS) is the direct assignee of Owner/Contributor/User Access Administrator at resource-group, subscription, or management-group scope. The read-only runner joins compute identity.principalId to role assignments.",
+      "attack_vector": "Compromise workload (RCE/SSRF/runCommand) -> read IMDS token -> act as the managed identity with its privileged role -> lateral movement / escalation",
+      "recommendation": "Scope managed-identity role assignments to the specific resources required; avoid Owner/Contributor at subscription scope for compute identities.",
+      "controls": { "mitre": ["T1078.004", "T1552.005", "T1098.003"], "nist_csf": ["PR.AA-05", "PR.AA-01"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "computeAttached", "op": "eq", "value": true },
+          { "field": "roleDefinitionName", "op": "ini", "value": ["Owner", "Contributor", "User Access Administrator"] },
+          { "field": "scopeLevel", "op": "ini", "value": ["resourcegroup", "subscription", "managementgroup"] }
+        ]
+      },
+      "evidence_fields": ["roleDefinitionName", "scopeLevel", "computeResourceId"]
+    },
+    {
+      "check_id": "CHK-RBAC-MI-DATA-PLANE-SECRETS",
+      "finding_class": "compute-mi-data-plane-secrets",
+      "title": "Compute-attached managed identity can read Key Vault / Storage data-plane secrets",
+      "category": "RBAC",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "authorization-attack-path",
+      "id_prefix": "AZ-AUTHZ",
+      "description": "A managed identity attached to a compute resource holds a Key Vault or Storage data-plane role (e.g. Key Vault Secrets User/Officer, Key Vault Crypto User, Storage Blob/Queue Data Contributor/Reader), enabling secret and data retrieval once the workload is compromised.",
+      "attack_vector": "Compromise workload -> IMDS token -> read Key Vault secrets / storage data -> harvested credentials enable further lateral movement",
+      "recommendation": "Grant data-plane roles at the individual vault/account scope only; separate duties so a single workload identity cannot read all secrets.",
+      "controls": { "mitre": ["T1552.005", "T1555.006", "T1528"], "nist_csf": ["PR.AA-05", "PR.AA-01"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/rbac.md#CHK-RBAC-MI-DATA-PLANE-SECRETS"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "computeAttached", "op": "eq", "value": true },
+          {
+            "any": [
+              { "field": "roleDefinitionName", "op": "contains", "value": "Key Vault" },
+              { "field": "roleDefinitionName", "op": "contains", "value": "Storage Blob Data" },
+              { "field": "roleDefinitionName", "op": "contains", "value": "Storage Queue Data" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["roleDefinitionName", "computeResourceId"]
+    }
+  ]
+}
