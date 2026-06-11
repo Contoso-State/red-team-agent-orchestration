@@ -30,12 +30,14 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 │   ├── devops-supplychain/      # OIDC/federated creds, pipeline SPs, ACR, automation, Logic Apps
 │   ├── external-vuln/           # External Vulnerability Agent (EVA) — gated active OWASP testing
 │   └── reporting/               # Finding normalization and report generation
-├── checks/                      # Atomic security checks per domain
+├── checks/                      # Atomic security checks per domain (checks.yaml) + machine-readable predicate banks (predicates.json)
 ├── playbooks/                   # Multi-step assessment methodologies
-├── schemas/                     # JSON schemas for findings, attack paths, checks, engagement
+├── schemas/                     # JSON schemas for findings, attack paths, checks, predicate banks, engagement
 ├── controls/                    # CIS, MITRE ATT&CK, NIST CSF 2.0 mappings
-├── knowledge/                   # Azure attack matrix, common misconfigs, severity model, web/OWASP testing (EVA)
+├── knowledge/                   # Azure attack matrix, common misconfigs, severity model, token-optimization contract, web/OWASP testing (EVA)
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, datastore, HTML report generator
+│   ├── checks/                  # Deterministic zero-LLM check engine — evaluates predicate banks into findings + a compact triage summary
+│   ├── tokens/                  # Token ledger — per-phase/per-agent token accounting for the report's Engagement Cost appendix
 │   ├── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle
 │   ├── external/                # Gated EVA toolchain — Azure-scoped target allowlist, safe prober, scope-locked DAST + offline SAST wrappers
 │   └── cluster/                 # Gated cluster-active toolchain — Azure-scoped cluster/registry allowlist, safe kube audit, scope-locked kube-bench/kubesec/trivy/grype wrapper

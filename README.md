@@ -146,9 +146,12 @@ further ("start with the exposed surface?").
 - **Budgets, not best-effort** — `scale.*` knobs (`sample_per_type`, `max_resource_calls`, `time_budget_min`, `concurrency`, `prioritize_exposed`) cap the work; `tools/orchestration/estimate-cost.mjs` projects API calls / runtime *before* the run so you can narrow scope first.
 - **Durable, resumable orchestration** — work is a task manifest keyed by `(agent, subscription, check, scope)`; an interrupted run resumes (skips `done`, retries `failed`) and a deterministic reduce merges per-task output.
 - **Honest coverage** — every task's outcome (`assessed` / `sampled` / `skipped-by-budget` / `failed` / `permission-denied` / `partial`) becomes a coverage cell, so a reader never mistakes *"not assessed"* for *"no findings."*
+- **Scripted evaluation, agentic judgment** — the mechanical pass/fail evaluation of deterministic checks runs in a **zero-LLM engine** (`tools/checks/run-checks.mjs`) over a per-domain *predicate bank* (`checks/<domain>/predicates.json` — **99 of 147 checks** mechanized). Agents stay the primary reasoning engine but read a **compact triage summary** instead of raw Azure JSON, so token spend goes to correlation and attack-path judgment, not field comparison. Every report carries a **total token-usage** figure (Appendix D) and respects an optional `scale.token_budget`. See [`knowledge/token-optimization.md`](knowledge/token-optimization.md).
 
 | Concept | Tool |
 |---|---|
+| Deterministic check engine (zero-LLM predicate eval) | `tools/checks/run-checks.mjs` |
+| Token ledger + per-report usage accounting | `tools/tokens/ledger.mjs` |
 | Inventory census (paged ARG) | `tools/powershell/Export-Inventory.ps1` |
 | Scope brief (operator rollup) | `tools/resource-graph/scope-brief.mjs` |
 | Preflight cost / time estimate | `tools/orchestration/estimate-cost.mjs` |

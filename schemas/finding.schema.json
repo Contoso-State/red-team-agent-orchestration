@@ -47,6 +47,7 @@
         "authorization-attack-path",
         "network-exposure",
         "compute-platform",
+        "aks-container",
         "data-protection",
         "web-exposure",
         "ai-foundry",
