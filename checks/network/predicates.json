@@ -1,0 +1,154 @@
+{
+  "domain": "network",
+  "predicates": [
+    {
+      "check_id": "CHK-NET-MGMT-PORT-INTERNET",
+      "finding_class": "nsg-mgmt-port-open-internet",
+      "title": "Management port (RDP/SSH) open to the internet",
+      "category": "Network",
+      "severity_default": "Critical",
+      "agent": "network-exposure",
+      "id_prefix": "AZ-NET",
+      "description": "An NSG inbound Allow rule exposes RDP (3389) or SSH (22) from the internet (source *, Internet, 0.0.0.0/0, or a wildcard port range).",
+      "attack_vector": "Internet brute force / exploit -> host compromise",
+      "recommendation": "Restrict management access to Azure Bastion or specific admin IPs; remove broad inbound rules.",
+      "controls": { "cis_azure": ["6.1", "6.2"], "mitre": ["T1190", "T1133"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/network.md#CHK-NET-MGMT-PORT-INTERNET",
+        "kql": "Resources | where type == 'microsoft.network/networksecuritygroups' | mv-expand rule = properties.securityRules | extend p = rule.properties | where p.access == 'Allow' and p.direction == 'Inbound' | where p.sourceAddressPrefix in ('*','Internet','0.0.0.0/0','Any') | where p.destinationPortRange in ('22','3389','*') or set_has_element(p.destinationPortRanges,'22') or set_has_element(p.destinationPortRanges,'3389') | project id, name = rule.name, nsgName = name, resourceGroup, subscriptionId, location, direction = p.direction, access = p.access, sourceAddressPrefix = p.sourceAddressPrefix, destinationPortRange = p.destinationPortRange, destinationPortRanges = p.destinationPortRanges"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "direction", "op": "eqi", "value": "Inbound" },
+          { "field": "access", "op": "eqi", "value": "Allow" },
+          { "field": "sourceAddressPrefix", "op": "ini", "value": ["*", "Internet", "0.0.0.0/0", "Any"] },
+          {
+            "any": [
+              { "field": "destinationPortRange", "op": "in", "value": ["22", "3389", "*"] },
+              { "field": "destinationPortRanges", "op": "contains", "value": "22" },
+              { "field": "destinationPortRanges", "op": "contains", "value": "3389" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["nsgName", "sourceAddressPrefix", "destinationPortRange"]
+    },
+    {
+      "check_id": "CHK-NET-DB-PORT-INTERNET",
+      "finding_class": "nsg-db-port-open-internet",
+      "title": "Database port open to the internet",
+      "category": "Network",
+      "severity_default": "Critical",
+      "agent": "network-exposure",
+      "id_prefix": "AZ-NET",
+      "description": "An NSG inbound Allow rule exposes a database port (1433/3306/5432) from the internet (source *, Internet, 0.0.0.0/0, or a wildcard port range).",
+      "attack_vector": "Direct internet database access -> data breach",
+      "recommendation": "Place databases behind private endpoints; remove internet-facing DB port rules.",
+      "controls": { "cis_azure": ["6.3", "6.4"], "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/network.md#CHK-NET-DB-PORT-INTERNET",
+        "kql": "Resources | where type == 'microsoft.network/networksecuritygroups' | mv-expand rule = properties.securityRules | extend p = rule.properties | where p.access == 'Allow' and p.direction == 'Inbound' | where p.sourceAddressPrefix in ('*','Internet','0.0.0.0/0','Any') | where p.destinationPortRange in ('1433','3306','5432','*') or set_has_element(p.destinationPortRanges,'1433') or set_has_element(p.destinationPortRanges,'3306') or set_has_element(p.destinationPortRanges,'5432') | project id, name = rule.name, nsgName = name, resourceGroup, subscriptionId, location, direction = p.direction, access = p.access, sourceAddressPrefix = p.sourceAddressPrefix, destinationPortRange = p.destinationPortRange, destinationPortRanges = p.destinationPortRanges"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "direction", "op": "eqi", "value": "Inbound" },
+          { "field": "access", "op": "eqi", "value": "Allow" },
+          { "field": "sourceAddressPrefix", "op": "ini", "value": ["*", "Internet", "0.0.0.0/0", "Any"] },
+          {
+            "any": [
+              { "field": "destinationPortRange", "op": "in", "value": ["1433", "3306", "5432", "*"] },
+              { "field": "destinationPortRanges", "op": "contains", "value": "1433" },
+              { "field": "destinationPortRanges", "op": "contains", "value": "3306" },
+              { "field": "destinationPortRanges", "op": "contains", "value": "5432" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["nsgName", "sourceAddressPrefix", "destinationPortRange"]
+    },
+    {
+      "check_id": "CHK-NET-ANY-ANY-RULE",
+      "finding_class": "nsg-any-any-inbound",
+      "title": "NSG rule allows any source, any port",
+      "category": "Network",
+      "severity_default": "High",
+      "agent": "network-exposure",
+      "id_prefix": "AZ-NET",
+      "description": "An NSG inbound Allow rule uses a wildcard source ('*'/Any) and a wildcard destination port ('*'), providing no L4 filtering.",
+      "attack_vector": "No L4 filtering -> full inbound exposure",
+      "recommendation": "Replace with least-privilege rules; enforce deny-by-default.",
+      "controls": { "cis_azure": ["6.1"], "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/network.md#CHK-NET-ANY-ANY-RULE",
+        "kql": "Resources | where type == 'microsoft.network/networksecuritygroups' | mv-expand rule = properties.securityRules | extend p = rule.properties | where p.access == 'Allow' and p.direction == 'Inbound' | where p.sourceAddressPrefix in ('*','Any') and p.destinationPortRange == '*' | project id, name = rule.name, nsgName = name, resourceGroup, subscriptionId, location, direction = p.direction, access = p.access, sourceAddressPrefix = p.sourceAddressPrefix, destinationPortRange = p.destinationPortRange"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "direction", "op": "eqi", "value": "Inbound" },
+          { "field": "access", "op": "eqi", "value": "Allow" },
+          { "field": "sourceAddressPrefix", "op": "ini", "value": ["*", "Any"] },
+          { "field": "destinationPortRange", "op": "eq", "value": "*" }
+        ]
+      },
+      "evidence_fields": ["nsgName", "sourceAddressPrefix", "destinationPortRange"]
+    },
+    {
+      "check_id": "CHK-NET-SUBNET-NO-NSG",
+      "finding_class": "subnet-no-nsg",
+      "title": "Subnet without an associated NSG",
+      "category": "Network",
+      "severity_default": "Medium",
+      "agent": "network-exposure",
+      "id_prefix": "AZ-NET",
+      "description": "A workload subnet has no associated Network Security Group, providing no L4 segmentation. Gateway/special subnets are excluded.",
+      "attack_vector": "Unfiltered intra-VNet movement",
+      "recommendation": "Associate an NSG with deny-by-default rules to every workload subnet.",
+      "controls": { "cis_azure": ["6.6"], "mitre": ["T1021"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/network.md#CHK-NET-SUBNET-NO-NSG",
+        "kql": "Resources | where type == 'microsoft.network/virtualnetworks' | mv-expand subnet = properties.subnets | extend sp = subnet.properties | where isnull(sp.networkSecurityGroup) | project id = subnet.id, name = subnet.name, vnetName = name, resourceGroup, subscriptionId, location, nsgId = tostring(sp.networkSecurityGroup.id)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "nsgId", "op": "missing" },
+          { "field": "name", "op": "nin", "value": ["GatewaySubnet", "AzureBastionSubnet", "AzureFirewallSubnet", "AzureFirewallManagementSubnet", "RouteServerSubnet"] }
+        ]
+      },
+      "evidence_fields": ["vnetName", "name"]
+    },
+    {
+      "check_id": "CHK-NET-WAF-MISSING",
+      "finding_class": "public-web-no-waf",
+      "title": "Public web endpoint without WAF",
+      "category": "Network",
+      "severity_default": "Medium",
+      "agent": "network-exposure",
+      "id_prefix": "AZ-NET",
+      "description": "An internet-facing Application Gateway / Front Door has no Web Application Firewall policy attached, or runs the WAF in detection-only mode.",
+      "attack_vector": "Web application attacks reach origin unfiltered",
+      "recommendation": "Attach a WAF in Prevention mode to public web endpoints; lock origin to the edge.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/network.md#CHK-NET-WAF-MISSING",
+        "kql": "Resources | where type in ('microsoft.network/applicationgateways','microsoft.network/frontdoors','microsoft.cdn/profiles') | extend publicExposed = true | project id, name, type, kind = type, resourceGroup, subscriptionId, location, publicExposed, wafEnabled = isnotnull(properties.firewallPolicy), wafMode = tostring(properties.policySettings.mode)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicExposed", "op": "eq", "value": true },
+          {
+            "any": [
+              { "field": "wafEnabled", "op": "ne", "value": true },
+              { "field": "wafMode", "op": "eqi", "value": "Detection" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["kind", "wafEnabled", "wafMode"]
+    }
+  ]
+}

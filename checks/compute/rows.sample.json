@@ -1,0 +1,19 @@
+{
+  "CHK-COMP-APPSVC-NO-AUTH": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app1", "name": "app1", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "authEnabled": false, "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app2", "name": "app2", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app3", "name": "app3", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "authEnabled": true, "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app4", "name": "app4", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "authEnabled": false, "publicNetworkAccess": "Disabled" }
+  ],
+  "CHK-COMP-APPSVC-FTP-DEBUG": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app1", "name": "app1", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "ftpsState": "AllAllowed", "remoteDebuggingEnabled": false },
+    { "id": "/subscriptions/sub-b/resourceGroups/rg7/providers/Microsoft.Web/sites/fn1", "name": "fn1", "type": "microsoft.web/sites", "resourceGroup": "rg7", "subscriptionId": "sub-b", "location": "westus", "ftpsState": "FtpsOnly", "remoteDebuggingEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Web/sites/app5", "name": "app5", "type": "microsoft.web/sites", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "ftpsState": "Disabled", "remoteDebuggingEnabled": false }
+  ],
+  "CHK-COMP-VM-NO-DISK-ENCRYPTION": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Compute/virtualMachines/vm1", "name": "vm1", "type": "microsoft.compute/virtualmachines", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "encryptionAtHost": false, "adeEnabled": false, "hasUnmanagedDisk": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Compute/virtualMachines/vm2", "name": "vm2", "type": "microsoft.compute/virtualmachines", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "encryptionAtHost": false, "adeEnabled": false, "hasUnmanagedDisk": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Compute/virtualMachines/vm3", "name": "vm3", "type": "microsoft.compute/virtualmachines", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "encryptionAtHost": true, "adeEnabled": false, "hasUnmanagedDisk": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Compute/virtualMachines/vm4", "name": "vm4", "type": "microsoft.compute/virtualmachines", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "encryptionAtHost": false, "adeEnabled": true, "hasUnmanagedDisk": false }
+  ]
+}

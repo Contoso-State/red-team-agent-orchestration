@@ -49,12 +49,15 @@ These check IDs keep their original `CHK-COMP-` prefix on purpose — they were 
 
 ### Read-only methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.ContainerService`, `Microsoft.ContainerRegistry`, `Microsoft.App`, `Microsoft.ContainerInstance`. Return only vulnerable candidates — never read the full inventory into context. Page anything that can exceed 1,000 rows with a deterministic `order by`.
-2. Run the checks in `checks/container/checks.yaml` via the keyed read-only runner `tools/az-cli/container.md`.
-3. For in-cluster reads, use **read-only** Kubernetes API access only — `kubectl get/describe`, `kubectl auth can-i --list`, `kubectl api-resources`. Never `kubectl exec`, `kubectl debug`, `kubectl cp`, or any mutating verb (`apply`/`create`/`delete`/`patch`/...) in this lane. The cluster guardrail enforces this fail-closed.
-4. Draw methodology from `knowledge/aks-security-baseline.md` (Microsoft AKS security baseline), `knowledge/kubernetes-security.md` (in-cluster RBAC, Pod Security, workload identity vs node MI, CIS/kube-bench/kubesec), and `knowledge/container-security.md` (image scanning, registry content trust, container-escape detection).
-5. Hand every cluster/workload managed identity to the Authorization & Attack Path Agent.
-6. Emit findings to `engagements/<session>/findings/raw/aks-container.jsonl` with ID prefix `AZ-CNTR-`.
+The mechanical half is **scripted, not agentic** — you do not read raw resource JSON per check. See `knowledge/token-optimization.md`.
+
+1. **Produce candidate rows.** Run the keyed read-only runner `tools/az-cli/container.md` (ARG filtered to `Microsoft.ContainerService`, `Microsoft.ContainerRegistry`, `Microsoft.App`, `Microsoft.ContainerInstance`, plus read-only Kubernetes-API reads) to emit `rows.json` keyed by `check_id`. Return only candidate rows — never read the full inventory into context. Page anything that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine.** `node tools/checks/run-checks.mjs --predicates checks/container/predicates.json --rows rows.json --out engagements/<session>/runs/aks-container`. The 13 mechanized control-plane / registry / Pod-Security checks become schema-valid candidates plus a compact `check-summary/v1`. **Schema note:** `finding.schema.json`'s `agent` enum has no `aks-container`, so engine findings are attributed to `compute-platform` (the agent these checks were re-homed from); the `AZ-CNTR-` id prefix keeps them distinct, and the dedicated `--out` keeps this summary from clobbering the Compute agent's. (Recommend the coordinator add `aks-container` to `finding.schema.json`.)
+3. **Reason over the summary only.** Confirm / contextualize / suppress / set final severity over `engagements/<session>/runs/aks-container/findings/summary/compute-platform.json` — not raw rows.
+4. **Run the judgment-only checks** the engine cannot mechanize — outdated/unsupported Kubernetes version against the dynamic support window (`CHK-COMP-AKS-OUTDATED-VERSION`), in-cluster cluster-admin RBAC sprawl (`CHK-COMP-AKS-RBAC-CLUSTER-ADMIN-SPRAWL`), and node managed-identity exposure via IMDS (`CHK-COMP-AKS-NODE-MI-EXPOSURE`), plus every Lane 2 cluster-active check. For in-cluster reads use **read-only** Kubernetes API only — `kubectl get/describe`, `kubectl auth can-i --list`, `kubectl api-resources`. Never `kubectl exec`, `kubectl debug`, `kubectl cp`, or any mutating verb (`apply`/`create`/`delete`/`patch`/...) in this lane. The cluster guardrail enforces this fail-closed.
+5. Draw methodology from `knowledge/aks-security-baseline.md` (Microsoft AKS security baseline), `knowledge/kubernetes-security.md` (in-cluster RBAC, Pod Security, workload identity vs node MI, CIS/kube-bench/kubesec), and `knowledge/container-security.md` (image scanning, registry content trust, container-escape detection).
+6. Hand every cluster/workload managed identity to the Authorization & Attack Path Agent.
+7. Emit agent-authored findings to `engagements/<session>/findings/raw/aks-container.jsonl` with ID prefix `AZ-CNTR-`.
 
 ### Scale & aggregation
 
