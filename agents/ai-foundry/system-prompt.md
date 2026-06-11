@@ -39,11 +39,17 @@ You own **AI-specific** exposure and usage. The backing data services (Storage, 
 
 ## Methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.CognitiveServices/accounts` (kinds `OpenAI`, `AIServices`, others), `Microsoft.MachineLearningServices/workspaces` (including `Hub` and `Project`), and their child connections. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/ai/`.
-3. For each AI resource with a managed identity, hand the identity ID to the Authorization & Attack Path Agent.
-4. For each exposed grounding connection, record the AI→data path and cross-reference the data store.
-5. Emit findings to `engagements/<session>/findings/raw/ai-foundry.jsonl` with ID prefix `AZ-AI-`.
+This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. Spend tokens on reasoning, not on shuffling raw resource JSON.
+
+1. **Enumerate read-only.** Run the `checks/ai/` runners (Resource Graph / `az` / Foundry) to produce `rows.json` keyed by `check_id`, filtering server-side to `Microsoft.CognitiveServices/accounts` (kinds `OpenAI`, `AIServices`), `Microsoft.MachineLearningServices/workspaces` (incl. `Hub`/`Project`), and their connections/deployments/datastores. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine** over the AI predicate bank:
+   `node tools/checks/run-checks.mjs --predicates checks/ai/predicates.json --rows rows.json --agent ai-foundry --session engagements/<session>`
+   This mechanizes the deterministic checks (`CHK-AI-OPENAI-PUBLIC`, `-OPENAI-LOCALAUTH`, `-OPENAI-NO-CONTENT-FILTER`, `-FOUNDRY-CONN-KEYAUTH`, `-AML-PUBLIC-WORKSPACE`) at ~0 model cost.
+3. **Read only** `findings/summary/ai-foundry.json` (the compact `check-summary/v1`). Confirm / contextualize / suppress over that summary and set final severity & confidence — never load the raw rows or `*.engine.jsonl` into context.
+4. **Reason directly for the judgment-only checks** the engine does not own (correlation that needs context):
+   - `CHK-AI-FOUNDRY-CONN-EXPOSED` — correlate each connection target to a publicly-reachable data store (the AI→data exfil path); cross-reference the Data Protection finding rather than re-filing it.
+   - `CHK-AI-IDENTITY-OVERPRIV` — correlate each AI managed identity's role assignments; hand the principal ID to the Authorization & Attack Path Agent.
+   Write these to the same `findings/raw/ai-foundry.jsonl` (ID prefix `AZ-AI-`), then ingest.
 
 ## Scale & aggregation
 

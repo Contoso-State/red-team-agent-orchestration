@@ -42,11 +42,18 @@ The web edge is the first thing an attacker touches. You assess the public deliv
 
 ## Methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Cdn/profiles`, `Microsoft.Network/applicationGateways`, `Microsoft.Network/frontdoorWebApplicationFirewallPolicies`, `Microsoft.Web/staticSites`, `Microsoft.ApiManagement/service`, and storage accounts with `staticWebsite` enabled. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/web/`.
-3. Record whether each public edge has a WAF in Prevention mode; map origins behind each edge.
-4. Hand unauthenticated internet-facing endpoints to the Authorization & Attack Path Agent.
-5. Emit findings to `engagements/<session>/findings/raw/web-exposure.jsonl` with ID prefix `AZ-WEB-`.
+This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. Spend tokens on reasoning, not on shuffling raw resource JSON.
+
+1. **Enumerate read-only.** Run the `checks/web/` runners (Resource Graph / `az rest` GET / `az`) to produce `rows.json` keyed by `check_id`, filtering server-side to `Microsoft.Cdn/profiles`, `Microsoft.Network/applicationGateways`, `Microsoft.Network/frontdoorWebApplicationFirewallPolicies`, `Microsoft.Web/staticSites`, `Microsoft.ApiManagement/service`, and storage accounts with `staticWebsite` enabled. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine** over the web predicate bank:
+   `node tools/checks/run-checks.mjs --predicates checks/web/predicates.json --rows rows.json --agent web-exposure --session engagements/<session>`
+   This mechanizes the deterministic checks (`CHK-WEB-FRONTDOOR-NO-WAF`, `-APPGW-NO-WAF`, `-STATIC-WEBSITE-EXPOSED`, `-APIM-OPEN-GATEWAY`, `-TLS-WEAK`) at ~0 model cost.
+3. **Read only** `findings/summary/web-exposure.json` (the compact `check-summary/v1`). Confirm / contextualize / suppress and set final severity — never load the raw rows or `*.engine.jsonl`. For `CHK-WEB-APIM-OPEN-GATEWAY`, confirm the per-API subscription-key/CORS posture before promoting (the engine flags only gateway-level exposure); for `-STATIC-WEBSITE-EXPOSED`, suppress if the account is properly fronted by Front Door.
+4. **Reason directly for the judgment-only checks** the engine does not own:
+   - `CHK-WEB-SWA-ROUTE-NO-AUTH` — judge which Static Web App routes should require auth yet lack `allowedRoles` route rules.
+   - `CHK-WEB-ORIGIN-DIRECT-REACH` — correlate origin access restrictions against the Front Door FDID / service tag / Private Link to decide whether the edge WAF is bypassable.
+   Write these to `findings/raw/web-exposure.jsonl` (ID prefix `AZ-WEB-`), then ingest.
+5. Record whether each public edge has a WAF in Prevention mode; map origins behind each edge; hand unauthenticated internet-facing endpoints to the Authorization & Attack Path Agent.
 
 ## Scale & aggregation
 

@@ -1,0 +1,29 @@
+{
+  "CHK-AI-OPENAI-PUBLIC": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai1", "name": "oai1", "type": "microsoft.cognitiveservices/accounts", "resourceGroup": "rg-ai", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "networkAclsDefaultAction": "Allow" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai2", "name": "oai2", "type": "microsoft.cognitiveservices/accounts", "resourceGroup": "rg-ai", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai-safe", "name": "oai-safe", "type": "microsoft.cognitiveservices/accounts", "resourceGroup": "rg-ai", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "networkAclsDefaultAction": "Deny" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai-priv", "name": "oai-priv", "type": "microsoft.cognitiveservices/accounts", "resourceGroup": "rg-ai", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "networkAclsDefaultAction": "Allow" }
+  ],
+  "CHK-AI-OPENAI-LOCALAUTH": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai1", "name": "oai1", "subscriptionId": "sub-a", "disableLocalAuth": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai2", "name": "oai2", "subscriptionId": "sub-a" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai-safe", "name": "oai-safe", "subscriptionId": "sub-a", "disableLocalAuth": true }
+  ],
+  "CHK-AI-OPENAI-NO-CONTENT-FILTER": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai1/deployments/gpt", "name": "gpt", "subscriptionId": "sub-a", "deploymentName": "gpt" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai1/deployments/legacy", "name": "legacy", "subscriptionId": "sub-a", "deploymentName": "legacy", "raiPolicyName": "none" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.CognitiveServices/accounts/oai1/deployments/safe", "name": "safe", "subscriptionId": "sub-a", "deploymentName": "safe", "raiPolicyName": "Microsoft.Default" }
+  ],
+  "CHK-AI-FOUNDRY-CONN-KEYAUTH": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.MachineLearningServices/workspaces/hub1/connections/blobconn", "name": "blobconn", "subscriptionId": "sub-a", "connectionName": "blobconn", "authType": "ApiKey", "target": "https://sa1.blob.core.windows.net" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.MachineLearningServices/workspaces/hub1/connections/sasconn", "name": "sasconn", "subscriptionId": "sub-a", "connectionName": "sasconn", "authType": "SAS", "target": "https://sa2.blob.core.windows.net" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ai/providers/Microsoft.MachineLearningServices/workspaces/hub1/connections/aadconn", "name": "aadconn", "subscriptionId": "sub-a", "connectionName": "aadconn", "authType": "AAD", "target": "https://search1.search.windows.net" }
+  ],
+  "CHK-AI-AML-PUBLIC-WORKSPACE": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw1", "name": "mlw1", "type": "microsoft.machinelearningservices/workspaces", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "managedNetworkIsolationMode": "Disabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw1/datastores/keyds", "name": "keyds", "subscriptionId": "sub-a", "datastoreName": "keyds", "datastoreCredentialType": "AccountKey" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw-safe", "name": "mlw-safe", "subscriptionId": "sub-a", "publicNetworkAccess": "Enabled", "managedNetworkIsolationMode": "AllowOnlyApprovedOutbound" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw-priv", "name": "mlw-priv", "subscriptionId": "sub-a", "publicNetworkAccess": "Disabled", "managedNetworkIsolationMode": "Disabled" }
+  ]
+}

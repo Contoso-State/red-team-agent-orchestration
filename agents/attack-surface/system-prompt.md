@@ -40,11 +40,18 @@ When your footprint reveals a specific misconfig, cross-reference the owning age
 
 ## Methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to public IPs and public hostnames of edge/data resources. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Enumerate DNS zones and records; flag CNAME/A targets that no longer resolve to a live owned resource.
-3. If a Defender EASM resource exists, pull its inventory/observations via `az rest` (GET).
-4. Correlate every exposed asset to an owner; flag the unowned ones as unknown assets.
-5. Emit findings to `engagements/<session>/findings/raw/attack-surface.jsonl` with ID prefix `AZ-EASM-`.
+This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. EASM's highest-value output (takeover / unknown-asset correlation) is irreducibly agentic; the engine just clears the mechanical exposure checks cheaply.
+
+1. **Enumerate read-only.** Run the `checks/easm/` runners (Resource Graph / `az rest` GET) to produce `rows.json` keyed by `check_id`: public IPs and their associations, public-IP↔NSG-rule rows, and Defender EASM observations. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine** over the EASM predicate bank:
+   `node tools/checks/run-checks.mjs --predicates checks/easm/predicates.json --rows rows.json --agent attack-surface --session engagements/<session>`
+   This mechanizes the deterministic checks (`CHK-EASM-PUBLIC-MGMT-PORT`, `-DEFENDER-EASM-OBS`, `-PUBLIC-IP-UNUSED`) at ~0 model cost.
+3. **Read only** `findings/summary/attack-surface.json` (the compact `check-summary/v1`). Confirm / contextualize / suppress and set final severity — never load the raw rows or `*.engine.jsonl` into context.
+4. **Reason directly for the judgment-only checks** the engine does not own (live resolution + ownership correlation):
+   - `CHK-EASM-DANGLING-DNS` — enumerate DNS zones/records and flag CNAME/A targets that no longer resolve to a live owned resource (subdomain takeover).
+   - `CHK-EASM-UNKNOWN-ASSET` — correlate every discovered external asset to an in-scope owner; flag the unowned ones (shadow IT / stale infra).
+   Write these to `findings/raw/attack-surface.jsonl` (ID prefix `AZ-EASM-`), then ingest.
+5. Cross-reference port/edge/data exposure to the owning domain agent (Network / Web / Data / AI) rather than re-filing; your unique findings are dangling-DNS takeover and unknown/orphaned assets.
 
 ## Scale & aggregation
 

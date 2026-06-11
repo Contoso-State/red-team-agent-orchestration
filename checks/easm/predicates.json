@@ -1,0 +1,77 @@
+{
+  "domain": "easm",
+  "predicates": [
+    {
+      "check_id": "CHK-EASM-PUBLIC-MGMT-PORT",
+      "finding_class": "easm-public-mgmt-port",
+      "title": "Management or database port reachable from the internet",
+      "category": "Attack Surface",
+      "severity_default": "High",
+      "agent": "attack-surface",
+      "id_prefix": "AZ-EASM",
+      "description": "A public IP's effective NSG allows inbound traffic from the internet to a management (RDP/SSH/WinRM) or database port, exposing a brute-force / exploitation entry point.",
+      "attack_vector": "Internet-exposed management surface -> brute force / exploit -> initial access",
+      "recommendation": "Restrict to known source ranges, use Bastion/Just-In-Time access, and remove public exposure. Cross-ref network-exposure.",
+      "controls": { "cis_azure": ["6.x"], "mitre": ["T1190", "T1133"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/easm.md#CHK-EASM-PUBLIC-MGMT-PORT"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "access", "op": "eqi", "value": "Allow" },
+          { "field": "direction", "op": "eqi", "value": "Inbound" },
+          { "field": "sourceAddressPrefix", "op": "ini", "value": ["Internet", "*", "0.0.0.0/0", "Any"] },
+          { "field": "destinationPort", "op": "ini", "value": ["22", "3389", "5985", "5986", "1433", "3306", "5432", "6443", "*"] }
+        ]
+      },
+      "evidence_fields": ["publicIp", "sourceAddressPrefix", "destinationPort", "access"]
+    },
+    {
+      "check_id": "CHK-EASM-DEFENDER-EASM-OBS",
+      "finding_class": "easm-defender-observation",
+      "title": "Unaddressed Microsoft Defender EASM high-priority observation",
+      "category": "Attack Surface",
+      "severity_default": "High",
+      "agent": "attack-surface",
+      "id_prefix": "AZ-EASM",
+      "description": "A Microsoft Defender EASM workspace reports an open high- or medium-priority observation (expired certs, vulnerable services, exposed assets) that remains unaddressed.",
+      "attack_vector": "Known exposed/vulnerable asset -> exploitation",
+      "recommendation": "Triage and remediate Defender EASM observations; assign owners to discovered assets.",
+      "controls": { "mitre": ["T1595"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/easm.md#CHK-EASM-DEFENDER-EASM-OBS"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "state", "op": "eqi", "value": "Open" },
+          { "field": "priority", "op": "ini", "value": ["High", "Medium"] }
+        ]
+      },
+      "evidence_fields": ["observationName", "priority", "state"]
+    },
+    {
+      "check_id": "CHK-EASM-PUBLIC-IP-UNUSED",
+      "finding_class": "easm-orphaned-public-ip",
+      "title": "Orphaned public IP address",
+      "category": "Attack Surface",
+      "severity_default": "Low",
+      "agent": "attack-surface",
+      "id_prefix": "AZ-EASM",
+      "description": "A public IP address is allocated but not associated with any resource (no ipConfiguration), enlarging the surface and risking reuse/confusion or takeover of DNS records pointing at it.",
+      "attack_vector": "Stale/orphaned address -> confusion, potential takeover of DNS pointing at it",
+      "recommendation": "Release unattached public IPs; ensure DNS records do not reference them.",
+      "controls": { "mitre": ["T1595"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/easm.md#CHK-EASM-PUBLIC-IP-UNUSED",
+        "kql": "Resources | where type =~ 'microsoft.network/publicipaddresses' | project id, name, type, resourceGroup, subscriptionId, location, ipConfigurationId=tostring(properties.ipConfiguration.id)"
+      },
+      "evaluate": {
+        "field": "ipConfigurationId", "op": "missing"
+      },
+      "evidence_fields": ["ipConfigurationId"]
+    }
+  ]
+}

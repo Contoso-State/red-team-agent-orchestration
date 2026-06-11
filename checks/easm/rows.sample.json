@@ -1,0 +1,18 @@
+{
+  "CHK-EASM-PUBLIC-MGMT-PORT": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip1", "name": "pip1", "subscriptionId": "sub-a", "publicIp": "20.1.2.3", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "Internet", "destinationPort": "3389" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip2", "name": "pip2", "subscriptionId": "sub-a", "publicIp": "20.1.2.4", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "*", "destinationPort": "22" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-int", "name": "pip-int", "subscriptionId": "sub-a", "publicIp": "20.1.2.5", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "10.0.0.0/8", "destinationPort": "3389" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/pip-web", "name": "pip-web", "subscriptionId": "sub-a", "publicIp": "20.1.2.6", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "Internet", "destinationPort": "443" }
+  ],
+  "CHK-EASM-DEFENDER-EASM-OBS": [
+    { "id": "easm/workspace1/observations/expired-cert", "name": "expired-cert", "subscriptionId": "sub-a", "observationName": "Expired TLS certificate", "priority": "High", "state": "Open" },
+    { "id": "easm/workspace1/observations/weak-cipher", "name": "weak-cipher", "subscriptionId": "sub-a", "observationName": "Weak cipher suite", "priority": "Medium", "state": "Open" },
+    { "id": "easm/workspace1/observations/resolved-cert", "name": "resolved-cert", "subscriptionId": "sub-a", "observationName": "Previously expired cert", "priority": "High", "state": "Resolved" },
+    { "id": "easm/workspace1/observations/info-banner", "name": "info-banner", "subscriptionId": "sub-a", "observationName": "Server banner disclosure", "priority": "Low", "state": "Open" }
+  ],
+  "CHK-EASM-PUBLIC-IP-UNUSED": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/orphan1", "name": "orphan1", "type": "microsoft.network/publicipaddresses", "subscriptionId": "sub-a", "location": "eastus" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-net/providers/Microsoft.Network/publicIPAddresses/attached1", "name": "attached1", "type": "microsoft.network/publicipaddresses", "subscriptionId": "sub-a", "location": "eastus", "ipConfigurationId": "/subscriptions/sub-a/.../networkInterfaces/nic1/ipConfigurations/ipconfig1" }
+  ]
+}

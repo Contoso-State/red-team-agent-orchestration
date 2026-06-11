@@ -1,0 +1,134 @@
+{
+  "domain": "web",
+  "predicates": [
+    {
+      "check_id": "CHK-WEB-FRONTDOOR-NO-WAF",
+      "finding_class": "web-frontdoor-no-waf",
+      "title": "Front Door / CDN endpoint without a WAF policy in Prevention mode",
+      "category": "Web",
+      "severity_default": "High",
+      "agent": "web-exposure",
+      "id_prefix": "AZ-WEB",
+      "description": "A Front Door or CDN front end has no associated Web Application Firewall policy, or the policy runs in Detection (log-only) mode rather than Prevention.",
+      "attack_vector": "No edge enforcement -> direct application attack traffic reaches origin",
+      "recommendation": "Associate a WAF policy in Prevention mode with the managed default rule set on every public front end.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/web.md#CHK-WEB-FRONTDOOR-NO-WAF",
+        "kql": "Resources | where type =~ 'microsoft.cdn/profiles/afdendpoints' or type =~ 'microsoft.network/frontdoors' | project id, name, type, resourceGroup, subscriptionId, location, endpointName=name, wafPolicyId=tostring(properties.webApplicationFirewallPolicyLink.id), wafMode=tostring(properties.policySettings.mode)"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "wafPolicyId", "op": "missing" },
+          { "field": "wafMode", "op": "eqi", "value": "Detection" }
+        ]
+      },
+      "evidence_fields": ["endpointName", "wafPolicyId", "wafMode"]
+    },
+    {
+      "check_id": "CHK-WEB-APPGW-NO-WAF",
+      "finding_class": "web-appgw-no-waf",
+      "title": "Application Gateway without WAF or in Detection mode",
+      "category": "Web",
+      "severity_default": "High",
+      "agent": "web-exposure",
+      "id_prefix": "AZ-WEB",
+      "description": "An internet-facing Application Gateway uses the Standard (non-WAF) SKU or runs its WAF in Detection mode, so malicious requests are not blocked.",
+      "attack_vector": "No edge enforcement -> web application exploitation",
+      "recommendation": "Use the WAF_v2 SKU with firewall mode Prevention and an up-to-date OWASP rule set.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/web.md#CHK-WEB-APPGW-NO-WAF",
+        "kql": "Resources | where type =~ 'microsoft.network/applicationgateways' | project id, name, type, resourceGroup, subscriptionId, location, skuTier=tostring(properties.sku.tier), firewallMode=tostring(properties.webApplicationFirewallConfiguration.firewallMode), wafEnabled=tobool(properties.webApplicationFirewallConfiguration.enabled)"
+      },
+      "evaluate": {
+        "any": [
+          { "not": { "field": "skuTier", "op": "eqi", "value": "WAF_v2" } },
+          { "field": "firewallMode", "op": "eqi", "value": "Detection" },
+          { "field": "wafEnabled", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["skuTier", "firewallMode", "wafEnabled"]
+    },
+    {
+      "check_id": "CHK-WEB-STATIC-WEBSITE-EXPOSED",
+      "finding_class": "web-static-website-exposed",
+      "title": "Storage static website endpoint reachable directly",
+      "category": "Web",
+      "severity_default": "Medium",
+      "agent": "web-exposure",
+      "id_prefix": "AZ-WEB",
+      "description": "A storage account has static website hosting enabled and its account permits public network access, so the $web endpoint is reachable directly, bypassing any Front Door/CDN WAF in front of it.",
+      "attack_vector": "Edge/WAF bypass -> direct content and app access",
+      "recommendation": "Front the static site with Front Door + private origin access; restrict direct public endpoint reachability.",
+      "controls": { "cis_azure": ["3.x"], "mitre": ["T1190"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/web.md#CHK-WEB-STATIC-WEBSITE-EXPOSED"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "staticWebsiteEnabled", "op": "eq", "value": true },
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" }
+        ]
+      },
+      "evidence_fields": ["staticWebsiteEnabled", "publicNetworkAccess"]
+    },
+    {
+      "check_id": "CHK-WEB-APIM-OPEN-GATEWAY",
+      "finding_class": "web-apim-open-gateway",
+      "title": "API Management gateway publicly exposed without VNet restriction",
+      "category": "Web",
+      "severity_default": "High",
+      "agent": "web-exposure",
+      "id_prefix": "AZ-WEB",
+      "description": "An API Management instance is exposed externally (publicNetworkAccess Enabled with virtualNetworkType None or External). The agent confirms whether APIs additionally lack subscription-key/OAuth enforcement or have open CORS.",
+      "attack_vector": "Unauthenticated/open API access -> backend abuse",
+      "recommendation": "Require subscription keys or OAuth, restrict source IPs, and consider Internal VNet mode.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/web.md#CHK-WEB-APIM-OPEN-GATEWAY",
+        "kql": "Resources | where type =~ 'microsoft.apimanagement/service' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess=tostring(properties.publicNetworkAccess), virtualNetworkType=tostring(properties.virtualNetworkType)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "virtualNetworkType", "op": "ini", "value": ["None", "External"] }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "virtualNetworkType"]
+    },
+    {
+      "check_id": "CHK-WEB-TLS-WEAK",
+      "finding_class": "web-tls-weak",
+      "title": "Web edge allows weak TLS or no HTTPS redirect",
+      "category": "Web",
+      "severity_default": "Medium",
+      "agent": "web-exposure",
+      "id_prefix": "AZ-WEB",
+      "description": "A Front Door, App Gateway, or Static Web App custom domain allows TLS below 1.2, or an HTTP listener is present with no redirect to HTTPS.",
+      "attack_vector": "Protocol downgrade -> cleartext interception / MITM",
+      "recommendation": "Enforce minimum TLS 1.2+, bind valid certificates, and redirect all HTTP to HTTPS.",
+      "controls": { "mitre": ["T1557"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/web.md#CHK-WEB-TLS-WEAK"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "minimumTlsVersion", "op": "version_lt", "value": "TLS1_2" },
+          {
+            "all": [
+              { "field": "httpListener", "op": "eq", "value": true },
+              { "field": "httpsRedirect", "op": "eq", "value": false }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["minimumTlsVersion", "httpListener", "httpsRedirect"]
+    }
+  ]
+}

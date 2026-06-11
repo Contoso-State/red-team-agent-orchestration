@@ -1,0 +1,136 @@
+{
+  "domain": "ai",
+  "predicates": [
+    {
+      "check_id": "CHK-AI-OPENAI-PUBLIC",
+      "finding_class": "ai-openai-public-network",
+      "title": "Azure OpenAI / AI Services account publicly accessible",
+      "category": "AI",
+      "severity_default": "High",
+      "agent": "ai-foundry",
+      "id_prefix": "AZ-AI",
+      "description": "An Azure OpenAI / AI Services account has public network access enabled and its network ACLs do not default-deny, exposing model and data-plane APIs to the internet.",
+      "attack_vector": "Internet-exposed AI endpoint -> credential/key attacks, model abuse",
+      "recommendation": "Set publicNetworkAccess to Disabled and use a private endpoint, or set networkAcls.defaultAction=Deny and restrict to known networks.",
+      "controls": { "cis_azure": ["9.x"], "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/ai.md#CHK-AI-OPENAI-PUBLIC",
+        "kql": "Resources | where type =~ 'microsoft.cognitiveservices/accounts' | extend pna = tostring(properties.publicNetworkAccess), da = tostring(properties.networkAcls.defaultAction) | where pna =~ 'Enabled' and (isempty(da) or da !~ 'Deny') | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess=pna, networkAclsDefaultAction=da"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "not": { "field": "networkAclsDefaultAction", "op": "eqi", "value": "Deny" } }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "networkAclsDefaultAction"]
+    },
+    {
+      "check_id": "CHK-AI-OPENAI-LOCALAUTH",
+      "finding_class": "ai-openai-local-auth",
+      "title": "Azure OpenAI / AI Services key-based (local) auth enabled",
+      "category": "AI",
+      "severity_default": "High",
+      "agent": "ai-foundry",
+      "id_prefix": "AZ-AI",
+      "description": "The account allows local API-key authentication instead of Entra-only auth, so a stolen key grants full data-plane access with no conditional access or MFA.",
+      "attack_vector": "Key theft -> unauthenticated model/data-plane access",
+      "recommendation": "Set disableLocalAuth=true and use Entra ID with managed identities; rotate keys.",
+      "controls": { "mitre": ["T1552.001", "T1078.004"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/ai.md#CHK-AI-OPENAI-LOCALAUTH",
+        "kql": "Resources | where type =~ 'microsoft.cognitiveservices/accounts' | extend dla = tobool(properties.disableLocalAuth) | where isnull(dla) or dla == false | project id, name, type, resourceGroup, subscriptionId, location, disableLocalAuth=dla"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "disableLocalAuth", "op": "eq", "value": false },
+          { "field": "disableLocalAuth", "op": "missing" }
+        ]
+      },
+      "evidence_fields": ["disableLocalAuth"]
+    },
+    {
+      "check_id": "CHK-AI-OPENAI-NO-CONTENT-FILTER",
+      "finding_class": "ai-deployment-no-content-filter",
+      "title": "Azure OpenAI deployment with no responsible-AI content filter policy",
+      "category": "AI",
+      "severity_default": "Medium",
+      "agent": "ai-foundry",
+      "id_prefix": "AZ-AI",
+      "description": "A model deployment has no responsible-AI (RAI) content-filter policy attached, removing guardrails against harmful-content generation and abuse. Deployments using a custom permissive policy require agent review.",
+      "attack_vector": "Model abuse -> harmful content / jailbreak at scale",
+      "recommendation": "Apply the default (or stricter) responsible-AI content filter policy to every deployment.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/ai.md#CHK-AI-OPENAI-NO-CONTENT-FILTER"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "raiPolicyName", "op": "missing" },
+          { "field": "raiPolicyName", "op": "eqi", "value": "" },
+          { "field": "raiPolicyName", "op": "eqi", "value": "none" }
+        ]
+      },
+      "evidence_fields": ["deploymentName", "raiPolicyName"]
+    },
+    {
+      "check_id": "CHK-AI-FOUNDRY-CONN-KEYAUTH",
+      "finding_class": "ai-foundry-connection-keyauth",
+      "title": "AI Foundry connection uses key/SAS/connection-string auth",
+      "category": "AI",
+      "severity_default": "Medium",
+      "agent": "ai-foundry",
+      "id_prefix": "AZ-AI",
+      "description": "A Foundry connection authenticates with an API key, SAS token, or connection string instead of Entra + managed identity.",
+      "attack_vector": "Connection secret theft -> access to connected data/service",
+      "recommendation": "Convert connections to managed-identity (AAD) auth; remove stored credentials.",
+      "controls": { "mitre": ["T1552.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/ai.md#CHK-AI-FOUNDRY-CONN-KEYAUTH"
+      },
+      "evaluate": {
+        "field": "authType", "op": "ini", "value": ["ApiKey", "SAS", "ConnectionString", "AccountKey"]
+      },
+      "evidence_fields": ["connectionName", "authType", "target"]
+    },
+    {
+      "check_id": "CHK-AI-AML-PUBLIC-WORKSPACE",
+      "finding_class": "ai-ml-public-workspace",
+      "title": "Azure ML workspace public or using credential-based datastores",
+      "category": "AI",
+      "severity_default": "High",
+      "agent": "ai-foundry",
+      "id_prefix": "AZ-AI",
+      "description": "An Azure Machine Learning workspace is publicly accessible with no managed VNet isolation, or a datastore uses account-key/SAS credentials instead of identity-based access.",
+      "attack_vector": "Workspace access -> datastore credential theft / training-data exposure",
+      "recommendation": "Enable managed VNet isolation and private endpoints; use identity-based datastore access.",
+      "controls": { "mitre": ["T1552.001", "T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/ai.md#CHK-AI-AML-PUBLIC-WORKSPACE",
+        "kql": "Resources | where type =~ 'microsoft.machinelearningservices/workspaces' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess=tostring(properties.publicNetworkAccess), managedNetworkIsolationMode=tostring(properties.managedNetwork.isolationMode)"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+              {
+                "any": [
+                  { "field": "managedNetworkIsolationMode", "op": "missing" },
+                  { "field": "managedNetworkIsolationMode", "op": "eqi", "value": "Disabled" }
+                ]
+              }
+            ]
+          },
+          { "field": "datastoreCredentialType", "op": "ini", "value": ["AccountKey", "Sas"] }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "managedNetworkIsolationMode", "datastoreName", "datastoreCredentialType"]
+    }
+  ]
+}
