@@ -1,0 +1,186 @@
+{
+  "domain": "database",
+  "predicates": [
+    {
+      "check_id": "CHK-DB-SQL-ALLOW-AZURE-SERVICES",
+      "finding_class": "sql-allow-azure-services",
+      "title": "SQL Server allows all Azure services",
+      "category": "Database",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "The \"Allow Azure services and resources to access this server\" firewall rule (0.0.0.0) permits any Azure tenant to reach the server.",
+      "attack_vector": "Any Azure-hosted attacker resource reaches the database",
+      "recommendation": "Remove the allow-Azure-services rule; use private endpoints and explicit IP rules.",
+      "controls": { "cis_azure": ["4.1.x"], "mitre": ["T1190"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-ALLOW-AZURE-SERVICES"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "startIpAddress", "op": "eq", "value": "0.0.0.0" },
+          { "field": "endIpAddress", "op": "eq", "value": "0.0.0.0" }
+        ]
+      },
+      "evidence_fields": ["name", "startIpAddress", "endIpAddress"]
+    },
+    {
+      "check_id": "CHK-DB-SQL-PUBLIC-NETWORK",
+      "finding_class": "sql-public-network",
+      "title": "SQL Server public network access enabled",
+      "category": "Database",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "publicNetworkAccess is enabled on the SQL logical server.",
+      "attack_vector": "Internet-exposed database endpoint",
+      "recommendation": "Disable public network access; use private endpoints.",
+      "controls": { "cis_azure": ["4.1.x"], "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-PUBLIC-NETWORK",
+        "kql": "Resources | where type =~ 'microsoft.sql/servers' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess = tostring(properties.publicNetworkAccess)"
+      },
+      "evaluate": { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+      "evidence_fields": ["publicNetworkAccess"]
+    },
+    {
+      "check_id": "CHK-DB-SQL-NO-ENTRA-ADMIN",
+      "finding_class": "sql-no-entra-admin",
+      "title": "SQL Server without Entra (Azure AD) admin / Entra-only auth",
+      "category": "Database",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "No Entra admin is set and/or SQL authentication is allowed, weakening identity controls.",
+      "attack_vector": "SQL-auth credential theft bypasses identity protections",
+      "recommendation": "Configure an Entra admin and enforce Entra-only authentication.",
+      "controls": { "cis_azure": ["4.1.x"], "mitre": ["T1078"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-NO-ENTRA-ADMIN"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "hasEntraAdmin", "op": "eq", "value": false },
+          { "not": { "field": "azureADOnlyAuthentication", "op": "eq", "value": true } }
+        ]
+      },
+      "evidence_fields": ["hasEntraAdmin", "azureADOnlyAuthentication"]
+    },
+    {
+      "check_id": "CHK-DB-SQL-NO-TDE",
+      "finding_class": "sql-no-tde",
+      "title": "SQL database without Transparent Data Encryption",
+      "category": "Database",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "TDE is disabled, leaving data at rest unencrypted.",
+      "attack_vector": "Backup/file theft -> data access",
+      "recommendation": "Enable TDE (default for new DBs); consider customer-managed keys.",
+      "controls": { "cis_azure": ["4.1.x"], "mitre": ["T1005"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-NO-TDE"
+      },
+      "evaluate": { "field": "tdeState", "op": "eqi", "value": "Disabled" },
+      "evidence_fields": ["tdeState"]
+    },
+    {
+      "check_id": "CHK-DB-SQL-NO-AUDIT",
+      "finding_class": "sql-no-audit",
+      "title": "SQL Server auditing disabled",
+      "category": "Database",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "Auditing is not enabled, so database access and changes are not logged.",
+      "attack_vector": "Database compromise goes undetected",
+      "recommendation": "Enable auditing to Log Analytics/storage with adequate retention.",
+      "controls": { "cis_azure": ["4.1.1"], "mitre": ["T1562.008"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-NO-AUDIT"
+      },
+      "evaluate": { "field": "auditState", "op": "eqi", "value": "Disabled" },
+      "evidence_fields": ["auditState"]
+    },
+    {
+      "check_id": "CHK-DB-COSMOS-PUBLIC-FIREWALL",
+      "finding_class": "cosmos-public-firewall",
+      "title": "Cosmos DB without IP firewall or VNet restriction",
+      "category": "Database",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-COSMOS",
+      "description": "A Cosmos DB account permits access from all networks (public network access enabled, no IP rules, no VNet filter).",
+      "attack_vector": "Internet-reachable database; key-based access if also enabled",
+      "recommendation": "Restrict to known IPs/VNets or private endpoints; prefer RBAC data plane.",
+      "controls": { "mitre": ["T1190", "T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/database.md#CHK-DB-COSMOS-PUBLIC-FIREWALL",
+        "kql": "Resources | where type =~ 'microsoft.documentdb/databaseaccounts' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess = tostring(coalesce(properties.publicNetworkAccess,'Enabled')), ipRuleCount = coalesce(array_length(properties.ipRules),0), isVirtualNetworkFilterEnabled = properties.isVirtualNetworkFilterEnabled"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "ipRuleCount", "op": "eq", "value": 0 },
+          { "not": { "field": "isVirtualNetworkFilterEnabled", "op": "eq", "value": true } }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "ipRuleCount", "isVirtualNetworkFilterEnabled"]
+    },
+    {
+      "check_id": "CHK-DB-FLEX-PUBLIC-ACCESS",
+      "finding_class": "flex-public-access",
+      "title": "PostgreSQL/MySQL flexible server public access with weak firewall",
+      "category": "Database",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-DB",
+      "description": "A flexible server allows public access with a broad (allow-all) firewall rule.",
+      "attack_vector": "Direct internet database access",
+      "recommendation": "Disable public access; use private access (VNet integration) and explicit IP rules.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-FLEX-PUBLIC-ACCESS"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "hasAllowAllRule", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "hasAllowAllRule"]
+    },
+    {
+      "check_id": "CHK-DB-SQL-NO-DEFENDER-VA",
+      "finding_class": "sql-no-defender-va",
+      "title": "SQL Server without Microsoft Defender for SQL / vulnerability assessment",
+      "category": "Database",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-SQL",
+      "description": "The SQL logical server has no Microsoft Defender for SQL security alert policy enabled and/or no recurring vulnerability assessment configured with a results store.",
+      "attack_vector": "SQL injection, anomalous data access, and exposed-database misconfigurations proceed without alerting or scan-driven remediation",
+      "recommendation": "Enable Microsoft Defender for SQL on the server, configure recurring vulnerability assessment scans with a results store and baseline, and route alerts to the security contact.",
+      "controls": { "cis_azure": ["4.1.x"], "mitre": ["T1190", "T1530"], "nist_csf": ["DE.CM-09"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/database.md#CHK-DB-SQL-NO-DEFENDER-VA"
+      },
+      "evaluate": {
+        "any": [
+          { "not": { "field": "alertPolicyState", "op": "eqi", "value": "Enabled" } },
+          { "not": { "field": "vaRecurringScansEnabled", "op": "eq", "value": true } },
+          { "not": { "field": "vaResultsStoreConfigured", "op": "eq", "value": true } }
+        ]
+      },
+      "evidence_fields": ["alertPolicyState", "vaRecurringScansEnabled", "vaResultsStoreConfigured"]
+    }
+  ]
+}

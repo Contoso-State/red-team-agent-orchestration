@@ -44,12 +44,21 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 - No backup for critical workloads
 - Backup data without encryption / cross-region resilience where required
 
-## Methodology
+## Methodology — dispatch the engine, reason over the summary
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Storage`, `Microsoft.KeyVault`, `Microsoft.Sql`, `Microsoft.DocumentDB`, `Microsoft.DBforPostgreSQL`, `Microsoft.DBforMySQL`, `Microsoft.RecoveryServices`. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/storage/` and `checks/database/`.
-3. For any Key Vault holding credentials, flag for the Authorization & Attack Path Agent to trace which identities can read them.
-4. Emit findings to `engagements/<session>/findings/raw/data-protection.jsonl` with ID prefix `AZ-DATA-` (or `AZ-STOR-`, `AZ-KV-`, `AZ-SQL-`).
+This domain is **predicate-backed**: don't pull raw resource JSON into context and hand-evaluate it. Follow the dispatch contract in `knowledge/token-optimization.md`.
+
+1. **Produce candidate rows.** Run the read-only runners / ARG queries referenced by each predicate's `query` (`tools/az-cli/storage.md`, `tools/az-cli/database.md`) to emit a `rows.json` keyed by `check_id` — server-side filtered, projecting only the fields the predicates and `evidence_fields` need. Never read the full inventory into context (it is a queryable index for tooling, not prompt input); page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the deterministic engine** (zero LLM tokens) over the predicate banks:
+   ```
+   node tools/checks/run-checks.mjs --predicates checks/storage/predicates.json  --rows rows.json --agent data-protection --session engagements/<session>
+   node tools/checks/run-checks.mjs --predicates checks/database/predicates.json --rows rows.json --agent data-protection --session engagements/<session>
+   ```
+   All **10 storage** and **8 database** checks are mechanized — the engine emits schema-valid candidate findings to `findings/raw/data-protection.engine.jsonl` plus a compact `check-summary/v1`, grouped one finding per `(finding_class, subscription)` with `affected_resources[]` unioned.
+3. **Read only the summary** (`findings/summary/data-protection.json`) — per-check scanned/matched counts, one evidence sample, the representative resource id. Confirm / contextualize / suppress and set **final severity/confidence** over that summary. Never load `rows.json` or the raw JSONL into context.
+4. **Apply the judgment the predicates can't.** For `CHK-STOR-NO-SAS-EXPIRATION-POLICY` the engine flags accounts with *no* SAS expiration policy; you still decide whether an existing period is "excessively long" relative to the engagement baseline. Flag any Key Vault holding credentials for the Authorization & Attack Path Agent to trace which identities can read them. Reason any genuinely non-predicate check directly and write it to `findings/raw/data-protection.jsonl`, then ingest.
+
+Findings use ID prefixes `AZ-STOR`, `AZ-KV`, `AZ-SQL`, `AZ-COSMOS`, `AZ-DB` (the engine assigns the sequence).
 
 ## Scale & aggregation
 
