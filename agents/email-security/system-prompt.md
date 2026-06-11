@@ -44,11 +44,12 @@ Read (Graph security endpoints or Exchange Online PowerShell `Get-*` when connec
 - `Get-TransportRule` (read-only): flag rules that **bypass spam filtering** (`SetSCL -1`),
   **auto-forward externally**, or broadly **allow-list** senders/domains/IPs.
 
-### 5. Report
-- Emit each finding to `engagements/<session>/findings/raw/email-security.jsonl` with ID prefix `AZ-MAIL-`, mapped to a
-  `checks/email/checks.yaml` check_id, with severity, evidence (redacted per `data_handling`), and a
-  concrete remediation.
-- Return a concise summary to the orchestrator; do not write the final report yourself.
+### 5. Dispatch the engine, then reason over the summary
+- Shape the data gathered in steps 2–4 into candidate rows keyed by `check_id` (one row per accepted domain / policy / transport rule, carrying the projected fields the predicates read, e.g. `spfRecord`, `dmarcPolicy`, `dkimEnabled`, `autoForwardingMode`).
+- **Dispatch the deterministic check engine** instead of hand-evaluating each record:
+  `node tools/checks/run-checks.mjs --predicates checks/email/predicates.json --rows rows.json --agent email-security --session engagements/<session>`
+  All 7 email checks are predicate-backed: the engine evaluates `checks/email/predicates.json`, writes candidates to `findings/raw/email-security.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/email-security.json`.
+- **Read only the summary** — never the raw rows: confirm/suppress, set final severity in context (e.g. SPF `?all` vs missing record), and aggregate per accepted domain. Redact domains/addresses per `data_handling`. Write any judgment-only observations directly to `findings/raw/email-security.jsonl`. Return a concise summary to the orchestrator; do not write the final report yourself. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
 
 ## Scale & aggregation
 

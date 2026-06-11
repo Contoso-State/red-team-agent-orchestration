@@ -1,0 +1,41 @@
+{
+  "CHK-SUP-APP-FIC-BROAD-TRUST": [
+    { "id": "/subscriptions/sub-aaa/app/app-deploy", "name": "app-deploy", "subscriptionId": "sub-aaa", "ficSubject": "repo:contoso/infra:ref:refs/heads/*", "ficIssuer": "https://token.actions.githubusercontent.com", "ficSubjectBroad": true, "holdsPrivilegedRole": true, "privilegedRoles": ["Contributor"] },
+    { "id": "/subscriptions/sub-aaa/app/app-pinned", "name": "app-pinned", "subscriptionId": "sub-aaa", "ficSubject": "repo:contoso/infra:environment:prod", "ficIssuer": "https://token.actions.githubusercontent.com", "ficSubjectBroad": false, "holdsPrivilegedRole": true, "privilegedRoles": ["Contributor"] },
+    { "id": "/subscriptions/sub-aaa/app/app-lowpriv", "name": "app-lowpriv", "subscriptionId": "sub-aaa", "ficSubject": "repo:contoso/web:pull_request", "ficIssuer": "https://token.actions.githubusercontent.com", "ficSubjectBroad": true, "holdsPrivilegedRole": false, "privilegedRoles": [] }
+  ],
+  "CHK-SUP-UAMI-FIC-BROAD-TRUST": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-ci/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-ci", "name": "uami-ci", "subscriptionId": "sub-aaa", "resourceGroup": "rg-ci", "ficSubject": "repo:contoso/platform:pull_request", "ficIssuer": "https://token.actions.githubusercontent.com", "ficSubjectBroad": true, "holdsPrivilegedRole": true },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-ci/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami-scoped", "name": "uami-scoped", "subscriptionId": "sub-aaa", "resourceGroup": "rg-ci", "ficSubject": "repo:contoso/platform:environment:prod", "ficIssuer": "https://token.actions.githubusercontent.com", "ficSubjectBroad": false, "holdsPrivilegedRole": true }
+  ],
+  "CHK-SUP-CICD-SP-BROAD-ROLE": [
+    { "id": "/subscriptions/sub-aaa/sp/sp-pipeline", "name": "sp-pipeline", "subscriptionId": "sub-aaa", "displayName": "github-actions-deployer", "hasFederatedCredential": true, "holdsOwnerOrContributorAtSubScope": true, "subscriptionRole": "Owner" },
+    { "id": "/subscriptions/sub-aaa/sp/sp-reader", "name": "sp-reader", "subscriptionId": "sub-aaa", "displayName": "monitoring-reader", "hasFederatedCredential": true, "holdsOwnerOrContributorAtSubScope": false, "subscriptionRole": "Reader" }
+  ],
+  "CHK-SUP-DEPLOY-IDENTITY-STATIC-SECRET": [
+    { "id": "/subscriptions/sub-aaa/app/app-deploy", "name": "app-deploy", "subscriptionId": "sub-aaa", "isDeploymentIdentity": true, "activeClientSecretCount": 2, "activeCertCount": 0 },
+    { "id": "/subscriptions/sub-aaa/app/app-oidc-only", "name": "app-oidc-only", "subscriptionId": "sub-aaa", "isDeploymentIdentity": true, "activeClientSecretCount": 0, "activeCertCount": 0 }
+  ],
+  "CHK-SUP-ACR-ADMIN-OR-UNTRUSTED-TASK": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrprod", "name": "acrprod", "subscriptionId": "sub-aaa", "resourceGroup": "rg-acr", "adminUserEnabled": true, "hasUntrustedTaskSource": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrbuild", "name": "acrbuild", "subscriptionId": "sub-aaa", "resourceGroup": "rg-acr", "adminUserEnabled": false, "hasUntrustedTaskSource": true },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-acr/providers/Microsoft.ContainerRegistry/registries/acrsafe", "name": "acrsafe", "subscriptionId": "sub-aaa", "resourceGroup": "rg-acr", "adminUserEnabled": false, "hasUntrustedTaskSource": false }
+  ],
+  "CHK-SUP-AUTOMATION-PRIV-IDENTITY": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-auto/providers/Microsoft.Automation/automationAccounts/aa-ops", "name": "aa-ops", "subscriptionId": "sub-aaa", "resourceGroup": "rg-auto", "hasPrivilegedIdentity": true, "hasExternalTrigger": true, "triggerTypes": ["webhook", "schedule"] },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-auto/providers/Microsoft.Automation/automationAccounts/aa-quiet", "name": "aa-quiet", "subscriptionId": "sub-aaa", "resourceGroup": "rg-auto", "hasPrivilegedIdentity": true, "hasExternalTrigger": false, "triggerTypes": [] }
+  ],
+  "CHK-SUP-LOGICAPP-OPEN-TRIGGER": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-logic/providers/Microsoft.Logic/workflows/wf-intake", "name": "wf-intake", "subscriptionId": "sub-aaa", "resourceGroup": "rg-logic", "hasOpenHttpTrigger": true, "hasSensitiveApiConnection": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-logic/providers/Microsoft.Logic/workflows/wf-internal", "name": "wf-internal", "subscriptionId": "sub-aaa", "resourceGroup": "rg-logic", "hasOpenHttpTrigger": false, "hasSensitiveApiConnection": false }
+  ],
+  "CHK-SUP-PLAINTEXT-SECRETS-IN-DEPLOYMENT": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-auto/providers/Microsoft.Automation/automationAccounts/aa-ops/variables/dbpwd", "name": "dbpwd", "subscriptionId": "sub-aaa", "resourceGroup": "rg-auto", "artifactType": "automationVariable", "isEncrypted": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-web/providers/Microsoft.Web/sites/web1/config/appsettings/CONN", "name": "CONN", "subscriptionId": "sub-aaa", "resourceGroup": "rg-web", "artifactType": "appSetting", "secretShaped": true, "isKeyVaultReference": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-web/providers/Microsoft.Web/sites/web1/config/appsettings/KVCONN", "name": "KVCONN", "subscriptionId": "sub-aaa", "resourceGroup": "rg-web", "artifactType": "appSetting", "secretShaped": true, "isKeyVaultReference": true }
+  ],
+  "CHK-SUP-NO-IMAGE-SCAN-ENFORCED": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "containersPlanScanningEnabled": false, "imageScanGatePolicyAssigned": false, "acrQuarantineEnabled": false },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "containersPlanScanningEnabled": true, "imageScanGatePolicyAssigned": true, "acrQuarantineEnabled": true }
+  ]
+}

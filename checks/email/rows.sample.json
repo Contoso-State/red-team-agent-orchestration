@@ -1,0 +1,33 @@
+{
+  "CHK-MAIL-SPF-MISSING-OR-WEAK": [
+    { "id": "contoso.com", "name": "contoso.com", "domain": "contoso.com", "spfRecordPresent": true, "spfRecord": "v=spf1 include:spf.protection.outlook.com ?all", "spfRecordCount": 1 },
+    { "id": "nospf.example", "name": "nospf.example", "domain": "nospf.example", "spfRecordPresent": false, "spfRecordCount": 0 },
+    { "id": "good.example", "name": "good.example", "domain": "good.example", "spfRecordPresent": true, "spfRecord": "v=spf1 include:spf.protection.outlook.com -all", "spfRecordCount": 1 }
+  ],
+  "CHK-MAIL-DMARC-MISSING-OR-NONE": [
+    { "id": "contoso.com", "name": "contoso.com", "domain": "contoso.com", "dmarcRecordPresent": true, "dmarcPolicy": "none", "ruaConfigured": false, "dmarcPct": 100 },
+    { "id": "good.example", "name": "good.example", "domain": "good.example", "dmarcRecordPresent": true, "dmarcPolicy": "reject", "ruaConfigured": true, "dmarcPct": 100 }
+  ],
+  "CHK-MAIL-DKIM-NOT-ENABLED": [
+    { "id": "contoso.com", "name": "contoso.com", "domain": "contoso.com", "dkimEnabled": false },
+    { "id": "weakkey.example", "name": "weakkey.example", "domain": "weakkey.example", "dkimEnabled": true, "dkimKeyBits": 1024 },
+    { "id": "good.example", "name": "good.example", "domain": "good.example", "dkimEnabled": true, "dkimKeyBits": 2048 }
+  ],
+  "CHK-MAIL-ANTIPHISH-WEAK": [
+    { "id": "default-antiphish", "name": "Default", "policyName": "Default", "antiPhishPolicyApplied": true, "enableSpoofIntelligence": false, "enableMailboxIntelligence": true, "impersonationProtectionEnabled": false },
+    { "id": "strict-antiphish", "name": "Strict", "policyName": "Strict", "antiPhishPolicyApplied": true, "enableSpoofIntelligence": true, "enableMailboxIntelligence": true, "impersonationProtectionEnabled": true }
+  ],
+  "CHK-MAIL-SAFE-LINKS-ATTACH-OFF": [
+    { "id": "tenant-safelinks", "name": "Default", "policyName": "Default", "safeLinksEnabled": false, "safeAttachmentsEnabled": false, "coversAllRecipients": false },
+    { "id": "strict-safelinks", "name": "Strict", "policyName": "Strict", "safeLinksEnabled": true, "safeAttachmentsEnabled": true, "coversAllRecipients": true }
+  ],
+  "CHK-MAIL-RISKY-TRANSPORT-RULE": [
+    { "id": "tr-bypass", "name": "Bypass Spam For Vendor", "ruleName": "Bypass Spam For Vendor", "setScl": -1, "forwardsExternally": false, "hasBroadAllowList": true },
+    { "id": "tr-fwd", "name": "Forward To Partner", "ruleName": "Forward To Partner", "setScl": 0, "forwardsExternally": true, "hasBroadAllowList": false },
+    { "id": "tr-safe", "name": "Tag External", "ruleName": "Tag External", "setScl": 0, "forwardsExternally": false, "hasBroadAllowList": false }
+  ],
+  "CHK-MAIL-OUTBOUND-FORWARD": [
+    { "id": "outbound-default", "name": "Default", "policyName": "Default", "autoForwardingMode": "Automatic" },
+    { "id": "outbound-locked", "name": "Locked", "policyName": "Locked", "autoForwardingMode": "Off" }
+  ]
+}
