@@ -1,0 +1,85 @@
+{
+  "domain": "compute",
+  "predicates": [
+    {
+      "check_id": "CHK-COMP-APPSVC-NO-AUTH",
+      "finding_class": "appsvc-no-auth",
+      "title": "App Service without authentication on internet-facing app",
+      "category": "Compute",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-COMP",
+      "description": "App Service / Function app authentication (Easy Auth / authsettingsV2) is disabled while the app is internet-facing. The agent confirms whether the app serves sensitive functionality.",
+      "attack_vector": "Unauthenticated access to application",
+      "recommendation": "Enable App Service authentication or enforce app-level auth; add access restrictions.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/compute.md#CHK-COMP-APPSVC-NO-AUTH",
+        "kql": "Resources | where type == 'microsoft.web/sites' | project id, name, type, resourceGroup, subscriptionId, location, authEnabled = tobool(properties.siteConfig.authSettingsV2Enabled), publicNetworkAccess = tostring(properties.publicNetworkAccess)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "authEnabled", "op": "ne", "value": true },
+          { "not": { "field": "publicNetworkAccess", "op": "eqi", "value": "Disabled" } }
+        ]
+      },
+      "evidence_fields": ["authEnabled", "publicNetworkAccess"]
+    },
+    {
+      "check_id": "CHK-COMP-APPSVC-FTP-DEBUG",
+      "finding_class": "appsvc-ftp-or-debug",
+      "title": "App Service FTP deployment or remote debugging enabled",
+      "category": "Compute",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-COMP",
+      "description": "Insecure deployment channels (unencrypted FTP, ftpsState=AllAllowed) or remote debugging are enabled on an App Service / Function app.",
+      "attack_vector": "Weak deployment channel -> code injection",
+      "recommendation": "Set ftpsState to Disabled (or FtpsOnly); disable remote debugging.",
+      "controls": { "mitre": ["T1190", "T1505"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/compute.md#CHK-COMP-APPSVC-FTP-DEBUG",
+        "kql": "Resources | where type == 'microsoft.web/sites' | project id, name, type, resourceGroup, subscriptionId, location, ftpsState = tostring(properties.siteConfig.ftpsState), remoteDebuggingEnabled = tobool(properties.siteConfig.remoteDebuggingEnabled)"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "ftpsState", "op": "eqi", "value": "AllAllowed" },
+          { "field": "remoteDebuggingEnabled", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["ftpsState", "remoteDebuggingEnabled"]
+    },
+    {
+      "check_id": "CHK-COMP-VM-NO-DISK-ENCRYPTION",
+      "finding_class": "vm-no-disk-encryption",
+      "title": "VM without disk encryption",
+      "category": "Compute",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-COMP",
+      "description": "A VM's disks are not protected by Azure Disk Encryption or encryption-at-host, or the VM uses unmanaged disks.",
+      "attack_vector": "Disk/snapshot theft -> offline data access",
+      "recommendation": "Enable encryption-at-host or ADE; migrate to managed disks.",
+      "controls": { "cis_azure": ["7.2", "7.3"], "mitre": ["T1005"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/compute.md#CHK-COMP-VM-NO-DISK-ENCRYPTION",
+        "kql": "Resources | where type == 'microsoft.compute/virtualmachines' | project id, name, type, resourceGroup, subscriptionId, location, encryptionAtHost = tobool(properties.securityProfile.encryptionAtHost), adeEnabled = tobool(properties.storageProfile.osDisk.encryptionSettings.enabled), hasUnmanagedDisk = isnull(properties.storageProfile.osDisk.managedDisk)"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "encryptionAtHost", "op": "ne", "value": true },
+              { "field": "adeEnabled", "op": "ne", "value": true }
+            ]
+          },
+          { "field": "hasUnmanagedDisk", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["encryptionAtHost", "adeEnabled", "hasUnmanagedDisk"]
+    }
+  ]
+}

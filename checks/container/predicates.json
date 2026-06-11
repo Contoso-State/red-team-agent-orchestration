@@ -1,0 +1,377 @@
+{
+  "domain": "container",
+  "predicates": [
+    {
+      "check_id": "CHK-COMP-AKS-PUBLIC-API",
+      "finding_class": "aks-public-api-server",
+      "title": "AKS API server publicly accessible",
+      "category": "Container",
+      "severity_default": "High",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "The AKS API server is reachable from the internet: the cluster is not private and no authorized IP ranges are configured.",
+      "attack_vector": "Internet-exposed control plane -> credential attacks",
+      "recommendation": "Use a private cluster or restrict API access with authorized IP ranges.",
+      "controls": { "cis_azure": ["8.x"], "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-AKS-PUBLIC-API",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | extend ap = properties.apiServerAccessProfile | project id, name, type, resourceGroup, subscriptionId, location, enablePrivateCluster = tobool(ap.enablePrivateCluster), authorizedIpRangeCount = array_length(ap.authorizedIPRanges)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "enablePrivateCluster", "op": "ne", "value": true },
+          {
+            "any": [
+              { "field": "authorizedIpRangeCount", "op": "lte", "value": 0 },
+              { "field": "authorizedIpRangeCount", "op": "missing" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["enablePrivateCluster", "authorizedIpRangeCount"]
+    },
+    {
+      "check_id": "CHK-COMP-AKS-LOCAL-ADMIN",
+      "finding_class": "aks-local-accounts-enabled",
+      "title": "AKS local accounts / admin kubeconfig enabled",
+      "category": "Container",
+      "severity_default": "High",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "AKS local accounts are enabled on an Entra-integrated cluster, allowing cluster-admin kubeconfig (listClusterAdminCredential) that bypasses Entra RBAC.",
+      "attack_vector": "listClusterAdminCredential -> cluster admin bypassing identity controls",
+      "recommendation": "Set disableLocalAccounts=true and enforce Entra RBAC for Kubernetes.",
+      "controls": { "mitre": ["T1078", "T1552.007"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-AKS-LOCAL-ADMIN",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | project id, name, type, resourceGroup, subscriptionId, location, disableLocalAccounts = tobool(properties.disableLocalAccounts), aadProfileEnabled = isnotnull(properties.aadProfile)"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "disableLocalAccounts", "op": "ne", "value": true },
+          { "field": "aadProfileEnabled", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["disableLocalAccounts", "aadProfileEnabled"]
+    },
+    {
+      "check_id": "CHK-COMP-AKS-NO-NETPOL",
+      "finding_class": "aks-no-network-policy",
+      "title": "AKS cluster without network policy",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "The cluster has no network policy engine, leaving pod-to-pod traffic unrestricted.",
+      "attack_vector": "Compromised pod -> unrestricted lateral movement",
+      "recommendation": "Enable Azure or Calico network policy and define deny-by-default policies.",
+      "controls": { "mitre": ["T1021"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-AKS-NO-NETPOL",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | project id, name, type, resourceGroup, subscriptionId, location, networkPolicy = tostring(properties.networkProfile.networkPolicy)"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "networkPolicy", "op": "missing" },
+          { "field": "networkPolicy", "op": "eqi", "value": "none" },
+          { "field": "networkPolicy", "op": "eq", "value": "" }
+        ]
+      },
+      "evidence_fields": ["networkPolicy"]
+    },
+    {
+      "check_id": "CHK-COMP-AKS-NO-ENTRA-RBAC",
+      "finding_class": "aks-no-entra-rbac",
+      "title": "AKS cluster not integrated with Entra ID / Kubernetes RBAC",
+      "category": "Container",
+      "severity_default": "High",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "An AKS cluster does not use Entra ID integration with Azure RBAC for Kubernetes: Kubernetes RBAC is disabled, aadProfile is absent, or Azure RBAC for Kubernetes is not enabled.",
+      "attack_vector": "Weak cluster authZ -> over-broad Kubernetes access, hard-to-revoke credentials",
+      "recommendation": "Enable Entra ID integration with Azure RBAC for Kubernetes; enable Kubernetes RBAC; disable local accounts.",
+      "controls": { "mitre": ["T1078"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-AKS-NO-ENTRA-RBAC",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | project id, name, type, resourceGroup, subscriptionId, location, enableRBAC = tobool(properties.enableRBAC), aadProfileEnabled = isnotnull(properties.aadProfile), enableAzureRBAC = tobool(properties.aadProfile.enableAzureRBAC)"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "enableRBAC", "op": "eq", "value": false },
+          { "field": "aadProfileEnabled", "op": "ne", "value": true },
+          { "field": "enableAzureRBAC", "op": "ne", "value": true }
+        ]
+      },
+      "evidence_fields": ["enableRBAC", "aadProfileEnabled", "enableAzureRBAC"]
+    },
+    {
+      "check_id": "CHK-COMP-AKS-NO-POD-SECURITY",
+      "finding_class": "aks-no-pod-security",
+      "title": "AKS Pod Security Standards not enforced / privileged pods allowed",
+      "category": "Container",
+      "severity_default": "High",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "A non-system namespace lacks a pod-security.kubernetes.io/enforce=baseline|restricted label, or a running pod uses a privileged security context, host namespaces, a hostPath mount, or does not require runAsNonRoot.",
+      "attack_vector": "Privileged/host-namespaced pod -> escape to node -> cluster compromise",
+      "recommendation": "Label namespaces with pod-security.kubernetes.io/enforce=restricted (baseline minimum); deny privileged, hostPath and host namespaces; require runAsNonRoot, drop ALL capabilities, and seccomp RuntimeDefault.",
+      "controls": { "mitre": ["T1610", "T1611", "T1525"], "nist_csf": ["PR.PS-01", "PR.PS-05", "PR.IR-01"] },
+      "query": {
+        "method": "kube-api",
+        "ref": "tools/az-cli/container.md#CHK-COMP-AKS-NO-POD-SECURITY",
+        "kql": "kubectl get ns -o json (enforce label) + kubectl get pods -A -o json (read-only): rows projected per object as { kind, name, namespace, isSystem, podSecurityEnforce, privileged, hostNetwork, hostPID, hostIPC, hasHostPath, runAsNonRoot }"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "kind", "op": "eqi", "value": "Namespace" },
+              { "field": "isSystem", "op": "ne", "value": true },
+              { "field": "podSecurityEnforce", "op": "nin", "value": ["baseline", "restricted"] }
+            ]
+          },
+          {
+            "all": [
+              { "field": "kind", "op": "eqi", "value": "Pod" },
+              {
+                "any": [
+                  { "field": "privileged", "op": "eq", "value": true },
+                  { "field": "hostNetwork", "op": "eq", "value": true },
+                  { "field": "hostPID", "op": "eq", "value": true },
+                  { "field": "hostIPC", "op": "eq", "value": true },
+                  { "field": "hasHostPath", "op": "eq", "value": true },
+                  { "field": "runAsNonRoot", "op": "ne", "value": true }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["kind", "podSecurityEnforce", "privileged", "hostNetwork", "runAsNonRoot"]
+    },
+    {
+      "check_id": "CHK-COMP-CONTAINER-PRIVILEGED-INGRESS",
+      "finding_class": "container-public-ingress",
+      "title": "Container workload publicly exposed without ingress controls",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "A Container Apps workload exposes external ingress with no IP security restrictions, or a Container Instances group has a public IP with open ports.",
+      "attack_vector": "Internet-exposed container -> direct application attack / lateral movement",
+      "recommendation": "Restrict ingress to known sources, require authentication, prefer internal ingress + private networking.",
+      "controls": { "mitre": ["T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-CONTAINER-PRIVILEGED-INGRESS",
+        "kql": "Resources | where type in ('microsoft.app/containerapps','microsoft.containerinstance/containergroups') | project id, name, type, kind = type, resourceGroup, subscriptionId, location, ingressExternal = tobool(properties.configuration.ingress.external), ipRestrictionCount = array_length(properties.configuration.ingress.ipSecurityRestrictions), hasPublicIp = (tostring(properties.ipAddress.type) == 'Public')"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "ingressExternal", "op": "eq", "value": true },
+              {
+                "any": [
+                  { "field": "ipRestrictionCount", "op": "lte", "value": 0 },
+                  { "field": "ipRestrictionCount", "op": "missing" }
+                ]
+              }
+            ]
+          },
+          { "field": "hasPublicIp", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["kind", "ingressExternal", "ipRestrictionCount", "hasPublicIp"]
+    },
+    {
+      "check_id": "CHK-COMP-ACR-ADMIN-USER",
+      "finding_class": "acr-admin-user-enabled",
+      "title": "Container Registry admin user enabled",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "The ACR admin account is enabled, providing a shared credential instead of identity-based pull.",
+      "attack_vector": "Shared registry credential theft -> image pull/push",
+      "recommendation": "Disable the admin user; use managed identity or token-based access.",
+      "controls": { "mitre": ["T1552.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/container.md#CHK-COMP-ACR-ADMIN-USER",
+        "kql": "Resources | where type == 'microsoft.containerregistry/registries' | project id, name, type, resourceGroup, subscriptionId, location, adminUserEnabled = tobool(properties.adminUserEnabled)"
+      },
+      "evaluate": { "field": "adminUserEnabled", "op": "eq", "value": true },
+      "evidence_fields": ["adminUserEnabled"]
+    },
+    {
+      "check_id": "CHK-COMP-ACR-PUBLIC-ANON",
+      "finding_class": "acr-public-or-anon-pull",
+      "title": "Container Registry public network access or anonymous pull",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "An Azure Container Registry allows access from all networks with no network rules, and/or permits anonymous (unauthenticated) image pull.",
+      "attack_vector": "Anonymous/public registry -> image and secret disclosure, supply-chain tampering",
+      "recommendation": "Restrict public network access (private endpoint / network rules); disable anonymous pull.",
+      "controls": { "mitre": ["T1525", "T1190"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-COMP-ACR-PUBLIC-ANON",
+        "kql": "Resources | where type == 'microsoft.containerregistry/registries' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess = tostring(properties.publicNetworkAccess), networkRuleCount = array_length(properties.networkRuleSet.ipRules), anonymousPullEnabled = tobool(properties.anonymousPullEnabled)"
+      },
+      "evaluate": {
+        "any": [
+          {
+            "all": [
+              { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+              {
+                "any": [
+                  { "field": "networkRuleCount", "op": "lte", "value": 0 },
+                  { "field": "networkRuleCount", "op": "missing" }
+                ]
+              }
+            ]
+          },
+          { "field": "anonymousPullEnabled", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "networkRuleCount", "anonymousPullEnabled"]
+    },
+    {
+      "check_id": "CHK-COMP-ACR-NO-DEFENDER-SCAN",
+      "finding_class": "acr-no-defender-scan",
+      "title": "Defender for Containers registry vulnerability scanning not enabled",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "Microsoft Defender for Containers is on the Free tier or absent for the subscription, so images pushed to ACR are not continuously scanned for known CVEs.",
+      "attack_vector": "Unscanned image with critical CVE deployed -> exploitable workload / supply-chain foothold",
+      "recommendation": "Enable Defender for Containers (Standard tier) for registry and runtime scanning; gate promotion on scan results.",
+      "controls": { "mitre": ["T1525", "T1195"], "nist_csf": ["PR.PS-01", "DE.CM-09"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/container.md#CHK-COMP-ACR-NO-DEFENDER-SCAN",
+        "kql": "az security pricing show -n Containers -> row { subscriptionId, name: 'Containers', pricingTier }"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "name", "op": "eqi", "value": "Containers" },
+          {
+            "any": [
+              { "field": "pricingTier", "op": "eqi", "value": "Free" },
+              { "field": "pricingTier", "op": "missing" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["name", "pricingTier"]
+    },
+    {
+      "check_id": "CHK-COMP-ACR-NO-CONTENT-TRUST",
+      "finding_class": "acr-no-content-trust",
+      "title": "Container Registry content trust / quarantine not enabled",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "A Premium registry does not enforce content trust (image signing) or quarantine, so unsigned or unscanned images can be pulled and run with no integrity guarantee.",
+      "attack_vector": "Unsigned/tampered image pulled -> implant internal image -> compromised workload",
+      "recommendation": "Enable content trust and quarantine on a Premium registry; require signed images via admission; enable tag immutability.",
+      "controls": { "mitre": ["T1554", "T1525", "T1195"], "nist_csf": ["PR.PS-01", "GV.SC-06"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/container.md#CHK-COMP-ACR-NO-CONTENT-TRUST",
+        "kql": "az acr config content-trust show + az acr show (policies) -> row { id, name, sku, trustPolicyStatus, quarantinePolicyStatus }"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "sku", "op": "eqi", "value": "Premium" },
+          {
+            "any": [
+              { "field": "trustPolicyStatus", "op": "ne", "value": "enabled" },
+              { "field": "quarantinePolicyStatus", "op": "ne", "value": "enabled" }
+            ]
+          }
+        ]
+      },
+      "evidence_fields": ["sku", "trustPolicyStatus", "quarantinePolicyStatus"]
+    },
+    {
+      "check_id": "CHK-COMP-CONTAINER-IMAGE-VULN",
+      "finding_class": "container-image-vuln",
+      "title": "Deployed container image with known critical/high CVEs or mutable tag",
+      "category": "Container",
+      "severity_default": "High",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "An image referenced by a workload carries a Defender for Containers critical/high vulnerability finding, or is pinned to a mutable :latest tag instead of a digest.",
+      "attack_vector": "Exploit known CVE in running image -> code execution -> container escape / lateral movement",
+      "recommendation": "Rebuild/patch affected images, pin to digests, rescan, and redeploy; block deployment of images with critical findings via admission control.",
+      "controls": { "mitre": ["T1190", "T1610", "T1195"], "nist_csf": ["PR.PS-01", "ID.RA-01"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/container.md#CHK-COMP-CONTAINER-IMAGE-VULN",
+        "kql": "az security assessment list (container image findings) -> row { id, image, tag, defenderSeverity, subscriptionId, resourceGroup }"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "defenderSeverity", "op": "ini", "value": ["Critical", "High"] },
+          { "field": "tag", "op": "eqi", "value": "latest" }
+        ]
+      },
+      "evidence_fields": ["image", "tag", "defenderSeverity"]
+    },
+    {
+      "check_id": "CHK-CNTR-NO-CSI-SECRETS",
+      "finding_class": "aks-no-csi-secrets",
+      "title": "AKS not sourcing secrets via the Secrets Store CSI driver / Key Vault",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "The cluster does not enable the Azure Key Vault provider for the Secrets Store CSI driver, indicating workloads likely source secrets from plaintext Kubernetes Secrets, manifests, or environment variables.",
+      "attack_vector": "Plaintext Kubernetes Secret / env var -> secret theft from a compromised pod or etcd read",
+      "recommendation": "Enable the Azure Key Vault provider for Secrets Store CSI driver, bind it to a workload identity with least privilege, and enable secret auto-rotation.",
+      "controls": { "mitre": ["T1552.007", "T1552.001"], "nist_csf": ["PR.AA-05", "PR.PS-01"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-CNTR-NO-CSI-SECRETS",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | project id, name, type, resourceGroup, subscriptionId, location, keyvaultSecretsProviderEnabled = tobool(properties.addonProfiles.azureKeyvaultSecretsProvider.enabled)"
+      },
+      "evaluate": { "field": "keyvaultSecretsProviderEnabled", "op": "ne", "value": true },
+      "evidence_fields": ["keyvaultSecretsProviderEnabled"]
+    },
+    {
+      "check_id": "CHK-CNTR-NO-IMAGE-INTEGRITY",
+      "finding_class": "aks-no-image-integrity",
+      "title": "AKS deployment admission / image-integrity control not enforced",
+      "category": "Container",
+      "severity_default": "Medium",
+      "agent": "compute-platform",
+      "id_prefix": "AZ-CNTR",
+      "description": "The cluster has no native deployment-time admission control governing images: Azure Policy for AKS is disabled and/or the Image Cleaner is disabled. The agent confirms whether an equivalent admission controller (Gatekeeper/Kyverno/Ratify) compensates.",
+      "attack_vector": "No deploy gate -> unsigned/vulnerable image runs -> supply-chain foothold",
+      "recommendation": "Enable Azure Policy for AKS with Pod Security and image-source baselines; require signed images via admission; enable Image Cleaner.",
+      "controls": { "mitre": ["T1610", "T1525", "T1195"], "nist_csf": ["PR.PS-01", "GV.SC-06"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/container.md#CHK-CNTR-NO-IMAGE-INTEGRITY",
+        "kql": "Resources | where type == 'microsoft.containerservice/managedclusters' | project id, name, type, resourceGroup, subscriptionId, location, azurePolicyEnabled = tobool(properties.addonProfiles.azurepolicy.enabled), imageCleanerEnabled = tobool(properties.securityProfile.imageCleaner.enabled)"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "azurePolicyEnabled", "op": "ne", "value": true },
+          { "field": "imageCleanerEnabled", "op": "ne", "value": true }
+        ]
+      },
+      "evidence_fields": ["azurePolicyEnabled", "imageCleanerEnabled"]
+    }
+  ]
+}

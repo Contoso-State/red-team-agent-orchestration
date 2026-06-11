@@ -43,10 +43,13 @@ You map what's reachable from the internet and where network controls fail. Atta
 
 ## Methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Network/*`, public IPs, NSGs, and resources with network controls. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/network/`.
-3. For each public IP, trace the effective inbound path: Public IP → NIC/LB → NSG rules → resource.
-4. Emit findings to `engagements/<session>/findings/raw/network-exposure.jsonl` with ID prefix `AZ-NET-`.
+The mechanical half is **scripted, not agentic** — you do not read raw resource JSON per check. See `knowledge/token-optimization.md`.
+
+1. **Produce candidate rows.** Run your read-only ARG/`az` runner(s), filtering server-side to `Microsoft.Network/*`, public IPs, and NSGs, to emit `rows.json` keyed by `check_id`. Return only candidate rows — never read the full inventory into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine.** `node tools/checks/run-checks.mjs --predicates checks/network/predicates.json --rows rows.json --agent network-exposure --session engagements/<session>`. It evaluates the predicate bank and writes schema-valid candidate findings to `findings/raw/network-exposure.engine.jsonl` plus a compact `check-summary/v1`.
+3. **Reason over the summary only.** Read `findings/summary/network-exposure.json` (not raw rows): confirm / contextualize / suppress, set final severity, and prioritize.
+4. **Add the judgment-only checks** the engine cannot mechanize — cross-environment VNet peering (`CHK-NET-PEERING-CROSS-ENV`), dangling DNS / subdomain takeover (`CHK-NET-DANGLING-DNS`), and unexpected public IPs (`CHK-NET-PUBLIC-IP-UNEXPECTED`) — and trace each public IP's effective inbound path: Public IP → NIC/LB → NSG rules → resource.
+5. Emit agent-authored findings to `engagements/<session>/findings/raw/network-exposure.jsonl` with ID prefix `AZ-NET-`.
 
 ## Scale & aggregation
 

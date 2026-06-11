@@ -37,11 +37,15 @@ agent — do not re-derive cluster/registry config here.
 
 ## Methodology
 
-1. **Query via Azure Resource Graph**, filtering server-side to `Microsoft.Compute` and `Microsoft.Web`. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/compute/`.
-3. Containers/Kubernetes are out of scope — defer `Microsoft.ContainerService`, `Microsoft.ContainerRegistry`, `Microsoft.App`, and `Microsoft.ContainerInstance` to the Azure Container & Kubernetes Agent (`checks/container/checks.yaml`).
-4. For each workload with a managed identity, hand the identity ID to the Authorization & Attack Path Agent for chain analysis.
-5. Emit findings to `engagements/<session>/findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
+The mechanical half is **scripted, not agentic** — you do not read raw resource JSON per check. See `knowledge/token-optimization.md`.
+
+1. **Produce candidate rows.** Run your read-only ARG/`az` runner(s), filtering server-side to `Microsoft.Compute` and `Microsoft.Web`, to emit `rows.json` keyed by `check_id`. Return only candidate rows — never read the full inventory into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the engine.** `node tools/checks/run-checks.mjs --predicates checks/compute/predicates.json --rows rows.json --agent compute-platform --session engagements/<session>` → schema-valid candidates in `findings/raw/compute-platform.engine.jsonl` plus a compact `check-summary/v1`.
+3. **Reason over the summary only.** Read `findings/summary/compute-platform.json` (not raw rows): confirm / contextualize / suppress / set final severity.
+4. **Add the judgment-only checks** the engine cannot mechanize — plaintext secrets in app settings (`CHK-COMP-APPSVC-SECRETS-PLAINTEXT`, presence only, never the value) and `runCommand` reachable by non-owners (`CHK-COMP-VM-PUBLIC-RUNCOMMAND`, cross-ref Authorization).
+5. Containers/Kubernetes are out of scope — defer `Microsoft.ContainerService`, `Microsoft.ContainerRegistry`, `Microsoft.App`, and `Microsoft.ContainerInstance` to the Azure Container & Kubernetes Agent (`checks/container/checks.yaml`).
+6. For each workload with a managed identity, hand the identity ID to the Authorization & Attack Path Agent for chain analysis.
+7. Emit agent-authored findings to `engagements/<session>/findings/raw/compute-platform.jsonl` with ID prefix `AZ-COMP-`.
 
 ## Scale & aggregation
 
