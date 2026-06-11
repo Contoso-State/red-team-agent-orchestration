@@ -1,0 +1,46 @@
+{
+  "CHK-STOR-PUBLIC-BLOB": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stpublic", "name": "stpublic", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowBlobPublicAccess": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stprivate", "name": "stprivate", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowBlobPublicAccess": false }
+  ],
+  "CHK-STOR-ANON-CONTAINER": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stpublic/blobServices/default/containers/web", "name": "web", "type": "microsoft.storage/storageaccounts/blobservices/containers", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicAccess": "container" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stpublic/blobServices/default/containers/assets", "name": "assets", "type": "microsoft.storage/storageaccounts/blobservices/containers", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicAccess": "blob" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stprivate/blobServices/default/containers/data", "name": "data", "type": "microsoft.storage/storageaccounts/blobservices/containers", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicAccess": "None" }
+  ],
+  "CHK-STOR-PUBLIC-NETWORK": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stopen", "name": "stopen", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "defaultAction": "Allow" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stfw", "name": "stfw", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "defaultAction": "Deny" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stpe", "name": "stpe", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "defaultAction": "Allow" }
+  ],
+  "CHK-STOR-SHARED-KEY": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stkey", "name": "stkey", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowSharedKeyAccess": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stnull", "name": "stnull", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowSharedKeyAccess": null },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stentra", "name": "stentra", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowSharedKeyAccess": false }
+  ],
+  "CHK-STOR-NO-HTTPS-ONLY": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sthttp", "name": "sthttp", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "supportsHttpsTrafficOnly": false, "minimumTlsVersion": "TLS1_0" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sthttps", "name": "sthttps", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "supportsHttpsTrafficOnly": true, "minimumTlsVersion": "TLS1_2" }
+  ],
+  "CHK-STOR-KV-ACCESS-POLICY-MODEL": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-legacy", "name": "kv-legacy", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "enableRbacAuthorization": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-rbac", "name": "kv-rbac", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "enableRbacAuthorization": true }
+  ],
+  "CHK-STOR-KV-PUBLIC-NETWORK": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-open", "name": "kv-open", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "defaultAction": "Allow" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-locked", "name": "kv-locked", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "defaultAction": "Deny" }
+  ],
+  "CHK-STOR-KV-NO-PURGE-PROTECTION": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-nopurge", "name": "kv-nopurge", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "enableSoftDelete": true, "enablePurgeProtection": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-nosoftdelete", "name": "kv-nosoftdelete", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "enableSoftDelete": false, "enablePurgeProtection": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-protected", "name": "kv-protected", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "enableSoftDelete": true, "enablePurgeProtection": true }
+  ],
+  "CHK-STOR-NO-INFRA-ENCRYPTION": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stsingle", "name": "stsingle", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "requireInfrastructureEncryption": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stdouble", "name": "stdouble", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "requireInfrastructureEncryption": true }
+  ],
+  "CHK-STOR-NO-SAS-EXPIRATION-POLICY": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stnosas", "name": "stnosas", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "keyExpirationPeriodInDays": null },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/stsaspolicy", "name": "stsaspolicy", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "sasExpirationPeriod": "1.00:00:00", "keyExpirationPeriodInDays": 90 }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "CHK-LOG-DEFENDER-DISABLED": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Security/pricings/VirtualMachines", "name": "VirtualMachines", "type": "microsoft.security/pricings", "subscriptionId": "sub-a", "pricingTier": "Free" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Security/pricings/StorageAccounts", "name": "StorageAccounts", "type": "microsoft.security/pricings", "subscriptionId": "sub-a", "pricingTier": "Free" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Security/pricings/SqlServers", "name": "SqlServers", "type": "microsoft.security/pricings", "subscriptionId": "sub-a", "pricingTier": "Standard" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Security/pricings/Dns", "name": "Dns", "type": "microsoft.security/pricings", "subscriptionId": "sub-a", "pricingTier": "Free" }
+  ],
+  "CHK-LOG-NO-DIAG-KEYVAULT": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-nodiag", "name": "kv-nodiag", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "hasAuditEventDiag": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.KeyVault/vaults/kv-audited", "name": "kv-audited", "type": "microsoft.keyvault/vaults", "resourceGroup": "rg2", "subscriptionId": "sub-a", "location": "eastus", "hasAuditEventDiag": true }
+  ],
+  "CHK-LOG-NO-DIAG-CRITICAL": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-nodiag", "name": "sql-nodiag", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "hasDiag": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Network/networkSecurityGroups/nsg-logged", "name": "nsg-logged", "type": "microsoft.network/networksecuritygroups", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "hasDiag": true }
+  ],
+  "CHK-LOG-NO-ACTIVITY-EXPORT": [
+    { "id": "/subscriptions/sub-a", "name": "sub-a", "type": "microsoft.resources/subscriptions", "subscriptionId": "sub-a", "activityLogExported": false },
+    { "id": "/subscriptions/sub-b", "name": "sub-b", "type": "microsoft.resources/subscriptions", "subscriptionId": "sub-b", "activityLogExported": true }
+  ],
+  "CHK-LOG-NO-NSG-FLOW": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Network/networkSecurityGroups/nsg-noflow", "name": "nsg-noflow", "type": "microsoft.network/networksecuritygroups", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "flowLogEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Network/networkSecurityGroups/nsg-flow", "name": "nsg-flow", "type": "microsoft.network/networksecuritygroups", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "flowLogEnabled": true }
+  ],
+  "CHK-LOG-NO-SENTINEL-ANALYTICS-RULES": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg6/providers/Microsoft.OperationalInsights/workspaces/law-norules", "name": "law-norules", "type": "microsoft.operationalinsights/workspaces", "resourceGroup": "rg6", "subscriptionId": "sub-a", "location": "eastus", "sentinelEnabled": true, "enabledRuleCount": 0 },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg6/providers/Microsoft.OperationalInsights/workspaces/law-detections", "name": "law-detections", "type": "microsoft.operationalinsights/workspaces", "resourceGroup": "rg6", "subscriptionId": "sub-a", "location": "eastus", "sentinelEnabled": true, "enabledRuleCount": 24 }
+  ],
+  "CHK-LOG-SHORT-RETENTION": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg6/providers/Microsoft.OperationalInsights/workspaces/law-short", "name": "law-short", "type": "microsoft.operationalinsights/workspaces", "resourceGroup": "rg6", "subscriptionId": "sub-a", "location": "eastus", "retentionInDays": 30, "hasArchiveTier": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg6/providers/Microsoft.OperationalInsights/workspaces/law-archived", "name": "law-archived", "type": "microsoft.operationalinsights/workspaces", "resourceGroup": "rg6", "subscriptionId": "sub-a", "location": "eastus", "retentionInDays": 30, "hasArchiveTier": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg6/providers/Microsoft.OperationalInsights/workspaces/law-long", "name": "law-long", "type": "microsoft.operationalinsights/workspaces", "resourceGroup": "rg6", "subscriptionId": "sub-a", "location": "eastus", "retentionInDays": 180, "hasArchiveTier": false }
+  ]
+}
