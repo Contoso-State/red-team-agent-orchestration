@@ -18,7 +18,8 @@ methodology and read-only `az` runner without manual wiring.
 | `azure-redteam-identity` | Entra ID / authentication posture |
 | `azure-redteam-authorization` | RBAC, privilege escalation, attack-path correlation |
 | `azure-redteam-network` | Public exposure, NSGs, segmentation |
-| `azure-redteam-compute` | VM, AKS / Kubernetes, container, serverless security |
+| `azure-redteam-compute` | VM, App Service, Function App, serverless compute security |
+| `azure-redteam-aks-container` | AKS / Kubernetes RBAC & Pod Security, ACR, Container Apps/Instances + gated in-cluster scanning |
 | `azure-redteam-data` | Storage, Key Vault, SQL / database protection |
 | `azure-redteam-web` | Web edge/delivery: WAF, TLS, static sites, API Management |
 | `azure-redteam-ai` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
@@ -55,7 +56,8 @@ This keeps the skill, the agent, and the checks in lock-step without duplicating
 | `redteam-identity.agent.md` | Red Team Identity | Orchestrator |
 | `redteam-authorization.agent.md` | Red Team Authorization | Orchestrator |
 | `redteam-network.agent.md` | Red Team Network | Orchestrator |
-| `redteam-compute.agent.md` | Red Team Compute (incl. Kubernetes & containers) | Orchestrator |
+| `redteam-compute.agent.md` | Red Team Compute (VM / App Service / Functions) | Orchestrator |
+| `redteam-aks-container.agent.md` | Red Team Azure Container & Kubernetes (gated in-cluster lane) | Orchestrator |
 | `redteam-data.agent.md` | Red Team Data (incl. SQL/databases) | Orchestrator |
 | `redteam-web.agent.md` | Red Team Web & Static Sites | Orchestrator |
 | `redteam-ai.agent.md` | Red Team AI & Foundry | Orchestrator |

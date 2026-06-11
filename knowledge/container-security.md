@@ -1,9 +1,10 @@
 # Container, Image & Registry Security — Scanning, Trust, and Escape Detection
 
-Reference knowledge for the Compute Platform Agent (`compute-platform`) when assessing
+Reference knowledge for the **Azure Container & Kubernetes Agent (`aks-container`)** when assessing
 Azure Container Registry (ACR), container images, and the container runtime posture behind
 AKS, Container Apps, and Container Instances. It covers the read-only hunts our checks
-perform and the **active / manual** techniques that are *knowledge only*.
+perform and the **active / manual** techniques that are *knowledge only* in the default lane
+(and, for offline image CVE scanning, confined to the agent's gated cluster-active lane — §8).
 
 > **Attribution.** The methodology below was harvested from the Apache-2.0
 > [`mukul975/Anthropic-Cybersecurity-Skills`](https://github.com/mukul975/Anthropic-Cybersecurity-Skills)
@@ -128,3 +129,22 @@ rather than performing runtime instrumentation.
 
 Our automated posture stays read-only: confirm scanning, trust, and patch controls exist
 and are enforced; describe exploitation paths in the report.
+
+## 8. Offline image CVE scanning — gated cluster-active lane (`aks-container` Lane 2, C2)
+
+The optional `trivy`/`grype` scanning in §3 stays a *read-only accelerator* in the posture lane. The
+Azure Container & Kubernetes Agent's **cluster-active lane** can additionally run **offline** deep CVE
+scanning over images pulled from in-scope ACR (tier `image-scan`, `CHK-CNTR-IMAGE-CVE-DEEP`) to find
+vulnerabilities beyond what Defender reports. This is:
+
+- **Off by default** — runs only under `mode: cluster-active-testing` with an enabled, authorized
+  `cluster_testing` block and a non-empty Azure-derived cluster/registry allowlist (fail-closed
+  guardrail).
+- **Offline** — scanning targets a *pulled image digest*; it generates no live-cluster traffic and
+  never executes the image.
+- **Scope-locked** — only digests from registries on `cluster-targets.json` are eligible; launched via
+  `tools/cluster/Invoke-ScopedClusterScan.ps1`, never a hand-typed reference.
+
+The active/manual exploitation techniques in §7 (backdoored images, CVE-to-shell, image
+substitution) remain **knowledge only** and are never automated. See
+`agents/aks-container/system-prompt.md` and `knowledge/aks-security-baseline.md` §4.

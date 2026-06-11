@@ -1,15 +1,16 @@
 ---
 title: The Agent Team
-description: The Orchestrator and its fourteen Azure domain specialists, and how they coordinate.
+description: The Orchestrator and its fifteen Azure domain specialists, and how they coordinate.
 ---
 
 # The Agent Team
 
-![Orchestrator dispatches fourteen domain specialists](assets/agent-team.svg)
+![Orchestrator dispatches fifteen domain specialists](assets/agent-team.svg)
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
-hands tasks to fourteen domain specialists via Copilot's `agent` (Task) tool — plus one
-**gated** active-testing specialist (EVA) that is off by default. The orchestrator is
+hands tasks to fifteen domain specialists via Copilot's `agent` (Task) tool — plus two
+**gated** active-testing lanes (the EVA agent and the Azure Container & Kubernetes agent's
+in-cluster lane) that are off by default. The orchestrator is
 **dispatch-only** — it has no shell access and never runs `az` itself; it assigns work to
 specialists and aggregates the findings they return.
 
@@ -20,7 +21,8 @@ specialists and aggregates the findings they return.
 | **Identity Posture** | Entra ID | MFA gaps, Conditional Access, app registrations, guest users, credential hygiene |
 | **Authorization & Attack Path** | RBAC / Privilege | Over-permissioned roles, custom role abuse, managed identity chains, priv-esc paths |
 | **Network Exposure** | Networking | Public IPs, NSG rules, firewall gaps, VNet peering, DNS exposure, private endpoints |
-| **Compute Platform** | Compute / Kubernetes / Containers | VM patching, AKS & Kubernetes RBAC, Container Apps/Instances, ACR, Function Apps, App Service |
+| **Compute Platform** | Compute (VM / App Service / Functions) | VM disk encryption & patching, public RunCommand exposure, Function Apps, App Service auth / FTP-debug / plaintext-secret hardening |
+| **Azure Container & Kubernetes** | AKS / Kubernetes / ACR / Containers | AKS & in-cluster Kubernetes RBAC, Pod Security Admission, workload identity, ACR content-trust & image scanning, Container Apps/Instances — read-only posture plus an optional, hard-gated lane that scans *inside* running containers |
 | **Data Protection** | Storage / Data / SQL | Storage exposure, Key Vault policies, SQL & database firewall rules, encryption |
 | **Web & Static Sites** | Web edge / delivery | CDN/Front Door, WAF, TLS, Static Web Apps & storage static sites, API Management |
 | **AI & Foundry** | AI services | Azure AI Foundry, Azure OpenAI, Cognitive Services, ML workspace exposure |
@@ -34,8 +36,20 @@ specialists and aggregates the findings they return.
 
 :::{note}
 The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only
-when M365 is in engagement scope. Entra ID, RBAC, SQL/databases, and Kubernetes/containers
-are covered by the Identity, Authorization, Data, and Compute agents respectively.
+when M365 is in engagement scope. Entra ID, RBAC, and SQL/databases are covered by the
+Identity, Authorization, and Data agents respectively; AKS / Kubernetes / containers / ACR
+are covered by the dedicated **Azure Container & Kubernetes** agent (the Compute agent now
+focuses on VMs, App Service, and Functions).
+:::
+
+:::{important}
+The **Azure Container & Kubernetes agent** runs read-only by default. Its **cluster-active
+lane** — the only path that reaches *inside* a running cluster/container or pulls and scans
+images — is **off by default** and unlocks only when the engagement `mode` is
+`cluster-active-testing` with an enabled, signed `cluster_testing` authorization. It is
+scope-locked to an Azure-derived cluster/registry allowlist, enforced fail-closed by a third
+cluster guardrail, and never mutates a workload. See
+[Safety & Authorization](safety.md#active-external-testing-eva).
 :::
 
 :::{important}
@@ -58,7 +72,8 @@ graph TD
     subgraph Agents[Domain Agents]
         ID[Identity Posture]
         NET[Network Exposure]
-        COMP[Compute / Kubernetes]
+        COMP[Compute · VM/App Service]
+        CNTR[Containers & Kubernetes]
         DATA[Data Protection]
         WEB[Web & Static Sites]
         AI[AI & Foundry]
@@ -84,7 +99,7 @@ they know**, and **what they're allowed to do**.
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fourteen specialists set
+The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them
 through the `agent` (Task) tool. The Orchestrator is **dispatch-only** — it has no
 `execute`/shell capability, so it never runs `az` itself.

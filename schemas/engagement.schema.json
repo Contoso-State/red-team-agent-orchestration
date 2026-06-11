@@ -19,8 +19,8 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["read-only-assessment", "attack-path-analysis", "controlled-validation", "external-active-testing"],
-      "description": "Operating mode — controls what agents are permitted to do. 'external-active-testing' additionally unlocks the External Vulnerability Agent (EVA) active tiers; it must be paired with an enabled, authorized external_testing block."
+      "enum": ["read-only-assessment", "attack-path-analysis", "controlled-validation", "external-active-testing", "cluster-active-testing"],
+      "description": "Operating mode — controls what agents are permitted to do. 'external-active-testing' additionally unlocks the External Vulnerability Agent (EVA) active tiers; it must be paired with an enabled, authorized external_testing block. 'cluster-active-testing' additionally unlocks the Azure Container & Kubernetes Agent (aks-container) cluster-active tiers (kube-bench/kubesec, offline image scanning, and benign read-only in-pod inventory); it must be paired with an enabled, authorized cluster_testing block."
     },
     "scope": {
       "type": "object",
@@ -65,6 +65,7 @@
               "authorization-attack-path",
               "network-exposure",
               "compute-platform",
+              "aks-container",
               "data-protection",
               "web-exposure",
               "ai-foundry",
@@ -174,6 +175,52 @@
             "nikto": { "type": "boolean" },
             "whatweb": { "type": "boolean" },
             "semgrep": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "cluster_testing": {
+      "type": "object",
+      "description": "Active Kubernetes / container testing (the Azure Container & Kubernetes Agent, aks-container). OFF by default. Cluster-active tiers reach into a LIVE AKS cluster or running container (kube-bench, kubesec, trivy/grype, and benign read-only `kubectl exec`/ephemeral debug containers) and therefore require all of: mode 'cluster-active-testing', enabled: true, and a completed authorization block. Targets are ALWAYS restricted to the Azure-derived cluster allowlist (engagements/<session>/scope/cluster-targets.json) built from in-scope AKS/ACR inventory — never a free-form kubeconfig context. A fail-closed cluster guardrail enforces this at the tool layer; in-pod actions are read-only, ephemeral, and cleaned up.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Master switch. Must be true (with mode cluster-active-testing and a valid authorization block) before any cluster-active tier runs. Default false."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["cluster-benchmark", "image-scan", "runtime-probe"],
+          "description": "Maximum intrusiveness. cluster-benchmark = CIS benchmarking and manifest analysis (kube-bench / kubesec / `kubectl auth can-i --list`), Kubernetes API reads only. image-scan = offline CVE scanning (trivy / grype) over container images pulled from in-scope ACR. runtime-probe = benign read-only inventory INSIDE a running pod via an ephemeral debug container (process/package/filesystem-CVE inventory); never mutates the workload, never `kubectl apply/delete`, ephemeral container is removed after use."
+        },
+        "authorization": {
+          "type": "object",
+          "description": "Written authorization (rules of engagement) for cluster-active testing. All fields must be populated before any cluster-active tier runs.",
+          "properties": {
+            "attested_by": { "type": "string", "description": "Name/email of the person authorizing active cluster/container testing." },
+            "attestation_id": { "type": "string", "description": "Contract, change-ticket, or rules-of-engagement reference." },
+            "authorized_window_start": { "type": "string", "description": "ISO 8601 timestamp — start of the authorized testing window." },
+            "authorized_window_end": { "type": "string", "description": "ISO 8601 timestamp — end of the authorized testing window." },
+            "target_confirmation": { "type": "boolean", "description": "When true, a human must confirm the generated cluster allowlist before any cluster-active tier fires." },
+            "runtime_probe_per_workload_approval": { "type": "boolean", "description": "When true (recommended), each in-pod runtime-probe target must be individually approved before an ephemeral debug container is attached." }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "description": "Intensity caps so cluster-active testing cannot impact a live cluster's availability.",
+          "properties": {
+            "max_pods_per_workload": { "type": "integer", "minimum": 1, "description": "Max running pods to probe per in-scope workload (Deployment/StatefulSet/DaemonSet)." },
+            "max_images_scanned": { "type": "integer", "minimum": 1, "description": "Cap on the number of container images pulled and scanned offline." },
+            "concurrency": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "tools": {
+          "type": "object",
+          "description": "Which open-source cluster/container scanners aks-container may orchestrate when present on PATH (each still scope-locked to the cluster allowlist).",
+          "properties": {
+            "kube_bench": { "type": "boolean" },
+            "kubesec": { "type": "boolean" },
+            "trivy": { "type": "boolean" },
+            "grype": { "type": "boolean" }
           }
         }
       }

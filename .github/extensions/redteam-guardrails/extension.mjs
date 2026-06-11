@@ -13,6 +13,7 @@
 import { joinSession } from "@github/copilot-sdk/extension";
 import { evaluate, engagementMode } from "./guardrails-core.mjs";
 import { evaluateEgress } from "./egress-core.mjs";
+import { evaluateCluster } from "./cluster-core.mjs";
 
 const session = await joinSession({
   hooks: {
@@ -27,7 +28,14 @@ const session = await joinSession({
         "public hosts is BLOCKED by default and only permitted for the External Vulnerability Agent " +
         "(EVA) when the engagement is in mode: external-active-testing with external_testing enabled + " +
         "authorized, and only against hosts on the Azure-derived allowlist " +
-        "(engagements/<session>/scope/external-targets.json).",
+        "(engagements/<session>/scope/external-targets.json). " +
+        "Reaching INTO a live cluster or container (kubectl exec/debug/cp/attach/port-forward/run, " +
+        "kube-bench, kubesec, trivy, grype, crictl, docker/nerdctl/podman run|exec) is BLOCKED by " +
+        "default and only permitted for the Azure Container & Kubernetes Agent when the engagement is " +
+        "in mode: cluster-active-testing with cluster_testing enabled + authorized, and only against " +
+        "clusters/registries on the Azure-derived cluster allowlist " +
+        "(engagements/<session>/scope/cluster-targets.json). Mutating kubectl/helm/runtime commands " +
+        "are blocked in EVERY mode; read-only kubectl (get/describe/logs/auth can-i) is always allowed.",
     }),
 
     onPreToolUse: async (input) => {
@@ -89,6 +97,48 @@ const session = await joinSession({
             `Blocked: \`${egress.segment}\`. EVA may only probe hosts on the Azure-derived ` +
             `allowlist (engagements/<session>/scope/external-targets.json) under an authorized ` +
             `external-active-testing engagement.`,
+        };
+      }
+
+      // Cluster-active scope-lock for the Azure Container & Kubernetes Agent. This is the
+      // ONLY lane that reaches into a live cluster/container. It fails closed twice over:
+      // (1) mutating kubectl/helm/runtime commands are DENIED in every mode (the posture is
+      // read-only and never alters a workload); (2) cluster-active tools (kubectl exec/debug/
+      // cp/attach/port-forward/run, kube-bench/kubesec/trivy/grype/crictl, docker|nerdctl|
+      // podman run|exec) are DENIED unless the engagement is in cluster-active-testing mode,
+      // cluster_testing is enabled + authorized, and a non-empty Azure-derived cluster
+      // allowlist exists. Read-only kubectl (get/describe/logs/auth can-i/...) is allowed.
+      let cluster;
+      try {
+        cluster = evaluateCluster(input.toolArgs, input.workingDirectory, input.toolName);
+      } catch (err) {
+        await session.log(
+          `redteam-guardrails cluster evaluation error — failing closed (deny): ${err?.stack || err}`,
+          { level: "error" }
+        );
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            "Red team cluster guardrail could not evaluate this command, so it was blocked " +
+            "(fail-closed) to preserve the read-only Kubernetes posture and the cluster-active " +
+            "scope lock. Use read-only kubectl (get/describe/logs/auth can-i), or run cluster-active " +
+            "tools only under an authorized cluster-active-testing engagement.",
+        };
+      }
+      if (cluster && cluster.deny) {
+        const mode = engagementMode(input.workingDirectory);
+        await session.log(
+          `Blocked cluster-active/mutating command (mode: ${mode}, tool: ${cluster.tool}): ${cluster.segment}`,
+          { level: "warning" }
+        );
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason:
+            `Azure Container & Kubernetes Agent cluster lock: ${cluster.reason}. ` +
+            `Blocked: \`${cluster.segment}\`. Mutating kubectl/helm/runtime commands are denied in ` +
+            `every mode; reaching into a live cluster/container is only permitted against the ` +
+            `Azure-derived cluster allowlist (engagements/<session>/scope/cluster-targets.json) ` +
+            `under an authorized cluster-active-testing engagement.`,
         };
       }
 
