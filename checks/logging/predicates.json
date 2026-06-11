@@ -1,0 +1,155 @@
+{
+  "domain": "logging",
+  "predicates": [
+    {
+      "check_id": "CHK-LOG-DEFENDER-DISABLED",
+      "finding_class": "defender-plans-disabled",
+      "title": "Microsoft Defender for Cloud plans disabled",
+      "category": "Logging",
+      "severity_default": "High",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "A critical Defender for Cloud plan is on the Free tier, removing threat detection for that resource type.",
+      "attack_vector": "No runtime threat detection across resources",
+      "recommendation": "Enable Defender plans for in-scope resource types.",
+      "controls": { "cis_azure": ["2.1.x"], "mitre": ["T1562.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-DEFENDER-DISABLED"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "name", "op": "ini", "value": ["VirtualMachines", "StorageAccounts", "SqlServers", "Containers", "KeyVaults", "AppServices", "Arm"] },
+          { "field": "pricingTier", "op": "eqi", "value": "Free" }
+        ]
+      },
+      "evidence_fields": ["name", "pricingTier"]
+    },
+    {
+      "check_id": "CHK-LOG-NO-DIAG-KEYVAULT",
+      "finding_class": "keyvault-no-diagnostics",
+      "title": "Key Vault without diagnostic logging",
+      "category": "Logging",
+      "severity_default": "High",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "A Key Vault has no diagnostic setting forwarding AuditEvent logs, so secret access is not audited.",
+      "attack_vector": "Secret access/exfiltration leaves no trail",
+      "recommendation": "Add a diagnostic setting sending AuditEvent to Log Analytics.",
+      "controls": { "cis_azure": ["5.x", "8.x"], "mitre": ["T1562.008"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-NO-DIAG-KEYVAULT",
+        "kql": "Resources | where type =~ 'microsoft.keyvault/vaults' | extend vid = tolower(id) | join kind=leftouter (resources | where type =~ 'microsoft.insights/diagnosticsettings' | extend targetId = tolower(tostring(properties.targetResourceId)) | where properties.logs has 'AuditEvent' | summarize diagCount = count() by targetId) on $left.vid == $right.targetId | project id, name, type, resourceGroup, subscriptionId, location, hasAuditEventDiag = (coalesce(diagCount,0) > 0)"
+      },
+      "evaluate": { "not": { "field": "hasAuditEventDiag", "op": "eq", "value": true } },
+      "evidence_fields": ["hasAuditEventDiag"]
+    },
+    {
+      "check_id": "CHK-LOG-NO-DIAG-CRITICAL",
+      "finding_class": "diagnostic-settings-missing",
+      "title": "Critical resource type without diagnostic settings",
+      "category": "Logging",
+      "severity_default": "Medium",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "Critical resources (NSG, SQL, storage, App Gateway) lack diagnostic settings, so activity against them is not logged.",
+      "attack_vector": "Activity against the resource is not logged",
+      "recommendation": "Enable diagnostic settings to a central Log Analytics workspace.",
+      "controls": { "cis_azure": ["5.x"], "mitre": ["T1562.008"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-NO-DIAG-CRITICAL",
+        "kql": "Resources | where type in~ ('microsoft.network/networksecuritygroups','microsoft.sql/servers','microsoft.storage/storageaccounts','microsoft.network/applicationgateways') | extend rid = tolower(id) | join kind=leftouter (resources | where type =~ 'microsoft.insights/diagnosticsettings' | extend targetId = tolower(tostring(properties.targetResourceId)) | summarize diagCount = count() by targetId) on $left.rid == $right.targetId | project id, name, type, resourceGroup, subscriptionId, location, hasDiag = (coalesce(diagCount,0) > 0)"
+      },
+      "evaluate": { "field": "hasDiag", "op": "eq", "value": false },
+      "evidence_fields": ["type", "hasDiag"]
+    },
+    {
+      "check_id": "CHK-LOG-NO-ACTIVITY-EXPORT",
+      "finding_class": "activity-log-not-exported",
+      "title": "Activity Log not exported to Log Analytics",
+      "category": "Logging",
+      "severity_default": "Medium",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "Subscription Activity Log has no diagnostic export forwarding Administrative/Security categories, limiting control-plane forensics and alerting.",
+      "attack_vector": "Control-plane changes (role grants, deletions) go unmonitored",
+      "recommendation": "Export Activity Log to Log Analytics; build alerts on key categories.",
+      "controls": { "cis_azure": ["5.1.x"], "mitre": ["T1562.008"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-NO-ACTIVITY-EXPORT"
+      },
+      "evaluate": { "field": "activityLogExported", "op": "eq", "value": false },
+      "evidence_fields": ["activityLogExported"]
+    },
+    {
+      "check_id": "CHK-LOG-NO-NSG-FLOW",
+      "finding_class": "nsg-flow-logs-disabled",
+      "title": "NSG flow logs not enabled",
+      "category": "Logging",
+      "severity_default": "Low",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "NSG flow logs are disabled, preventing reconstruction of network activity.",
+      "attack_vector": "Network-based attacks cannot be investigated",
+      "recommendation": "Enable NSG flow logs (v2) with Traffic Analytics.",
+      "controls": { "cis_azure": ["6.5"], "mitre": ["T1562.008"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-NO-NSG-FLOW"
+      },
+      "evaluate": { "not": { "field": "flowLogEnabled", "op": "eq", "value": true } },
+      "evidence_fields": ["flowLogEnabled"]
+    },
+    {
+      "check_id": "CHK-LOG-NO-SENTINEL-ANALYTICS-RULES",
+      "finding_class": "sentinel-no-analytics-rules",
+      "title": "Sentinel workspace has no enabled analytics (detection) rules",
+      "category": "Logging",
+      "severity_default": "High",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "A Microsoft Sentinel-enabled workspace ingests logs but has no enabled scheduled/analytics detection rules, so ingested telemetry produces no incidents.",
+      "attack_vector": "Attacker activity is logged but never raises an incident, so the SOC never responds",
+      "recommendation": "Deploy and enable analytics rules from Microsoft/Sentinel rule templates aligned to in-scope data connectors (identity, activity, resource); tune to reduce noise rather than disabling.",
+      "controls": { "cis_azure": ["2.1.x"], "mitre": ["T1562.001", "T1078.004"], "nist_csf": ["DE.CM-09"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-NO-SENTINEL-ANALYTICS-RULES"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "sentinelEnabled", "op": "eq", "value": true },
+          { "field": "enabledRuleCount", "op": "eq", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["sentinelEnabled", "enabledRuleCount"]
+    },
+    {
+      "check_id": "CHK-LOG-SHORT-RETENTION",
+      "finding_class": "log-retention-too-short",
+      "title": "Log retention below forensic threshold",
+      "category": "Logging",
+      "severity_default": "Low",
+      "agent": "logging-coverage",
+      "id_prefix": "AZ-LOG",
+      "description": "The Log Analytics workspace keeps data for fewer days than the engagement forensic baseline (default 90) with no archive tier extending it, so attacker dwell time can exceed the available log horizon.",
+      "attack_vector": "Investigators cannot reconstruct an intrusion whose initial activity predates the short retention window",
+      "recommendation": "Set interactive retention to at least 90 days for security logs and use the archive tier for longer-term/immutable retention aligned to compliance requirements.",
+      "controls": { "cis_azure": ["5.x"], "mitre": ["T1562.008"], "nist_csf": ["DE.CM-09"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/logging.md#CHK-LOG-SHORT-RETENTION"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "retentionInDays", "op": "lt", "value": 90 },
+          { "not": { "field": "hasArchiveTier", "op": "eq", "value": true } }
+        ]
+      },
+      "evidence_fields": ["retentionInDays", "hasArchiveTier"]
+    }
+  ]
+}
