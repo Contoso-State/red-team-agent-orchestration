@@ -1,0 +1,86 @@
+{
+  "domain": "storage",
+  "predicates": [
+    {
+      "check_id": "CHK-STOR-PUBLIC-BLOB",
+      "finding_class": "storage-public-blob",
+      "title": "Storage account allows public blob access",
+      "category": "Storage",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "allowBlobPublicAccess is enabled, permitting containers to be set to anonymous access.",
+      "attack_vector": "Anonymous container -> unauthenticated data read",
+      "recommendation": "Set allowBlobPublicAccess=false at the account level.",
+      "controls": { "cis_azure": ["3.7"], "mitre": ["T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-PUBLIC-BLOB",
+        "kql": "Resources | where type == 'microsoft.storage/storageaccounts' | where properties.allowBlobPublicAccess == true | project id, name, type, resourceGroup, subscriptionId, location, allowBlobPublicAccess = properties.allowBlobPublicAccess"
+      },
+      "evaluate": { "field": "allowBlobPublicAccess", "op": "eq", "value": true },
+      "evidence_fields": ["allowBlobPublicAccess"]
+    },
+    {
+      "check_id": "CHK-STOR-PUBLIC-NETWORK",
+      "finding_class": "storage-public-network",
+      "title": "Storage account public network access without firewall",
+      "category": "Storage",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "publicNetworkAccess is Enabled with default-allow network rules.",
+      "attack_vector": "Internet-reachable storage endpoint",
+      "recommendation": "Set defaultAction=Deny, add private endpoints, restrict to known networks.",
+      "controls": { "cis_azure": ["3.8"], "mitre": ["T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-PUBLIC-NETWORK"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "defaultAction", "op": "eqi", "value": "Allow" }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "defaultAction"]
+    },
+    {
+      "check_id": "CHK-STOR-NO-HTTPS-ONLY",
+      "finding_class": "storage-weak-transport",
+      "title": "Storage account secure transfer disabled or weak TLS",
+      "category": "Storage",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "Secure transfer (HTTPS-only) is disabled or the minimum TLS version is below 1.2.",
+      "attack_vector": "Cleartext/downgraded transport -> credential or data interception",
+      "recommendation": "Set enableHttpsTrafficOnly=true and minimumTlsVersion=TLS1_2.",
+      "controls": { "cis_azure": ["3.1"], "mitre": ["T1040"] },
+      "query": { "method": "resource-graph", "ref": "tools/az-cli/storage.md#CHK-STOR-NO-HTTPS-ONLY" },
+      "evaluate": {
+        "any": [
+          { "field": "httpsOnly", "op": "eq", "value": false },
+          { "field": "minTls", "op": "version_lt", "value": "TLS1_2" }
+        ]
+      },
+      "evidence_fields": ["httpsOnly", "minTls"]
+    },
+    {
+      "check_id": "CHK-STOR-ANON-CONTAINER",
+      "finding_class": "storage-anon-container",
+      "title": "Blob container with anonymous access",
+      "category": "Storage",
+      "severity_default": "Critical",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "A container's public access level is Blob or Container, exposing data to the internet.",
+      "attack_vector": "Direct unauthenticated download of blobs",
+      "recommendation": "Set container access to Private; serve data via SAS or authenticated access.",
+      "controls": { "cis_azure": ["3.7"], "mitre": ["T1530"] },
+      "query": { "method": "azure-cli", "ref": "tools/az-cli/storage.md#CHK-STOR-ANON-CONTAINER" },
+      "evaluate": { "field": "publicAccess", "op": "ini", "value": ["blob", "container"] },
+      "evidence_fields": ["publicAccess"]
+    }
+  ]
+}

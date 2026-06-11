@@ -150,6 +150,7 @@ function parseArgs(args) {
     else if (a === '--out') out.out = args[++i];
     else if (a === '--title') out.title = args[++i];
     else if (a === '--inventory-summary') out.inventorySummary = args[++i];
+    else if (a === '--token-usage') out.tokenUsage = args[++i];
     else if (a === '-h' || a === '--help') out.help = true;
     else if (a.startsWith('--findings=')) out.findings = a.slice(11);
     else if (a.startsWith('--attack-paths=')) out.attackPaths = a.slice(15);
@@ -157,6 +158,7 @@ function parseArgs(args) {
     else if (a.startsWith('--out=')) out.out = a.slice(6);
     else if (a.startsWith('--title=')) out.title = a.slice(8);
     else if (a.startsWith('--inventory-summary=')) out.inventorySummary = a.slice(20);
+    else if (a.startsWith('--token-usage=')) out.tokenUsage = a.slice(14);
   }
   return out;
 }
@@ -176,6 +178,8 @@ function usage() {
     '  --title <text>          Override report title',
     '  --inventory-summary <p> summary.json type rollup from Export-Inventory (optional;',
     '                          surfaces "N resources assessed" on the cover without listing them)',
+    '  --token-usage <path>    token-usage.json from tools/tokens/ledger.mjs (optional; renders the',
+    '                          total input/output/total token figure + per-phase/agent cost appendix)',
     '  -h, --help              Show this help',
   ].join('\n');
 }
@@ -254,7 +258,45 @@ function loadEngagement(path) {
   // Capture the external_testing authorization block (best-effort, nested) so the
   // report can render an "External Active Testing" authorization/coverage banner.
   meta.externalTesting = parseExternalTesting(text);
+  meta.tokenBudget = parseTokenBudget(text);
   return meta;
+}
+
+/**
+ * Best-effort scan for scale.token_budget (max_total / warn_at). No YAML
+ * dependency — finds the `token_budget:` key (typically nested under `scale:`)
+ * and reads the two integer scalars beneath it. Returns null when absent.
+ */
+function parseTokenBudget(text) {
+  const lines = text.split(/\r?\n/);
+  let baseIndent = -1;
+  const block = [];
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/#.*$/, '');
+    if (!line.trim()) continue;
+    const indent = line.match(/^\s*/)[0].length;
+    if (baseIndent === -1) {
+      if (/^\s*token_budget\s*:/.test(line)) baseIndent = indent;
+      continue;
+    }
+    if (indent <= baseIndent) break;
+    block.push(line);
+  }
+  if (baseIndent === -1) return null;
+  const blob = block.join('\n');
+  const intOf = (key) => {
+    const m = blob.match(new RegExp('(?:^|\\n)\\s*' + key + '\\s*:\\s*([0-9_]+)'));
+    if (!m) return undefined;
+    const n = Number(m[1].replace(/_/g, ''));
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const maxTotal = intOf('max_total');
+  const warnAt = intOf('warn_at');
+  if (maxTotal === undefined && warnAt === undefined) return null;
+  const budget = {};
+  if (maxTotal !== undefined) budget.max_total = maxTotal;
+  if (warnAt !== undefined) budget.warn_at = warnAt;
+  return budget;
 }
 
 /**
@@ -1525,7 +1567,97 @@ function renderCoverage(findings) {
     ${fwBlocks.length ? `<div class="fw-grid">${fwBlocks.join('')}</div>` : '<p class="muted">No control-framework mappings were supplied.</p>'}`;
 }
 
-function buildHtml(findings, paths, meta, title) {
+/**
+ * Compute a token-budget status from engagement scale.token_budget vs. the
+ * ledger's measured/estimated total. Returns null when no budget is configured.
+ */
+function tokenBudgetStatus(tokenUsage, budget) {
+  if (!budget || !Number.isFinite(budget.max_total)) return null;
+  const total = tokenUsage?.totals?.total_tokens || 0;
+  const warnAt = Number.isFinite(budget.warn_at) ? budget.warn_at : Math.round(budget.max_total * 0.8);
+  let state = 'ok';
+  if (total > budget.max_total) state = 'over';
+  else if (total >= warnAt) state = 'warn';
+  const pct = budget.max_total > 0 ? Math.round((total / budget.max_total) * 100) : 0;
+  return { total, max_total: budget.max_total, warn_at: warnAt, state, pct };
+}
+
+/**
+ * Appendix D — Engagement Cost & Token Budget. Renders the total model token
+ * usage (input + output), per-phase and per-agent breakdowns, and optional
+ * budget status. Returns '' when no token usage was supplied.
+ */
+function renderTokenUsage(tokenUsage, meta) {
+  if (!tokenUsage || !tokenUsage.totals) return '';
+  const t = tokenUsage.totals;
+  const method = escText(tokenUsage.method || 'estimated');
+  const ratio = tokenUsage.ratio ? escText(String(tokenUsage.ratio)) : '4';
+  const budget = tokenBudgetStatus(tokenUsage, meta && meta.tokenBudget);
+
+  const methodNote = tokenUsage.method === 'measured'
+    ? 'measured from recorded model usage'
+    : tokenUsage.method === 'hybrid'
+      ? 'measured where recorded, otherwise estimated'
+      : `estimated at ~${ratio} bytes/token over content that crossed the model boundary`;
+
+  const totalsTable = `
+    <table class="restable token-totals">
+      <thead><tr><th>Direction</th><th class="num">Tokens</th></tr></thead>
+      <tbody>
+        <tr><td>Input (prompts, skills, triage summaries)</td><td class="num">${fmtInt(t.input_tokens)}</td></tr>
+        <tr><td>Output (analyst findings &amp; narrative)</td><td class="num">${fmtInt(t.output_tokens)}</td></tr>
+        <tr class="token-grand"><td><strong>Total</strong></td><td class="num"><strong>${fmtInt(t.total_tokens)}</strong></td></tr>
+      </tbody>
+    </table>`;
+
+  const phaseRows = (tokenUsage.per_phase || [])
+    .map((p) => `<tr><td>${escText(p.phase)}</td><td class="num">${fmtInt(p.input_tokens)}</td><td class="num">${fmtInt(p.output_tokens)}</td><td class="num">${fmtInt(p.total_tokens)}</td></tr>`)
+    .join('');
+  const agentRows = (tokenUsage.per_agent || [])
+    .map((a) => `<tr><td>${escText(a.agent)}</td><td class="num">${fmtInt(a.input_tokens)}</td><td class="num">${fmtInt(a.output_tokens)}</td><td class="num">${fmtInt(a.total_tokens)}</td></tr>`)
+    .join('');
+
+  let budgetHtml = '';
+  if (budget) {
+    const label = budget.state === 'over' ? 'OVER BUDGET' : budget.state === 'warn' ? 'NEAR BUDGET' : 'WITHIN BUDGET';
+    budgetHtml = `
+      <div class="token-budget token-${escAttr(budget.state)}">
+        <span class="tb-label">${escText(label)}</span>
+        <span class="tb-detail">${fmtInt(budget.total)} / ${fmtInt(budget.max_total)} tokens (${budget.pct}% of budget; warn at ${fmtInt(budget.warn_at)})</span>
+      </div>`;
+  }
+
+  const notes = Array.isArray(tokenUsage.notes) && tokenUsage.notes.length
+    ? `<ul class="token-notes">${tokenUsage.notes.map((n) => `<li>${escText(n)}</li>`).join('')}</ul>`
+    : '';
+
+  return `
+  <section id="appendix-cost" class="section appendix">
+    <div class="sec-head"><span class="sec-num">D</span><h2>Appendix D &middot; Engagement Cost &amp; Token Budget</h2></div>
+    <p class="sec-intro">Total language-model token usage for this engagement (${methodNote}). The deterministic check engine evaluates predicate-backed checks with zero model tokens; the figures below reflect the remaining agent-borne reasoning and reporting cost.</p>
+    ${budgetHtml}
+    <div class="token-grid">
+      <div class="token-card token-in"><span class="tk-n">${fmtInt(t.input_tokens)}</span><span class="tk-l">Input tokens</span></div>
+      <div class="token-card token-out"><span class="tk-n">${fmtInt(t.output_tokens)}</span><span class="tk-l">Output tokens</span></div>
+      <div class="token-card token-tot"><span class="tk-n">${fmtInt(t.total_tokens)}</span><span class="tk-l">Total tokens</span></div>
+    </div>
+    ${totalsTable}
+    <h3>By phase</h3>
+    <table class="restable">
+      <thead><tr><th>Phase</th><th class="num">Input</th><th class="num">Output</th><th class="num">Total</th></tr></thead>
+      <tbody>${phaseRows || '<tr><td colspan="4" class="muted">No phase data.</td></tr>'}</tbody>
+    </table>
+    <h3>By agent</h3>
+    <table class="restable">
+      <thead><tr><th>Agent</th><th class="num">Input</th><th class="num">Output</th><th class="num">Total</th></tr></thead>
+      <tbody>${agentRows || '<tr><td colspan="4" class="muted">No agent data.</td></tr>'}</tbody>
+    </table>
+    ${notes}
+    <p class="muted token-method">Accounting method: <strong>${method}</strong> &middot; ratio ${ratio} bytes/token &middot; schema ${escText(tokenUsage.schema || 'token-usage/v1')}.</p>
+  </section>`;
+}
+
+function buildHtml(findings, paths, meta, title, tokenUsage) {
   const total = findings.length;
   const counts = {};
   for (const s of SEVERITY_ORDER) counts[s] = 0;
@@ -1557,6 +1689,10 @@ function buildHtml(findings, paths, meta, title) {
       + (inv.typeCount ? '  ·  ' + fmtInt(inv.typeCount) + ' types' : '')
       + (inv.resourceGroups ? '  ·  ' + fmtInt(inv.resourceGroups) + ' RGs' : '')
     : null;
+  const tokenTotals = tokenUsage && tokenUsage.totals ? tokenUsage.totals : null;
+  const tokenLabel = tokenTotals
+    ? `input ${fmtInt(tokenTotals.input_tokens)}  ·  output ${fmtInt(tokenTotals.output_tokens)}  ·  total ${fmtInt(tokenTotals.total_tokens)}`
+    : null;
   const coverMetaRows = [
     meta.client ? ['Client', meta.client] : null,
     meta.id ? ['Engagement ID', meta.id] : null,
@@ -1564,11 +1700,18 @@ function buildHtml(findings, paths, meta, title) {
     meta.date ? ['Assessment date', meta.date] : null,
     subs.length ? ['Subscriptions', subs.join('  ·  ')] : null,
     invLabel ? ['Resources assessed', invLabel] : null,
+    tokenLabel ? ['Token usage', tokenLabel] : null,
   ].filter(Boolean)
     .map(([k, v]) => `<div class="cm-row"><span class="cm-k">${escText(k)}</span><span class="cm-v">${escText(v)}</span></div>`)
     .join('');
 
-  const printToc = SECTIONS
+  // Section registry; the token-cost appendix only appears when usage is supplied.
+  const sections = SECTIONS.slice();
+  if (tokenUsage && tokenUsage.totals) {
+    sections.push({ id: 'appendix-cost', num: 'D', label: 'Appendix D \u00b7 Engagement Cost & Token Budget' });
+  }
+
+  const printToc = sections
     .map((s) => `<li><span class="pt-num">${escText(s.num)}</span><span class="pt-label">${escText(s.label)}</span></li>`)
     .join('');
 
@@ -1601,7 +1744,7 @@ function buildHtml(findings, paths, meta, title) {
     <button id="btnPrint" class="ab-btn ab-primary">Print / Save PDF</button>
   </div>`;
 
-  const tocLinks = SECTIONS
+  const tocLinks = sections
     .map((s) => `<li><a href="#${escAttr(s.id)}" data-section="${escAttr(s.id)}"><span class="toc-num">${escText(s.num)}</span><span class="toc-label">${escText(s.label)}</span></a></li>`)
     .join('');
   const toc = `<nav class="toc no-print" aria-label="Table of contents"><div class="toc-inner"><h2>Contents</h2><ol>${tocLinks}</ol></div></nav>`;
@@ -1839,7 +1982,15 @@ function buildHtml(findings, paths, meta, title) {
     counts,
     openRisk,
     chainFindings: chainFindingIds.size,
+    tokenUsage: tokenUsage && tokenUsage.totals ? {
+      method: tokenUsage.method,
+      input_tokens: tokenUsage.totals.input_tokens,
+      output_tokens: tokenUsage.totals.output_tokens,
+      total_tokens: tokenUsage.totals.total_tokens,
+    } : undefined,
   });
+
+  const appD = renderTokenUsage(tokenUsage, meta);
 
   const favicon = 'data:image/svg+xml,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="13" font-size="13">\u26ca</text></svg>'
@@ -1875,6 +2026,7 @@ ${sec6}
 ${appA}
 ${appB}
 ${appC}
+${appD}
 </main>
 </div>
 <script type="application/json" id="report-meta">${metaJson}</script>
@@ -2094,8 +2246,29 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size
 .scope-nums{font-size:12px; color:var(--muted)}
 .restable{width:100%; border-collapse:collapse; font-size:13px}
 .restable th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:8px 10px; border-bottom:2px solid var(--line)}
-.restable td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
-.restable tbody tr:hover{background:var(--panel2)}
+.restable td.num{text-align:right; font-variant-numeric:tabular-nums}
+.restable th.num{text-align:right}
+/* Token usage appendix */
+.token-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:14px 0 18px}
+.token-card{display:flex; flex-direction:column; align-items:center; gap:3px; padding:16px 8px; border-radius:var(--radius); border:1px solid var(--line); background:var(--panel2); border-top:3px solid var(--line2)}
+.token-card .tk-n{font-size:26px; font-weight:800; font-variant-numeric:tabular-nums}
+.token-card .tk-l{font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+.token-card.token-in{border-top-color:#2f81f7}
+.token-card.token-out{border-top-color:#8957e5}
+.token-card.token-tot{border-top-color:#1f883d}
+.token-totals{max-width:520px; margin:0 0 6px}
+.token-totals .token-grand td{border-top:2px solid var(--line); font-size:14px}
+.token-budget{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; padding:10px 14px; border-radius:var(--radius); margin:6px 0 14px; border:1px solid var(--line)}
+.token-budget .tb-label{font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.06em}
+.token-budget .tb-detail{font-size:12.5px; color:var(--muted)}
+.token-ok{background:rgba(31,136,61,.10); border-color:rgba(31,136,61,.45)}
+.token-ok .tb-label{color:#1f883d}
+.token-warn{background:rgba(191,135,0,.12); border-color:rgba(191,135,0,.5)}
+.token-warn .tb-label{color:#bf8700}
+.token-over{background:rgba(207,34,46,.12); border-color:rgba(207,34,46,.55)}
+.token-over .tb-label{color:#cf222e}
+.token-notes{margin:12px 0; padding-left:18px; font-size:12.5px; color:var(--muted)}
+.token-method{font-size:12px; margin-top:12px}
 .asset-name{font-weight:600}
 .asset-type{font-size:11.5px; color:var(--muted)}
 .asset-scope{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted)}
@@ -2412,6 +2585,7 @@ function main() {
   let findings;
   let paths;
   let meta;
+  let tokenUsage = null;
   try {
     const rawFindings = asArray(loadJson(args.findings, 'findings'));
     const explicitGraph = args.attackPaths ? loadJson(args.attackPaths, 'attack-paths') : null;
@@ -2419,13 +2593,20 @@ function main() {
     if (args.inventorySummary) {
       meta.inventorySummary = loadInventorySummary(args.inventorySummary);
     }
+    if (args.tokenUsage) {
+      tokenUsage = loadJson(args.tokenUsage, 'token-usage');
+      if (!tokenUsage || !tokenUsage.totals) {
+        warn(`Token-usage file "${args.tokenUsage}" has no totals; cost appendix omitted.`);
+        tokenUsage = null;
+      }
+    }
     findings = normalizeFindings(rawFindings);
     paths = buildAttackPaths(findings, explicitGraph);
   } catch (err) {
     console.error('Error: ' + err.message);
     process.exit(1);
   }
-  const html = buildHtml(findings, paths, meta, args.title);
+  const html = buildHtml(findings, paths, meta, args.title, tokenUsage);
   const outPath = args.out || 'report.html';
   try {
     const outDir = dirname(outPath);

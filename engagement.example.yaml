@@ -81,6 +81,12 @@ scale:
   prioritize_exposed: true  # assess public/internet-facing/privileged/prod resources first within any budget
   concurrency: 8            # max concurrent per-resource `az` calls (keep under ARM/ARG throttling)
   max_arg_pages: 50         # safety cap on 1,000-row ARG pages per paged check before marking it partial
+  # Optional language-model token budget. The token ledger totals input+output
+  # tokens for the engagement and the report's Appendix D flags within/near/over.
+  # Advisory only — it never aborts a run.
+  token_budget:
+    max_total: 250000       # total (input + output) model tokens this engagement should stay under
+    warn_at: 200000         # show a NEAR BUDGET warning at this total (defaults to 80% of max_total)
 
 # What the agents are permitted and forbidden from doing
 permissions:

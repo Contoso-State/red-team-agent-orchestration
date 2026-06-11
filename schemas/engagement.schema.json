@@ -113,6 +113,23 @@
           "type": "integer",
           "minimum": 1,
           "description": "Safety cap on the number of 1,000-row ARG pages a single paged check will fetch before recording the result as partial. Guards against a runaway check on a pathologically large type. Omit for the tool default."
+        },
+        "token_budget": {
+          "type": "object",
+          "description": "Optional language-model token budget for the engagement. The token ledger (tools/tokens/ledger.mjs) totals input+output tokens and the report (Appendix D) flags the engagement as within / near / over budget. Advisory only; it never aborts a run.",
+          "additionalProperties": false,
+          "properties": {
+            "max_total": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum total (input + output) model tokens the engagement should consume. The report marks usage above this as OVER BUDGET."
+            },
+            "warn_at": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total-token threshold at which the report shows a NEAR BUDGET warning. Defaults to 80% of max_total when omitted."
+            }
+          }
         }
       }
     },
