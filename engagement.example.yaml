@@ -37,6 +37,7 @@ mode: read-only-assessment
 # Target scope — agents ONLY operate within these boundaries
 scope:
   tenant_id: "00000000-0000-0000-0000-000000000000"
+  # Exactly one subscription per engagement run.
   subscriptions:
     - id: "00000000-0000-0000-0000-000000000001"
       name: "Production"

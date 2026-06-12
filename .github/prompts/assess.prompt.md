@@ -9,6 +9,7 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 ## Preconditions
 
 - `engagement.yaml` exists and is valid.
+- `scope.subscriptions` contains exactly one target subscription.
 - `engagements/<session>/inventory/resources.jsonl` exists (run `/recon` first if not).
 - `engagements/<session>/engagement.db` exists with the inventory ingested (run `/recon` first if not).
 

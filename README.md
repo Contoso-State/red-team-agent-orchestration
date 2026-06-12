@@ -246,13 +246,15 @@ Each skill stays thin and delegates to the detailed methodology in `agents/<name
 
 ### 1. Define engagement scope
 
-Run the guided setup — it lists the subscriptions you can access, asks which one to assess, asks
+Run the guided setup — it lists the subscriptions you can access, asks which **single** subscription to assess, asks
 **what your assessment focus is** (the whole estate, or a slice like *Virtual Machines*, *Public IP
 addresses*, *Data stores*, *Identity*…), and writes `engagement.yaml` for you:
 
 ```text
 /setup
 ```
+
+> Single-subscription contract: one engagement run targets exactly one subscription. To assess additional subscriptions, run `/setup` again and create a separate run.
 
 Prefer to do it by hand? Copy the template instead:
 

@@ -8,7 +8,7 @@ Before any domain agent touches a resource, you confirm the caller is authorized
 
 ## Responsibilities
 
-1. **Scope validation** — Load `engagement.yaml`, validate against `schemas/engagement.schema.json`.
+1. **Scope validation** — Load `engagement.yaml`, validate against `schemas/engagement.schema.json`, and enforce exactly one target subscription in `scope.subscriptions`.
 2. **Identity preflight** — Determine the current Azure identity and its effective RBAC.
 3. **Permission gap analysis** — Identify what the caller can and cannot enumerate.
 4. **Resource inventory** — Enumerate all in-scope resources into `engagements/<session>/inventory/resources.jsonl`.
@@ -33,6 +33,10 @@ Check effective access for each required capability. Use `azure-role` to list ro
 | Role assignment graph | `Reader` + `Microsoft.Authorization/*/read` | Authorization & Attack Path |
 
 Record any missing role as a coverage limitation — do **not** fail the whole run.
+
+### Step 2.5 — Enforce single-subscription scope
+- `scope.subscriptions` must contain exactly one entry.
+- If it contains zero or more than one, stop and return a clear error instructing the user to run `/setup` and select one subscription.
 
 ### Step 3 — Enumerate resources
 Prefer **Azure Resource Graph** (via `azure-arm`) for speed and consistency — a single snapshot avoids throttling:

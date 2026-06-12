@@ -33,7 +33,8 @@ Execute these phases in order. Track progress in the session todo list.
 
 ### Phase 1 — Scope Validation
 - Read `engagement.yaml`. If missing, instruct the user to copy `engagement.example.yaml`.
-- Confirm `mode`, target subscriptions, exclusions, and permitted actions.
+- Confirm `mode`, target subscription, exclusions, and permitted actions.
+- **Hard stop:** `scope.subscriptions` must contain exactly one entry. If it does not, stop and require the user to run `/setup` and select one subscription.
 - **Confirm the assessment focus.** A subscription can hold thousands of resources, so do not assess
   everything blindly unless asked. If `scope.resource_types` / `scope.domains` are empty, ask the user
   **"What is your assessment focus for this subscription?"** and offer the focus menu (Full estate ·
@@ -110,12 +111,12 @@ Azure Container & Kubernetes Agent runs **read-only** in Phase 3 and this phase 
 
 ## Orchestration at Scale
 
-A subscription can hold thousands of resources, and 14 agents × N subscriptions × M checks produces far more work than fits in one pass of context. For any non-trivial estate, drive the run from a **durable task manifest** instead of ad-hoc dispatch.
+A subscription can hold thousands of resources, and 14 agents × many checks produces far more work than fits in one pass of context. For any non-trivial estate, drive the run from a **durable task manifest** instead of ad-hoc dispatch.
 
 **The unit of work is a task:** `(agent, subscription_id, check_id, scope_hash)`. The manifest lives at `engagements/<session>/runs/tasks.jsonl` (append-only JSONL, schema `schemas/task.schema.json`) and is managed by `tools/orchestration/manifest.mjs`.
 
 Workflow:
-1. **Build the plan.** From the inventory + scope brief, derive the set of tasks (which agents, which subscriptions, which checks) and `node tools/orchestration/manifest.mjs add-plan --run <run> --plan plan.json`. Adding is idempotent (keyed by `task_id`).
+1. **Build the plan.** From the inventory + scope brief, derive the set of tasks (which agents, which checks for the single scoped subscription) and `node tools/orchestration/manifest.mjs add-plan --run <run> --plan plan.json`. Adding is idempotent (keyed by `task_id`).
 2. **Dispatch from `next`.** `manifest.mjs next` returns only tasks that still need work (`pending`/`failed`/`throttled`). Mark a task `running` when you dispatch it, `done` with `--ref` to its per-task output file when it completes.
 3. **Resume, don't restart.** If a run is interrupted, re-reading `next` skips everything already `done` and retries `failed`/`throttled`. Never re-run completed work.
 4. **Respect the budget.** Enforce `scale.max_resource_calls` / `scale.time_budget_min`. When the budget is exhausted, mark remaining tasks `skipped` with a reason — that becomes a coverage gap, not a silent omission.

@@ -11,7 +11,7 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
 ## Steps
 
 1. **Check for an existing scope.** If `engagement.yaml` already exists, show its current engagement
-   name, mode, and target subscription(s), and ask the user whether to **keep**, **edit**, or
+   name, mode, and target subscription, and ask the user whether to **keep**, **edit**, or
    **replace** it. Only continue if they want to create or replace.
 
 2. **Confirm Azure sign-in.** Run `az account show`. If it fails or returns nothing, tell the user
@@ -27,10 +27,11 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
 
    Present the table. If the list is empty, tell the user their account has no subscriptions and stop.
 
-4. **Ask which subscription to assess.** Ask the user to choose **one subscription** (by name or ID)
-   as the assessment target. If they are unsure, point out the one marked `Default: True`. Do not
-   guess — wait for an explicit choice. (If they genuinely want multiple, capture each, but default
-   the flow to a single subscription.)
+4. **Ask which subscription to assess.** Ask the user to choose **exactly one subscription** (by
+   name or ID) as the assessment target. If they are unsure, point out the one marked
+   `Default: True`. Do not guess — wait for an explicit choice. If they ask for multiple
+   subscriptions, stop and tell them this workflow is one subscription per run (use separate
+   runs/engagement files for additional subscriptions).
 
 5. **Capture the details for the chosen subscription.** From the `az account list` output, take its
    `SubscriptionId`, `Name`, and `TenantId`. Confirm the selection back to the user in one line:

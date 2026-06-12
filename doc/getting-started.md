@@ -39,12 +39,14 @@ node tools/preflight/check-environment.mjs
 
 ## 1. Define engagement scope
 
-Run the guided setup — it lists the subscriptions you can access, asks which one to assess,
+Run the guided setup — it lists the subscriptions you can access, asks which **single** subscription to assess,
 and writes `engagement.yaml` for you:
 
 ```text
 /setup
 ```
+
+> Single-subscription contract: one engagement run targets exactly one subscription. To assess additional subscriptions, run a separate engagement.
 
 Prefer to do it by hand? Copy the template instead:
 
