@@ -40,6 +40,16 @@
 
 ---
 
+## ⚠️ AI Disclosure & Disclaimer
+
+**This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct penetration testing and security assessments.** AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings. **Use at your own risk and validate all findings independently.** This tool is intended as a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for:**
+- Verifying all findings before acting on them
+- Independently validating any vulnerability claims
+- Assessing the accuracy and completeness of the assessment
+- Ensuring all assessments are authorized and compliant with your policies and laws
+
+For production environments, always combine agentic assessments with manual review by experienced security professionals.
+
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
 - **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fifteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.

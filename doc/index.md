@@ -27,6 +27,10 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 [Safety & Authorization](safety.md#active-external-testing-eva).
 :::
 
+:::{warning}
+**AI Disclosure & Disclaimer:** This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct security assessments. **AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings.** Use at your own risk and validate all findings independently. This tool is a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for verifying findings, ensuring authorization, and assessing accuracy.** Always combine agentic assessments with manual review by experienced security professionals before acting on findings in production environments.
+:::
+
 ## What you get
 
 - **A dispatchable agent team** — one user-facing Orchestrator that coordinates fifteen
