@@ -15,6 +15,7 @@ project:
     - file: index.md
     - file: getting-started.md
     - file: permissions.md
+      title: Permissions Best Practices
     - file: agent-team.md
     - file: skills.md
     - file: methodology.md

@@ -1,9 +1,9 @@
 ---
-title: Permissions & Least Privilege
+title: Permissions Best Practices
 description: Recommended read-only role assignments for Azure subscription scope and Entra ID.
 ---
 
-# Permissions & Least Privilege
+# Permissions Best Practices
 
 This assessment is designed to run read-only. The safest setup is a dedicated assessment identity
 with only read roles on **one target subscription** and read-only tenant roles in Entra ID.
