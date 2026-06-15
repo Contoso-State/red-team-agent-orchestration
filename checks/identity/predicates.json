@@ -1,0 +1,192 @@
+{
+  "domain": "identity",
+  "predicates": [
+    {
+      "check_id": "CHK-IDEN-APP-OVERPRIV-GRAPH",
+      "finding_class": "app-overprivileged-graph",
+      "title": "App registration with high-privilege Graph permissions",
+      "category": "Identity",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "A service principal holds a tenant-wide, high-impact Microsoft Graph application permission (e.g. Directory.ReadWrite.All, RoleManagement.ReadWrite.Directory).",
+      "attack_vector": "Compromised app credential -> directory modification / privilege escalation",
+      "recommendation": "Remove unnecessary Graph application permissions; prefer least-privilege delegated permissions; gate admin consent.",
+      "controls": { "mitre": ["T1098.001", "T1078.004"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-APP-OVERPRIV-GRAPH",
+        "row_path": "value"
+      },
+      "evaluate": {
+        "field": "appRoleValue",
+        "op": "ini",
+        "value": [
+          "RoleManagement.ReadWrite.Directory",
+          "Directory.ReadWrite.All",
+          "Application.ReadWrite.All",
+          "AppRoleAssignment.ReadWrite.All",
+          "PrivilegedAccess.ReadWrite.AzureAD",
+          "PrivilegedRoleManagement.ReadWrite.Directory"
+        ]
+      },
+      "evidence_fields": ["appRoleValue", "appDisplayName"]
+    },
+    {
+      "check_id": "CHK-IDEN-STALE-APP-SECRET",
+      "finding_class": "app-credential-hygiene",
+      "title": "App registration credential expired or excessively long-lived",
+      "category": "Identity",
+      "severity_default": "Medium",
+      "confidence": "Medium",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "An application has client secrets/certificates that are long-lived (validity > 1 year), already expired but still present, or numerous active credentials - all weak credential hygiene. Lifetime/counts are pre-computed by the read-only runner from credential metadata only (never the secret value).",
+      "attack_vector": "Leaked long-lived secret grants persistent app access",
+      "recommendation": "Rotate to short-lived credentials or workload identity federation; remove unused/expired credentials.",
+      "controls": { "cis_azure": ["1.4"], "mitre": ["T1552.001"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-STALE-APP-SECRET"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "maxCredentialValidityDays", "op": "gt", "value": 365 },
+          { "field": "expiredCredentialCount", "op": "gt", "value": 0 },
+          { "field": "activeCredentialCount", "op": "gt", "value": 1 }
+        ]
+      },
+      "evidence_fields": ["maxCredentialValidityDays", "expiredCredentialCount", "activeCredentialCount"]
+    },
+    {
+      "check_id": "CHK-IDEN-GUEST-PRIVILEGED",
+      "finding_class": "guest-privileged-role",
+      "title": "Guest user holds a privileged directory role",
+      "category": "Identity",
+      "severity_default": "High",
+      "confidence": "High",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "An external guest account (userType == Guest) is a member of a privileged Entra directory role.",
+      "attack_vector": "External account compromise -> privileged tenant access",
+      "recommendation": "Remove privileged roles from guests; if required, use PIM-eligible activation with strict review.",
+      "controls": { "mitre": ["T1078.004"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-GUEST-PRIVILEGED"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "userType", "op": "eqi", "value": "Guest" },
+          { "field": "isPrivilegedRole", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["userType", "roleName"]
+    },
+    {
+      "check_id": "CHK-IDEN-EXCESS-GLOBAL-ADMINS",
+      "finding_class": "excess-global-admins",
+      "title": "Excessive number of Global Administrators",
+      "category": "Identity",
+      "severity_default": "Medium",
+      "confidence": "High",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "The Global Administrator role has more members than necessary, enlarging the privileged attack surface. Count is summarized by the read-only runner.",
+      "attack_vector": "Larger privileged surface = more credential-theft opportunities",
+      "recommendation": "Reduce to the minimum (2-4); use PIM-eligible assignments and least-privilege roles. Confirm break-glass accounts are excluded.",
+      "controls": { "cis_azure": ["1.1.3"], "mitre": ["T1078.004"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-EXCESS-GLOBAL-ADMINS"
+      },
+      "evaluate": { "field": "globalAdminCount", "op": "gt", "value": 4 },
+      "evidence_fields": ["globalAdminCount", "roleName"]
+    },
+    {
+      "check_id": "CHK-IDEN-ILLICIT-OAUTH-CONSENT",
+      "finding_class": "illicit-oauth-consent",
+      "title": "Over-permissive or illicit OAuth application consent grant",
+      "category": "Identity",
+      "severity_default": "High",
+      "confidence": "Medium",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "A delegated OAuth permission grant covers high-impact scopes (Mail.Read/ReadWrite, Files.ReadWrite.All, Mail.Send, offline_access) AND is consented tenant-wide (consentType == AllPrincipals) - the deterministic hallmark of an over-permissive or illicit consent grant. The agent confirms whether it is illicit (unverified publisher / recent creation / consent-phishing pattern).",
+      "attack_vector": "Consent phishing -> attacker app receives a refresh token to read mail/files without a password and without re-triggering MFA",
+      "recommendation": "Require admin consent for apps; restrict user consent to verified publishers and low-risk scopes; review and revoke unrecognized grants.",
+      "controls": { "mitre": ["T1528", "T1550.001", "T1566.002"], "nist_csf": ["PR.AA-05", "GV.SC-04", "DE.CM-09"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-ILLICIT-OAUTH-CONSENT",
+        "row_path": "value"
+      },
+      "evaluate": {
+        "all": [
+          {
+            "any": [
+              { "field": "scope", "op": "contains", "value": "Mail.Read" },
+              { "field": "scope", "op": "contains", "value": "Mail.ReadWrite" },
+              { "field": "scope", "op": "contains", "value": "Mail.Send" },
+              { "field": "scope", "op": "contains", "value": "Files.ReadWrite.All" },
+              { "field": "scope", "op": "contains", "value": "offline_access" }
+            ]
+          },
+          { "field": "consentType", "op": "eqi", "value": "AllPrincipals" }
+        ]
+      },
+      "evidence_fields": ["scope", "consentType", "clientDisplayName"]
+    },
+    {
+      "check_id": "CHK-IDEN-SP-EXTRA-CREDENTIAL",
+      "finding_class": "sp-extra-credential",
+      "title": "Enterprise service principal carries its own client credentials",
+      "category": "Identity",
+      "severity_default": "High",
+      "confidence": "Medium",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "A service principal object has one or more client secrets or certificates attached (metadata only). This is a common service-principal-abuse persistence primitive; the agent prioritizes recently-added credentials and SPs that also hold privileged app/directory roles.",
+      "attack_vector": "Attacker adds a secret to an existing privileged SP -> persistent app-only access that survives user password resets",
+      "recommendation": "Prefer workload identity federation over SP secrets; remove unused SP credentials; alert on credential additions via audit logs.",
+      "controls": { "mitre": ["T1098.001", "T1078.004"], "nist_csf": ["PR.AA-01", "DE.CM-09"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-SP-EXTRA-CREDENTIAL"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "passwordCredentialCount", "op": "gt", "value": 0 },
+          { "field": "keyCredentialCount", "op": "gt", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["passwordCredentialCount", "keyCredentialCount", "displayName"]
+    },
+    {
+      "check_id": "CHK-IDEN-NO-PHISH-RESISTANT-MFA",
+      "finding_class": "phishable-mfa-enabled",
+      "title": "Phishable authentication methods enabled tenant-wide",
+      "category": "Identity",
+      "severity_default": "Medium",
+      "confidence": "Medium",
+      "agent": "identity-posture",
+      "id_prefix": "AZ-IDEN",
+      "description": "The tenant authentication methods policy leaves phishable factors (SMS and/or voice) enabled, so phishing-resistant strong authentication is not the only path for privileged sign-in. The agent confirms whether a Conditional Access authentication-strength policy compensates for privileged-role users.",
+      "attack_vector": "Phishable MFA (SMS/voice) is bypassed by real-time phishing or MFA fatigue -> admin account takeover",
+      "recommendation": "Enable FIDO2/WHfB/passkeys; disable SMS and voice; enforce a phishing-resistant authentication-strength CA policy for all privileged roles.",
+      "controls": { "mitre": ["T1078.004", "T1556", "T1621"], "nist_csf": ["PR.AA-03", "PR.AA-02"] },
+      "query": {
+        "method": "msgraph",
+        "ref": "tools/az-cli/identity.md#CHK-IDEN-NO-PHISH-RESISTANT-MFA"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "smsEnabled", "op": "eq", "value": true },
+          { "field": "voiceEnabled", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["smsEnabled", "voiceEnabled"]
+    }
+  ]
+}

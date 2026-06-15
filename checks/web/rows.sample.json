@@ -1,0 +1,27 @@
+{
+  "CHK-WEB-FRONTDOOR-NO-WAF": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Cdn/profiles/fd1/afdEndpoints/ep1", "name": "ep1", "type": "microsoft.cdn/profiles/afdendpoints", "subscriptionId": "sub-a", "location": "global", "endpointName": "ep1" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Cdn/profiles/fd1/afdEndpoints/ep2", "name": "ep2", "type": "microsoft.cdn/profiles/afdendpoints", "subscriptionId": "sub-a", "location": "global", "endpointName": "ep2", "wafPolicyId": "/subscriptions/sub-a/.../wafpol1", "wafMode": "Detection" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Cdn/profiles/fd1/afdEndpoints/ep-safe", "name": "ep-safe", "type": "microsoft.cdn/profiles/afdendpoints", "subscriptionId": "sub-a", "location": "global", "endpointName": "ep-safe", "wafPolicyId": "/subscriptions/sub-a/.../wafpol1", "wafMode": "Prevention" }
+  ],
+  "CHK-WEB-APPGW-NO-WAF": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw1", "name": "agw1", "type": "microsoft.network/applicationgateways", "subscriptionId": "sub-a", "location": "eastus", "skuTier": "Standard_v2" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw2", "name": "agw2", "type": "microsoft.network/applicationgateways", "subscriptionId": "sub-a", "location": "eastus", "skuTier": "WAF_v2", "firewallMode": "Detection", "wafEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw-safe", "name": "agw-safe", "type": "microsoft.network/applicationgateways", "subscriptionId": "sub-a", "location": "eastus", "skuTier": "WAF_v2", "firewallMode": "Prevention", "wafEnabled": true }
+  ],
+  "CHK-WEB-STATIC-WEBSITE-EXPOSED": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/web1", "name": "web1", "subscriptionId": "sub-a", "staticWebsiteEnabled": true, "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/web2", "name": "web2", "subscriptionId": "sub-a", "staticWebsiteEnabled": false, "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Storage/storageAccounts/web3", "name": "web3", "subscriptionId": "sub-a", "staticWebsiteEnabled": true, "publicNetworkAccess": "Disabled" }
+  ],
+  "CHK-WEB-APIM-OPEN-GATEWAY": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.ApiManagement/service/apim1", "name": "apim1", "type": "microsoft.apimanagement/service", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "virtualNetworkType": "External" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.ApiManagement/service/apim2", "name": "apim2", "type": "microsoft.apimanagement/service", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "virtualNetworkType": "None" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.ApiManagement/service/apim-safe", "name": "apim-safe", "type": "microsoft.apimanagement/service", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "virtualNetworkType": "Internal" }
+  ],
+  "CHK-WEB-TLS-WEAK": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Cdn/profiles/fd1/customDomains/cd1", "name": "cd1", "subscriptionId": "sub-a", "minimumTlsVersion": "TLS1_0" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Network/applicationGateways/agw3/listeners/http", "name": "http", "subscriptionId": "sub-a", "httpListener": true, "httpsRedirect": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg-web/providers/Microsoft.Cdn/profiles/fd1/customDomains/cd-safe", "name": "cd-safe", "subscriptionId": "sub-a", "minimumTlsVersion": "TLS1_2", "httpListener": false }
+  ]
+}

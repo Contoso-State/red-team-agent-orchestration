@@ -14,7 +14,7 @@
     "title": { "type": "string" },
     "domain": {
       "type": "string",
-      "enum": ["identity", "rbac", "network", "compute", "storage", "database", "logging", "ai", "web", "easm", "external-vuln", "email", "governance", "supplychain"]
+      "enum": ["identity", "rbac", "network", "compute", "container", "storage", "database", "logging", "ai", "web", "easm", "external-vuln", "email", "governance", "supplychain"]
     },
     "agent": {
       "type": "string",
@@ -23,6 +23,7 @@
         "authorization-attack-path",
         "network-exposure",
         "compute-platform",
+        "aks-container",
         "data-protection",
         "logging-coverage",
         "ai-foundry",
@@ -36,13 +37,13 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["read-only", "validation", "active"],
-      "description": "Minimum operating mode required to run this check. 'active' checks send real traffic and only run under engagement mode external-active-testing with an enabled, authorized external_testing block."
+      "enum": ["read-only", "validation", "active", "cluster-active"],
+      "description": "Minimum operating mode required to run this check. 'active' checks send real traffic to live endpoints and only run under engagement mode external-active-testing with an enabled, authorized external_testing block. 'cluster-active' checks reach into a live Kubernetes cluster or container (kube-bench, kubesec, trivy/grype, kubectl exec/debug) and only run under engagement mode cluster-active-testing with an enabled, authorized cluster_testing block."
     },
     "tier": {
       "type": "string",
-      "enum": ["safe-active", "active-dast", "exploit-validation", "static-analysis"],
-      "description": "For external-vuln checks: the minimum EVA intensity tier required to run this check."
+      "enum": ["safe-active", "active-dast", "exploit-validation", "static-analysis", "cluster-benchmark", "image-scan", "runtime-probe"],
+      "description": "Minimum intensity tier required to run this check. external-vuln (EVA) tiers: safe-active, active-dast, exploit-validation, static-analysis. container (aks-container) cluster-active tiers: cluster-benchmark (kube-bench/kubesec/auth-can-i, API reads only), image-scan (offline trivy/grype over pulled images), runtime-probe (benign read-only inventory inside a running pod via ephemeral debug container)."
     },
     "severity_default": {
       "type": "string",
@@ -55,8 +56,8 @@
       "properties": {
         "method": {
           "type": "string",
-          "enum": ["mcp-tool", "resource-graph", "kql", "azure-cli", "msgraph", "http-probe", "dast", "static-analysis"],
-          "description": "How the check gathers data. http-probe/dast/static-analysis are EVA (external-vuln) methods that operate against the Azure-derived target allowlist."
+          "enum": ["mcp-tool", "resource-graph", "kql", "azure-cli", "msgraph", "http-probe", "dast", "static-analysis", "kube-api", "container-scan"],
+          "description": "How the check gathers data. http-probe/dast/static-analysis are EVA (external-vuln) methods that operate against the Azure-derived target allowlist. kube-api is a read-only Kubernetes API read (kubectl get/describe/auth can-i). container-scan is a gated cluster-active scan (kube-bench/kubesec/trivy/grype or benign in-pod inventory) against the Azure-derived cluster allowlist."
         },
         "tool": { "type": "string", "description": "Specific tool or query reference" },
         "logic": { "type": "string", "description": "The condition that constitutes a failing finding" }

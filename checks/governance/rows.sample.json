@@ -1,0 +1,44 @@
+{
+  "CHK-GOV-POLICY-COVERAGE": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "securityInitiativeAssigned": false, "enforcedAssignmentCount": 0, "allAssignmentsDoNotEnforce": false },
+    { "id": "/subscriptions/sub-bbb", "name": "sub-bbb", "subscriptionId": "sub-bbb", "securityInitiativeAssigned": false, "enforcedAssignmentCount": 3, "allAssignmentsDoNotEnforce": true },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "securityInitiativeAssigned": true, "enforcedAssignmentCount": 7, "allAssignmentsDoNotEnforce": false }
+  ],
+  "CHK-GOV-POLICY-EXEMPTIONS": [
+    { "id": "/subscriptions/sub-aaa/providers/Microsoft.Authorization/policyExemptions/ex-broad", "name": "ex-broad", "subscriptionId": "sub-aaa", "exemptionCategory": "Waiver", "scopeLevel": "subscription", "targetsSecurityInitiative": true },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg1/providers/Microsoft.Authorization/policyExemptions/ex-noexpiry", "name": "ex-noexpiry", "subscriptionId": "sub-aaa", "resourceGroup": "rg1", "exemptionCategory": "Mitigated", "scopeLevel": "resource", "targetsSecurityInitiative": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg1/providers/Microsoft.Authorization/policyExemptions/ex-ok", "name": "ex-ok", "subscriptionId": "sub-aaa", "resourceGroup": "rg1", "exemptionCategory": "Mitigated", "scopeLevel": "resource", "targetsSecurityInitiative": false, "expiresOn": "2026-12-31T00:00:00Z" }
+  ],
+  "CHK-GOV-SECURE-SCORE-LOW": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "scorePercentage": 38, "unhealthyHighSeverityAssessmentCount": 14 },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "scorePercentage": 82, "unhealthyHighSeverityAssessmentCount": 0 }
+  ],
+  "CHK-GOV-MG-HIERARCHY-GUARDRAILS": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "parentIsTenantRoot": true, "intermediateGuardrailGroupCount": 0 },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "parentIsTenantRoot": false, "intermediateGuardrailGroupCount": 2 }
+  ],
+  "CHK-GOV-NO-RESOURCE-LOCKS": [
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-prod", "name": "rg-prod", "subscriptionId": "sub-aaa", "resourceGroup": "rg-prod", "hasDeleteOrReadOnlyLock": false },
+    { "id": "/subscriptions/sub-aaa/resourceGroups/rg-kv/providers/Microsoft.KeyVault/vaults/kv1", "name": "kv1", "subscriptionId": "sub-aaa", "resourceGroup": "rg-kv", "hasDeleteOrReadOnlyLock": true }
+  ],
+  "CHK-GOV-MG-RBAC-INHERITANCE": [
+    { "id": "/providers/Microsoft.Management/managementGroups/mg-root/providers/Microsoft.Authorization/roleAssignments/ra1", "name": "ra1", "subscriptionId": "", "roleName": "Owner", "scopeLevel": "tenantRoot", "principalType": "Group" },
+    { "id": "/providers/Microsoft.Management/managementGroups/mg-plat/providers/Microsoft.Authorization/roleAssignments/ra2", "name": "ra2", "subscriptionId": "", "roleName": "Reader", "scopeLevel": "managementGroup", "principalType": "User" }
+  ],
+  "CHK-GOV-NO-SECURITY-CONTACT": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "securityContactEmailConfigured": false, "alertNotificationsEnabled": false },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "securityContactEmailConfigured": true, "alertNotificationsEnabled": true }
+  ],
+  "CHK-GOV-NO-CIS-COMPLIANCE-STANDARD": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "cisStandardPresent": false, "benchmarkStandardCount": 0 },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "cisStandardPresent": true, "benchmarkStandardCount": 2 }
+  ],
+  "CHK-GOV-NO-DEFENDER-CSPM-PLAN": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "pricingTier": "Free", "agentlessScanningEnabled": false, "attackPathAnalysisEnabled": false },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "pricingTier": "Standard", "agentlessScanningEnabled": true, "attackPathAnalysisEnabled": true }
+  ],
+  "CHK-GOV-NO-VULN-POSTURE-MGMT": [
+    { "id": "/subscriptions/sub-aaa", "name": "sub-aaa", "subscriptionId": "sub-aaa", "vaSolutionDeployed": false, "agentlessVulnScanningEnabled": false, "unhealthyHighSeverityVaCount": 23 },
+    { "id": "/subscriptions/sub-ccc", "name": "sub-ccc", "subscriptionId": "sub-ccc", "vaSolutionDeployed": true, "agentlessVulnScanningEnabled": true, "unhealthyHighSeverityVaCount": 0 }
+  ]
+}

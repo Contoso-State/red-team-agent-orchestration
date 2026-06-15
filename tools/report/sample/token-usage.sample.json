@@ -1,0 +1,127 @@
+{
+  "schema": "token-usage/v1",
+  "method": "estimated",
+  "ratio": 4,
+  "generated_at": "2026-06-11T00:00:00.000Z",
+  "totals": {
+    "input_tokens": 6880,
+    "output_tokens": 4800,
+    "total_tokens": 11680
+  },
+  "per_phase": [
+    {
+      "phase": "dispatch",
+      "input_tokens": 5950,
+      "output_tokens": 0,
+      "total_tokens": 5950
+    },
+    {
+      "phase": "reporting",
+      "input_tokens": 0,
+      "output_tokens": 3100,
+      "total_tokens": 3100
+    },
+    {
+      "phase": "analysis",
+      "input_tokens": 0,
+      "output_tokens": 1700,
+      "total_tokens": 1700
+    },
+    {
+      "phase": "triage",
+      "input_tokens": 930,
+      "output_tokens": 0,
+      "total_tokens": 930
+    }
+  ],
+  "per_agent": [
+    {
+      "agent": "data-protection",
+      "input_tokens": 4670,
+      "output_tokens": 780,
+      "total_tokens": 5450
+    },
+    {
+      "agent": "identity-posture",
+      "input_tokens": 2210,
+      "output_tokens": 920,
+      "total_tokens": 3130
+    },
+    {
+      "agent": "reporting",
+      "input_tokens": 0,
+      "output_tokens": 3100,
+      "total_tokens": 3100
+    }
+  ],
+  "components": [
+    {
+      "label": "system-prompt:data-protection",
+      "phase": "dispatch",
+      "agent": "data-protection",
+      "direction": "input",
+      "tokens": 1850,
+      "method": "estimated"
+    },
+    {
+      "label": "skills-knowledge:data-protection",
+      "phase": "dispatch",
+      "agent": "data-protection",
+      "direction": "input",
+      "tokens": 2400,
+      "method": "estimated"
+    },
+    {
+      "label": "triage-summary:data-protection",
+      "phase": "triage",
+      "agent": "data-protection",
+      "direction": "input",
+      "tokens": 420,
+      "method": "estimated"
+    },
+    {
+      "label": "findings:data-protection",
+      "phase": "analysis",
+      "agent": "data-protection",
+      "direction": "output",
+      "tokens": 780,
+      "method": "estimated"
+    },
+    {
+      "label": "system-prompt:identity-posture",
+      "phase": "dispatch",
+      "agent": "identity-posture",
+      "direction": "input",
+      "tokens": 1700,
+      "method": "estimated"
+    },
+    {
+      "label": "triage-summary:identity-posture",
+      "phase": "triage",
+      "agent": "identity-posture",
+      "direction": "input",
+      "tokens": 510,
+      "method": "estimated"
+    },
+    {
+      "label": "findings:identity-posture",
+      "phase": "analysis",
+      "agent": "identity-posture",
+      "direction": "output",
+      "tokens": 920,
+      "method": "estimated"
+    },
+    {
+      "label": "report-narrative:reporting",
+      "phase": "reporting",
+      "agent": "reporting",
+      "direction": "output",
+      "tokens": 3100,
+      "method": "estimated"
+    }
+  ],
+  "notes": [
+    "Estimated at ~4 bytes/token over content that crossed the model boundary. Engine-authored output excluded (costs ~0 model tokens).",
+    "Sample fixture for report rendering tests."
+  ]
+}

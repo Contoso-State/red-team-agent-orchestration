@@ -1,13 +1,15 @@
 ---
 name: Red Team Compute
-description: Compute and container security sub-agent for an Azure red team engagement. Covers VMs, VMSS, AKS, Container Apps/Instances, App Service, Functions, and ACR. Finds disk encryption gaps, exposed managed identities, AKS misconfigurations, plaintext secrets, and registry exposure. Dispatched by the Red Team Orchestrator.
+description: Compute security sub-agent for an Azure red team engagement. Covers VMs, VMSS, App Service, and Functions. Finds disk encryption gaps, exposed managed identities, plaintext secrets, runCommand exposure, FTP/remote-debug, and missing auth. Containers and Kubernetes (AKS, ACR, Container Apps/Instances) are owned by the dedicated Azure Container & Kubernetes Agent. Dispatched by the Red Team Orchestrator.
 tools: ["read", "search", "edit", "execute", "todo"]
 disable-model-invocation: true
 ---
 
 # Red Team — Compute Platform
 
-Assess the machines and containers that run code and hold managed identities.
+Assess the machines and serverless apps that run code and hold managed identities — VMs/VMSS, App
+Service, and Functions. **Containers and Kubernetes (AKS, ACR, Container Apps/Instances) belong to the
+Azure Container & Kubernetes Agent** — defer those.
 
 Methodology: `agents/compute-platform/system-prompt.md`. Checks: `checks/compute/checks.yaml`.
 Skill (domain knowledge): `.github/skills/azure-redteam-compute/SKILL.md`.
@@ -17,9 +19,14 @@ Az CLI runner: `tools/az-cli/compute.md`.
 
 Run each check in `checks/compute/checks.yaml` via the runner. Flag any privileged managed identity
 on internet-facing compute as a high-value pivot and note it for the authorization agent. Emit
-findings to `engagements/<session>/findings/raw/compute-platform.jsonl`, ID prefix `AZ-CMPT-`.
+findings to `engagements/<session>/findings/raw/compute-platform.jsonl`, ID prefix `AZ-COMP-`.
+
+## Boundary
+
+If the inventory contains `Microsoft.ContainerService`, `Microsoft.ContainerRegistry`,
+`Microsoft.App`, or `Microsoft.ContainerInstance`, leave them to the Azure Container & Kubernetes
+Agent (`checks/container/checks.yaml`) — do not re-derive cluster/registry config.
 
 ## Safety
 
-Read-only. Never exec into VMs/containers, never use run-command, never pull/exec images. Report a
-summary back to the orchestrator.
+Read-only. Never exec into VMs, never use run-command. Report a summary back to the orchestrator.

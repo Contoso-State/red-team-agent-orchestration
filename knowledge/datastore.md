@@ -101,6 +101,9 @@ To avoid SQLite write contention under the orchestrator's parallel fan-out:
 - **Finding merge is deterministic** and mirrors `tools/orchestration/manifest.mjs reduce`: match by
   `dedupe_key` (fallback `id`), **union `affected_resources[]` only**, all other fields first-write
   wins, `last_seen = max`. Re-ingesting the same file is idempotent.
+- **Reporting snapshot mode:** when a report must reflect only current raw findings, run ingest with
+  `--replace-findings --findings engagements/<session>/findings/raw` before export so stale prior
+  findings are cleared for that report pass.
 - **`db.mjs query` is read-only-guarded** — it refuses anything but `SELECT`/`EXPLAIN`/`PRAGMA`
   reads, so the read API can't accidentally mutate state.
 
@@ -132,7 +135,7 @@ All under `tools/datastore/`, dependency-free Node ESM:
 | Tool | Role | Notes |
 |---|---|---|
 | `db.mjs` | core helpers + CLI (`init` / `info` / `migrate` / `query`) | `openDb`, `applySchema`, `tx`, `initDb`, `migrate`; read-only-guarded `query` |
-| `ingest.mjs` | files → DB (the single writer) | `--db <db> --session <dir>` auto-discovers resources/subscriptions/relationships/coverage/tasks/findings; one transaction |
+| `ingest.mjs` | files → DB (the single writer) | `--db <db> --session <dir>` auto-discovers resources/subscriptions/relationships/coverage/tasks/findings; one transaction; supports `--replace-findings` for report-safe snapshots |
 | `query.mjs` | read-only cache API | `resources` / `facts` / `fresh` / `findings` / `coverage` / `neighbors` / `next-tasks` / `stats`; `fresh` exits 0 fresh, 3 miss/stale |
 | `export.mjs` | DB → canonical artifacts | `--what all\|findings\|coverage\|resources`; writes `findings/normalized/findings.json` **and** `reports/findings.json` |
 | `promote.mjs` | run → history + lifecycle | `--db <db> --history <hist.db> [--out delta.json]`; writes runs/finding_history, emits delta |
@@ -145,6 +148,7 @@ migrations.
 ```
 init      node tools/datastore/db.mjs init --db engagements/<session>/engagement.db --engagement <id>
 ingest    node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session>
+refresh   node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings
 query     node tools/datastore/query.mjs facts --db engagements/<session>/engagement.db --resource <id>
 export    node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all
 promote   node tools/datastore/promote.mjs --db engagements/<session>/engagement.db --history engagements/_history/<id>.db --out engagements/<session>/reports/delta.json

@@ -13,7 +13,10 @@ You are acting as the **Reporting Agent** (`agents/reporting/system-prompt.md`).
 
 ## Steps
 
-1. **Export the canonical artifacts from the datastore.** If `/assess` ingested findings, the DB already holds the deduplicated set with `affected_resources[]` unioned — regenerate the JSON the report consumes: `node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all` (writes `findings/normalized/findings.json`, `reports/findings.json`, `coverage.json`, `inventory/resources.jsonl`, `inventory/summary.json`). If findings were not yet ingested, run `node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session>` first, then export.
+1. **Refresh findings from current raw inputs, then export canonical artifacts.** Always run findings ingest in replace mode first so stale DB rows from prior passes cannot leak into this report:
+   - `node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings`
+   - `node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all`
+   This writes `findings/normalized/findings.json`, `reports/findings.json`, `coverage.json`, `inventory/resources.jsonl`, and `inventory/summary.json`.
 2. **Validate** the exported `engagements/<session>/reports/findings.json` against `schemas/finding.schema.json` (`node tools/validate-findings.mjs`); fix or drop malformed entries at the source and re-export.
 3. **Confirm deduplication.** The DB already deduplicates by `dedupe_key` (falling back to `id`) and unions `affected_resources[]`; spot-check that the same misconfiguration across resources collapsed into one aggregated finding.
 4. **Reconcile severity** using `knowledge/severity-model.md`. You set the final severity consistently.

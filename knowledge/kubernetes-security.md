@@ -1,9 +1,10 @@
 # Kubernetes & AKS Security — Attack Surface, RBAC Abuse, and Benchmark Methodology
 
-Reference knowledge for the Compute Platform Agent (`compute-platform`) when assessing
+Reference knowledge for the **Azure Container & Kubernetes Agent (`aks-container`)** when assessing
 Azure Kubernetes Service (AKS) and the Kubernetes workloads running on it. It frames the
 attack surface, the read-only hunts our checks perform, and the **active / manual**
-techniques that are *knowledge only* — never wired into a default runner.
+techniques — which are *knowledge only* in the default read-only lane and, where the agent's
+hard-gated **cluster-active lane** is explicitly authorized, are confined to that lane (§8).
 
 > **Attribution.** The methodology below was harvested from the Apache-2.0
 > [`mukul975/Anthropic-Cybersecurity-Skills`](https://github.com/mukul975/Anthropic-Cybersecurity-Skills)
@@ -144,3 +145,29 @@ Mentioning them is fine; requiring them is not. The runner stays on `kubectl get
 
 These map to T1610/T1611/T1609/T1613 and feed attack-path narratives, but our automated
 posture stays strictly read-only.
+
+## 8. Cluster-active lane — gated live confirmation (`aks-container` Lane 2)
+
+Everything in §7 stays knowledge-only in the **read-only posture lane**. The Azure Container &
+Kubernetes Agent additionally owns a **hard-gated cluster-active lane** that confirms a narrow,
+**benign, read-only** subset of the above against a *live, in-scope* cluster. It is **off by default**
+and runs only under `engagement.yaml` → `mode: cluster-active-testing` with an enabled, authorized
+`cluster_testing` block and a non-empty Azure-derived cluster allowlist — enforced fail-closed by the
+cluster guardrail (mirrors the External Vulnerability Agent's egress lock).
+
+The lane never mutates a workload: the guardrail denies every mutating `kubectl` verb
+(`apply`/`create`/`delete`/`patch`/`edit`/`replace`/`scale`/`rollout`/`drain`/`cordon`/...) in **all**
+modes, and only releases the active tools (`kube-bench`, `kubesec`, `trivy`, `grype`, ephemeral
+`kubectl debug`) when the full gate passes. Three intensity tiers:
+
+| Tier | Name | Confirms (knowledge §) | Tooling |
+|---|---|---|---|
+| C1 | `cluster-benchmark` | CIS node/RBAC/PSS controls (§3, §4, §6) | `kube-bench`, `kubesec`, `kubectl auth can-i --list` — API reads only |
+| C2 | `image-scan` | Deep image CVEs beyond Defender (`container-security.md` §3) | **offline** `trivy`/`grype` on pulled ACR digests |
+| C3 | `runtime-probe` | Reachable SA token / in-pod inventory (§3 token mounts) | benign read-only inventory via an **ephemeral debug container**, removed after use |
+
+Map: `CHK-CNTR-KUBE-BENCH-CIS`, `CHK-CNTR-MANIFEST-RISK` (C1); `CHK-CNTR-IMAGE-CVE-DEEP` (C2);
+`CHK-CNTR-SA-TOKEN-REACH`, `CHK-CNTR-RUNTIME-INVENTORY` (C3). The offensive escalation paths in §7
+(privilege escalation, container escape, cloud pivot) remain **knowledge only** — the active lane
+proves *exposure* with a benign marker and never attempts breakout or exfiltration. See
+`agents/aks-container/system-prompt.md` and `knowledge/aks-security-baseline.md` §4.

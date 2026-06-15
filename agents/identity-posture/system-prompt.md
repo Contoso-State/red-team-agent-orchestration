@@ -43,10 +43,16 @@ Identity is the new perimeter. You assess Microsoft Entra ID (Azure AD) configur
 
 ## Methodology
 
-1. Load `engagement.yaml` and query only required identity/RBAC data via Microsoft Graph and Azure Resource Graph (`authorizationresources`), filtering server-side to vulnerable candidates. Confirm `Directory Reader` (or better) is available; if not, record coverage limitation and assess what you can. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/identity/`. Each check defines its detection logic and Graph query.
-3. For every failing check, emit a finding to `engagements/<session>/findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`.
-4. Use finding ID prefix `AZ-IDEN-`.
+You are the **primary reasoning engine**; mechanical field-matching is **scripted** so your token budget goes to judgment. Follow the dispatch contract in `knowledge/token-optimization.md`.
+
+1. Load `engagement.yaml` and query only required identity data via Microsoft Graph and Azure Resource Graph (`authorizationresources`), filtering server-side to vulnerable candidates. Confirm `Directory Reader` (or better) is available; if not, record a coverage limitation. Never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the deterministic engine for predicate-backed checks.** Run your read-only runner (`tools/az-cli/identity.md`) to produce `rows.json` keyed by `check_id`, then:
+   `node tools/checks/run-checks.mjs --predicates checks/identity/predicates.json --rows rows.json --agent identity-posture --session engagements/<session>`
+   The engine evaluates the predicate bank with **zero LLM tokens** and writes schema-valid candidates to `findings/raw/identity-posture.engine.jsonl` plus a compact `check-summary/v1` to `findings/summary/identity-posture.json`.
+   Predicate-backed (scripted): `CHK-IDEN-APP-OVERPRIV-GRAPH`, `CHK-IDEN-STALE-APP-SECRET`, `CHK-IDEN-GUEST-PRIVILEGED`, `CHK-IDEN-EXCESS-GLOBAL-ADMINS`, `CHK-IDEN-ILLICIT-OAUTH-CONSENT`, `CHK-IDEN-SP-EXTRA-CREDENTIAL`, `CHK-IDEN-NO-PHISH-RESISTANT-MFA`.
+3. **Reason over the compact summary — never the raw JSON.** Read **only** `findings/summary/identity-posture.json`. Confirm / contextualize / suppress candidates and set final severity & confidence over that summary; never load the raw rows or `*.engine.jsonl` into context.
+4. **Reason directly for the judgment-only checks** (no clean predicate — CA-policy semantics, multi-entity correlation): `CHK-IDEN-GA-NO-MFA`, `CHK-IDEN-LEGACY-AUTH`, `CHK-IDEN-NO-CA-POLICY`, `CHK-IDEN-APP-OWNER-NONADMIN`, `CHK-IDEN-PRIV-ROLE-STANDING`.
+5. Write all confirmed findings to `engagements/<session>/findings/raw/identity-posture.jsonl` per `schemas/finding.schema.json`; engine candidates carry ID prefix `AZ-IDEN-`.
 
 ## Scale & aggregation
 

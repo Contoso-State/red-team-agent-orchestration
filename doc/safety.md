@@ -43,6 +43,7 @@ The mode is set in `engagement.yaml` and enforced by the guardrail across all ag
 | `attack-path-analysis` | Read-only + build attack-path graphs | 🟡 Low |
 | `controlled-validation` | Read-only + state-changing actions require explicit human approval | 🟠 Medium |
 | `external-active-testing` | Unlocks the External Vulnerability Agent (EVA) active tiers against in-scope, Azure-derived external targets only | 🔴 High — off by default |
+| `cluster-active-testing` | Unlocks the Azure Container & Kubernetes agent's cluster-active lane (`kubectl exec`/`debug`, kube-bench/kubesec, trivy/grype image scans) against in-scope, Azure-derived clusters/registries only | 🔴 High — off by default |
 
 :::{note}
 `controlled-validation` does **not** silently allow mutations. It downgrades any
@@ -77,6 +78,35 @@ resource. This is enforced in depth:
 `exploit-validation` (per-finding, opt-in proof). Offline `static-analysis` is a separate
 opt-in (`external_testing.static_analysis.enabled`). Rules of engagement: in-scope only, least
 intensity that proves the point, no denial-of-service, no data exfiltration, no lateral movement.
+
+## Active cluster testing (Azure Container & Kubernetes)
+
+The **Azure Container & Kubernetes agent** runs a read-only posture assessment by default. Its
+**cluster-active lane** is the only path that reaches *inside* a running cluster or container,
+or that pulls and scans images. Like EVA, it is **off by default** and hard-gated. It **never
+mutates a workload** — every mutating `kubectl`/`helm` verb (`apply`, `create`, `delete`,
+`patch`, `scale`, `drain`, …) is denied in **every** mode.
+
+**The scope lock.** The lane may only ever touch an AKS cluster or registry that maps back to
+an in-scope Azure resource. This is enforced in depth:
+
+1. **Allowlist** — `tools/cluster/build-cluster-targets.mjs` derives `engagements/<session>/scope/cluster-targets.json` from the engagement datastore. A cluster/registry is on the list only because a specific in-scope AKS or ACR resource published it.
+2. **Cluster guardrail** — a third `preToolUse` matcher (`cluster-core.mjs`) classifies every `kubectl`/`helm`/`docker`/`nerdctl`/`podman`/`kube-bench`/`kubesec`/`trivy`/`grype`/`crictl` command. Read-only verbs (`get`, `describe`, `logs`, `auth can-i`, `version`, …) are always allowed; mutating verbs are always denied; reach-in verbs (`exec`, `debug`, `cp`, `attach`, `port-forward`, `run`, `proxy`) and the scanners are denied unless mode/authorization/allowlist all pass. `trivy`/`grype` image references are additionally checked against the allowlisted `*.azurecr.io` registries. Unknown verbs fail closed.
+3. **Scoped wrappers** — scanners are launched only through `tools/cluster/Invoke-ScopedClusterScan.ps1` (or the dependency-free Tier-C1 `safe-kube-audit.mjs`), which source scope exclusively from the allowlist and re-check the gate locally.
+
+**The authorization gate** (ALL required, or the lane stays inert):
+
+- `mode: cluster-active-testing`
+- `cluster_testing.enabled: true`
+- `cluster_testing.authorization.attested_by` **and** `attestation_id` set (a named human signed off)
+- the current time is within the authorized window, if configured
+- a non-empty `cluster-targets.json` exists for the session
+
+**Intensity tiers** escalate only as needed: `cluster-benchmark` (C1 — read-only `kubectl` audit +
+kube-bench/kubesec) → `image-scan` (C2 — offline trivy/grype image CVE scan) → `in-cluster` (C3 —
+`kubectl exec`/`debug` reach-in confirmation, per-finding and opt-in). Rules of engagement: in-scope
+only, least intensity that proves the point, no workload mutation, no denial-of-service, no data
+exfiltration, no lateral movement.
 
 ## Authorization
 

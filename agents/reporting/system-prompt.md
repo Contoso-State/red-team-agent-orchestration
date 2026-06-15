@@ -42,6 +42,7 @@ Write to `engagements/<session>/reports/`:
      --findings engagements/<session>/reports/findings.json \
      --attack-paths engagements/<session>/reports/attack-paths.json \
      --engagement engagements/<session>/engagement.yaml \
+     --token-usage engagements/<session>/reports/token-usage.json \
      --out engagements/<session>/reports/report.html
    ```
 
@@ -53,6 +54,14 @@ Write to `engagements/<session>/reports/`:
    `schemas/attack-path.schema.json`), pass it with `--attack-paths`; otherwise
    the generator derives linear chains from each finding's `attack_path[]`. The
    output is dependency-free and fully offline. See `tools/report/README.md`.
+
+6. **`token-usage.json`** — the engagement's total language-model token usage (input + output),
+   built **before** rendering with `node tools/tokens/ledger.mjs --session engagements/<session> --repo .`
+   (add `--usage runs/usage.jsonl` when real measured usage was recorded; otherwise it is estimated
+   at ~4 bytes/token over content that crossed the model boundary, excluding engine-authored output).
+   Passing it with `--token-usage` adds the total to the report cover and an **Appendix D — Engagement
+   Cost & Token Budget** (per-phase / per-agent). If `engagement.yaml` sets `scale.token_budget`, the
+   report flags within/near/over budget (advisory). See `knowledge/token-optimization.md`.
 
 ## Report Quality Bar
 

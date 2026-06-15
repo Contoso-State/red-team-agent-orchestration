@@ -15,7 +15,7 @@ Canonical design doc: [`../../knowledge/datastore.md`](../../knowledge/datastore
 |---|---|
 | `db.mjs` | Core helpers + CLI (`init` / `info` / `migrate` / `query`). `query` is read-only-guarded. |
 | `schema.sql` | Per-engagement DDL (resources, facts, relationships, findings, coverage, attack paths, tasks, views). FK ownership edges + enum CHECK constraints. |
-| `ingest.mjs` | **Files → DB. The single writer.** Auto-discovers a session's artifacts; one transaction; merges findings (union `affected_resources[]`); normalizes enum values; loads attack paths. |
+| `ingest.mjs` | **Files → DB. The single writer.** Auto-discovers a session's artifacts; one transaction; merges findings (union `affected_resources[]`); normalizes enum values; loads attack paths. Supports `--replace-findings` for report-safe findings snapshots. |
 | `query.mjs` | Read-only cache API: `resources` / `facts` / `fresh` / `findings` / `coverage` / `neighbors` / `next-tasks` / `stats`. `fresh` exits `0` (fresh) or `3` (miss/stale). |
 | `export.mjs` | DB → canonical artifacts (`findings.json`, `coverage.json`, inventory). |
 | `history.schema.sql` | Longitudinal DDL (`runs`, `finding_history`, `resource_history`, lifecycle/trend views). |
@@ -41,6 +41,10 @@ node tools/datastore/query.mjs fresh      --db "$DB" --resource <resource-id> --
 # 4. export the canonical findings/coverage/inventory the report consumes
 node tools/datastore/export.mjs --db "$DB" --session "$SESSION" --what all
 
+# 4a. report-safe findings refresh (prevents stale findings carryover)
+node tools/datastore/ingest.mjs --db "$DB" --session "$SESSION" --findings "$SESSION"/findings/raw --replace-findings
+node tools/datastore/export.mjs --db "$DB" --session "$SESSION" --what all
+
 # 5. promote into history + emit the what-changed delta
 node tools/datastore/promote.mjs --db "$DB" \
   --history engagements/_history/<engagement-id>.db \
@@ -51,5 +55,7 @@ node tools/datastore/promote.mjs --db "$DB" \
 
 - **`ingest.mjs` is the only writer.** Agents write raw JSONL/evidence to files; the orchestrator
   ingests. Agents read the DB concurrently but never write it.
+- **Use `--replace-findings` before report export** when you need findings to reflect only the current
+  raw inputs (not additive carryover from prior ingests in the same session).
 - **Config only, never secrets** in `resource_facts`.
 - **Every `*.db` is gitignored.** Never commit or push an engagement or history DB.

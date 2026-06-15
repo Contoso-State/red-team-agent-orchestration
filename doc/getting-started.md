@@ -30,6 +30,9 @@ Minimum Azure RBAC on the target scope is **`Reader` + `Security Reader`**; `Log
 Reader`, `Directory Reader`, and `Key Vault Reader` improve coverage. Keep it read-only —
 assign your identity read roles only.
 
+For a hardened least-privilege setup across both Azure RBAC and Entra ID, see
+[Permissions & Least Privilege](permissions.md).
+
 Run the environment doctor to confirm everything in one shot (it's read-only and tells you
 how to fix anything missing):
 
@@ -39,12 +42,14 @@ node tools/preflight/check-environment.mjs
 
 ## 1. Define engagement scope
 
-Run the guided setup — it lists the subscriptions you can access, asks which one to assess,
+Run the guided setup — it lists the subscriptions you can access, asks which **single** subscription to assess,
 and writes `engagement.yaml` for you:
 
 ```text
 /setup
 ```
+
+> Single-subscription contract: one engagement run targets exactly one subscription. To assess additional subscriptions, run a separate engagement.
 
 Prefer to do it by hand? Copy the template instead:
 

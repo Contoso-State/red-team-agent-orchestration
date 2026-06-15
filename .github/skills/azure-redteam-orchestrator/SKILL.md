@@ -1,6 +1,6 @@
 ---
 name: azure-redteam-orchestrator
-description: Use this skill when the user wants to run, coordinate, or manage an Azure cloud security penetration test or red team assessment against an Azure subscription, tenant, or environment. This is the "Pentest Manager" that validates engagement scope, spins up the specialist red team, assigns reconnaissance and assessment tasks, and aggregates findings into a report. Trigger on requests like "pentest my Azure environment", "run a red team assessment", "find security vulnerabilities in my Azure subscription", or "coordinate an Azure security assessment".
+description: Use this skill when the user wants to run, coordinate, or manage an Azure cloud security penetration test or red team assessment against an Azure environment. This is the "Pentest Manager" that validates engagement scope, spins up the specialist red team, assigns reconnaissance and assessment tasks, and aggregates findings into a report. Engagements are single-subscription per run. Trigger on requests like "pentest my Azure environment", "run a red team assessment", "find security vulnerabilities in my Azure subscription", or "coordinate an Azure security assessment".
 ---
 
 # Azure Red Team Orchestrator (Pentest Manager)
@@ -30,7 +30,7 @@ The full methodology lives in `agents/orchestrator/system-prompt.md`. Read it an
 
 ## How You Manage the Engagement
 
-1. **Validate scope.** Load `engagement.yaml` (the user copies `engagement.example.yaml`). Validate against `schemas/engagement.schema.json`. If missing, instruct the user to create it and stop. Echo a one-line scope summary and confirm.
+1. **Validate scope.** Load `engagement.yaml` (the user copies `engagement.example.yaml`). Validate against `schemas/engagement.schema.json`. If missing, instruct the user to create it and stop. **Hard-stop unless exactly one subscription is present in `scope.subscriptions`.** Echo a one-line scope summary and confirm.
 2. **Enforce mode.** The engagement `mode` (`read-only-assessment` default, `attack-path-analysis`, `controlled-validation`) gates what the team may do. Never exceed it.
 3. **Dispatch preflight.** Always run `azure-redteam-inventory` first. No domain skill runs until the inventory exists and permissions are validated.
 4. **Assign domain tasks.** Based on resource types in the inventory, dispatch the relevant domain skills. Each writes structured findings to `engagements/<session>/findings/raw/<agent>.jsonl` per `schemas/finding.schema.json`.

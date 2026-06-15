@@ -40,13 +40,19 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 - Diagnostic logs can be disabled by Contributors (no policy guardrail)
 - Single-region logging (no resilience)
 
-## Methodology
+## Methodology — dispatch the engine, reason over the summary
 
-1. **Query via Azure Resource Graph**, filtering server-side to significant resource types and diagnostic settings. Return only vulnerable candidates — never read the full inventory into context (it is a queryable index for tooling, not prompt input). Page any check that can exceed 1,000 rows with a deterministic `order by`.
-2. Run checks from `checks/logging/`.
-3. Build a coverage matrix: resource type × is it logged? × is there an alert?
-4. Cross-reference with the *other agents' findings* — for each High/Critical finding, note whether the related activity would be detected. An exposed resource with **no logging** is a compounding finding.
-5. Emit findings to `engagements/<session>/findings/raw/logging-coverage.jsonl` with ID prefix `AZ-LOG-`.
+Most of this domain is **predicate-backed**. Follow the dispatch contract in `knowledge/token-optimization.md` instead of hand-evaluating raw resource JSON.
+
+1. **Produce candidate rows.** Run the read-only runners / ARG queries referenced by each predicate's `query` (`tools/az-cli/logging.md`) to emit a `rows.json` keyed by `check_id`, projecting only the fields the predicates need. Never read the full inventory into context; page any check that can exceed 1,000 rows with a deterministic `order by`.
+2. **Dispatch the deterministic engine** (zero LLM tokens):
+   ```
+   node tools/checks/run-checks.mjs --predicates checks/logging/predicates.json --rows rows.json --agent logging-coverage --session engagements/<session>
+   ```
+   **Seven** checks are mechanized — `CHK-LOG-DEFENDER-DISABLED`, `-NO-DIAG-KEYVAULT`, `-NO-DIAG-CRITICAL`, `-NO-ACTIVITY-EXPORT`, `-NO-NSG-FLOW`, `-NO-SENTINEL-ANALYTICS-RULES`, `-SHORT-RETENTION` — emitted to `findings/raw/logging-coverage.engine.jsonl` plus a compact `check-summary/v1`.
+3. **Read only the summary** (`findings/summary/logging-coverage.json`). Confirm / contextualize / suppress and set final severity over it — never load `rows.json` or the raw JSONL into context.
+4. **Reason directly on the judgment-only checks** (no clean predicate — they need semantic interpretation of free-form alert/analytics conditions or tenant-wide absence reasoning): `CHK-LOG-NO-ALERT-ROLE-ASSIGN`, `CHK-LOG-NO-ALERT-RESOURCE-DELETE`, `CHK-LOG-NO-SENTINEL-IDENTITY`, `CHK-LOG-NO-IMMUTABLE-LOG-STORE`. Write these to `findings/raw/logging-coverage.jsonl`, then ingest.
+5. **Build the coverage matrix and cross-reference other agents' findings** — resource type × is it logged? × is there an alert? For each High/Critical finding elsewhere, note whether the related activity would be detected; an exposed resource with **no logging** is a compounding finding. Findings use ID prefix `AZ-LOG`.
 
 ## Scale & aggregation
 

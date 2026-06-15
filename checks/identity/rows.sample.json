@@ -1,0 +1,34 @@
+{
+  "_comment": "Sample candidate rows keyed by check_id for checks/identity/predicates.json. Mirrors tools/checks/sample/rows.sample.json. Each check carries at least one matching (vulnerable) and one non-matching (safe) row so the predicate's discrimination is demonstrable. Field shapes mirror what the read-only msgraph runner (tools/az-cli/identity.md) projects. No secret values appear.",
+  "CHK-IDEN-APP-OVERPRIV-GRAPH": [
+    { "id": "00000000-aaaa-bbbb-cccc-000000000001", "name": "DirSyncApp", "appDisplayName": "DirSyncApp", "appRoleValue": "Directory.ReadWrite.All" },
+    { "id": "00000000-aaaa-bbbb-cccc-000000000002", "name": "RoleMgmtApp", "appDisplayName": "RoleMgmtApp", "appRoleValue": "RoleManagement.ReadWrite.Directory" },
+    { "id": "00000000-aaaa-bbbb-cccc-000000000003", "name": "ReadOnlyApp", "appDisplayName": "ReadOnlyApp", "appRoleValue": "User.Read.All" }
+  ],
+  "CHK-IDEN-STALE-APP-SECRET": [
+    { "id": "11111111-aaaa-bbbb-cccc-000000000001", "name": "LongLivedSecretApp", "maxCredentialValidityDays": 730, "expiredCredentialCount": 0, "activeCredentialCount": 1 },
+    { "id": "11111111-aaaa-bbbb-cccc-000000000002", "name": "ExpiredSecretApp", "maxCredentialValidityDays": 180, "expiredCredentialCount": 2, "activeCredentialCount": 0 },
+    { "id": "11111111-aaaa-bbbb-cccc-000000000003", "name": "HealthyApp", "maxCredentialValidityDays": 90, "expiredCredentialCount": 0, "activeCredentialCount": 1 }
+  ],
+  "CHK-IDEN-GUEST-PRIVILEGED": [
+    { "id": "22222222-aaaa-bbbb-cccc-000000000001", "name": "guest-contractor", "userType": "Guest", "isPrivilegedRole": true, "roleName": "Global Administrator" },
+    { "id": "22222222-aaaa-bbbb-cccc-000000000002", "name": "internal-admin", "userType": "Member", "isPrivilegedRole": true, "roleName": "Global Administrator" }
+  ],
+  "CHK-IDEN-EXCESS-GLOBAL-ADMINS": [
+    { "id": "/directoryRoles/global-administrator", "name": "Global Administrator", "roleName": "Global Administrator", "globalAdminCount": 9 }
+  ],
+  "CHK-IDEN-ILLICIT-OAUTH-CONSENT": [
+    { "id": "33333333-aaaa-bbbb-cccc-000000000001", "name": "grant-1", "clientDisplayName": "Mailbox Helper", "scope": "Mail.Read offline_access User.Read", "consentType": "AllPrincipals" },
+    { "id": "33333333-aaaa-bbbb-cccc-000000000002", "name": "grant-2", "clientDisplayName": "Personal Notes", "scope": "User.Read", "consentType": "Principal" },
+    { "id": "33333333-aaaa-bbbb-cccc-000000000003", "name": "grant-3", "clientDisplayName": "Files Sync", "scope": "Files.ReadWrite.All offline_access", "consentType": "AllPrincipals" }
+  ],
+  "CHK-IDEN-SP-EXTRA-CREDENTIAL": [
+    { "id": "44444444-aaaa-bbbb-cccc-000000000001", "name": "Privileged Automation SP", "displayName": "Privileged Automation SP", "passwordCredentialCount": 2, "keyCredentialCount": 0 },
+    { "id": "44444444-aaaa-bbbb-cccc-000000000002", "name": "Cert SP", "displayName": "Cert SP", "passwordCredentialCount": 0, "keyCredentialCount": 1 },
+    { "id": "44444444-aaaa-bbbb-cccc-000000000003", "name": "Federated SP", "displayName": "Federated SP", "passwordCredentialCount": 0, "keyCredentialCount": 0 }
+  ],
+  "CHK-IDEN-NO-PHISH-RESISTANT-MFA": [
+    { "id": "/policies/authenticationMethodsPolicy", "name": "authenticationMethodsPolicy", "smsEnabled": true, "voiceEnabled": false },
+    { "id": "/policies/authenticationMethodsPolicy#strong", "name": "authenticationMethodsPolicy-strong", "smsEnabled": false, "voiceEnabled": false }
+  ]
+}

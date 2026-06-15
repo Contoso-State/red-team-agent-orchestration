@@ -1,0 +1,219 @@
+{
+  "domain": "storage",
+  "predicates": [
+    {
+      "check_id": "CHK-STOR-PUBLIC-BLOB",
+      "finding_class": "storage-public-blob",
+      "title": "Storage account allows public blob access",
+      "category": "Storage",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "allowBlobPublicAccess is enabled, permitting containers to be set to anonymous access.",
+      "attack_vector": "Anonymous container -> unauthenticated data read",
+      "recommendation": "Set allowBlobPublicAccess=false at the account level.",
+      "controls": { "cis_azure": ["3.7"], "mitre": ["T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-PUBLIC-BLOB",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | where properties.allowBlobPublicAccess == true | project id, name, type, resourceGroup, subscriptionId, location, allowBlobPublicAccess = properties.allowBlobPublicAccess"
+      },
+      "evaluate": { "field": "allowBlobPublicAccess", "op": "eq", "value": true },
+      "evidence_fields": ["allowBlobPublicAccess"]
+    },
+    {
+      "check_id": "CHK-STOR-ANON-CONTAINER",
+      "finding_class": "storage-anon-container",
+      "title": "Blob container with anonymous access",
+      "category": "Storage",
+      "severity_default": "Critical",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "A container's public access level is Blob or Container, exposing data to the internet.",
+      "attack_vector": "Direct unauthenticated download of blobs",
+      "recommendation": "Set container access to Private; serve data via SAS or authenticated access.",
+      "controls": { "cis_azure": ["3.7"], "mitre": ["T1530"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-ANON-CONTAINER"
+      },
+      "evaluate": { "field": "publicAccess", "op": "ini", "value": ["blob", "container"] },
+      "evidence_fields": ["publicAccess"]
+    },
+    {
+      "check_id": "CHK-STOR-PUBLIC-NETWORK",
+      "finding_class": "storage-public-network",
+      "title": "Storage account public network access without firewall",
+      "category": "Storage",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "publicNetworkAccess is Enabled with default-allow network rules.",
+      "attack_vector": "Internet-reachable storage endpoint",
+      "recommendation": "Set defaultAction=Deny, add private endpoints, restrict to known networks.",
+      "controls": { "cis_azure": ["3.8"], "mitre": ["T1530"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-PUBLIC-NETWORK",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess = tostring(coalesce(properties.publicNetworkAccess,'Enabled')), defaultAction = tostring(coalesce(properties.networkAcls.defaultAction,'Allow'))"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "defaultAction", "op": "eqi", "value": "Allow" }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "defaultAction"]
+    },
+    {
+      "check_id": "CHK-STOR-SHARED-KEY",
+      "finding_class": "storage-shared-key",
+      "title": "Storage account allows Shared Key authorization",
+      "category": "Storage",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "Account key (Shared Key) auth is permitted instead of Entra-only, enabling full access from a leaked key.",
+      "attack_vector": "Leaked account key = full data-plane access",
+      "recommendation": "Set allowSharedKeyAccess=false; use Entra (Azure AD) authorization.",
+      "controls": { "cis_azure": ["3.1"], "mitre": ["T1552.001"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-SHARED-KEY",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, allowSharedKeyAccess = properties.allowSharedKeyAccess"
+      },
+      "evaluate": { "not": { "field": "allowSharedKeyAccess", "op": "eq", "value": false } },
+      "evidence_fields": ["allowSharedKeyAccess"]
+    },
+    {
+      "check_id": "CHK-STOR-NO-HTTPS-ONLY",
+      "finding_class": "storage-no-https-only",
+      "title": "Storage account secure transfer disabled",
+      "category": "Storage",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "supportsHttpsTrafficOnly is disabled, allowing plaintext HTTP access.",
+      "attack_vector": "Network interception of data/keys in transit",
+      "recommendation": "Enable HTTPS-only and minimum TLS 1.2.",
+      "controls": { "cis_azure": ["3.1", "3.2"], "mitre": ["T1040"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-NO-HTTPS-ONLY",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, supportsHttpsTrafficOnly = properties.supportsHttpsTrafficOnly, minimumTlsVersion = tostring(properties.minimumTlsVersion)"
+      },
+      "evaluate": { "field": "supportsHttpsTrafficOnly", "op": "eq", "value": false },
+      "evidence_fields": ["supportsHttpsTrafficOnly", "minimumTlsVersion"]
+    },
+    {
+      "check_id": "CHK-STOR-KV-ACCESS-POLICY-MODEL",
+      "finding_class": "keyvault-access-policy-model",
+      "title": "Key Vault uses legacy access policies instead of RBAC",
+      "category": "Key Vault",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-KV",
+      "description": "The vault uses access policies rather than Azure RBAC, making least privilege and auditing harder.",
+      "attack_vector": "Coarse access grants -> broader secret exposure",
+      "recommendation": "Migrate the vault to Azure RBAC authorization.",
+      "controls": { "cis_azure": ["8.5"], "mitre": ["T1555.006"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-KV-ACCESS-POLICY-MODEL",
+        "kql": "Resources | where type =~ 'microsoft.keyvault/vaults' | project id, name, type, resourceGroup, subscriptionId, location, enableRbacAuthorization = tobool(coalesce(properties.enableRbacAuthorization, false))"
+      },
+      "evaluate": { "field": "enableRbacAuthorization", "op": "eq", "value": false },
+      "evidence_fields": ["enableRbacAuthorization"]
+    },
+    {
+      "check_id": "CHK-STOR-KV-PUBLIC-NETWORK",
+      "finding_class": "keyvault-public-network",
+      "title": "Key Vault public network access enabled",
+      "category": "Key Vault",
+      "severity_default": "High",
+      "agent": "data-protection",
+      "id_prefix": "AZ-KV",
+      "description": "The vault is reachable over the public internet without private endpoint/firewall restriction.",
+      "attack_vector": "Internet-reachable secret store",
+      "recommendation": "Add a private endpoint; set network defaultAction=Deny.",
+      "controls": { "cis_azure": ["8.5"], "mitre": ["T1555.006"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-KV-PUBLIC-NETWORK",
+        "kql": "Resources | where type =~ 'microsoft.keyvault/vaults' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess = tostring(coalesce(properties.publicNetworkAccess,'Enabled')), defaultAction = tostring(coalesce(properties.networkAcls.defaultAction,'Allow'))"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
+          { "field": "defaultAction", "op": "eqi", "value": "Allow" }
+        ]
+      },
+      "evidence_fields": ["publicNetworkAccess", "defaultAction"]
+    },
+    {
+      "check_id": "CHK-STOR-KV-NO-PURGE-PROTECTION",
+      "finding_class": "keyvault-no-purge-protection",
+      "title": "Key Vault soft delete or purge protection disabled",
+      "category": "Key Vault",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-KV",
+      "description": "Without purge protection, an attacker (or mistake) can permanently destroy keys/secrets.",
+      "attack_vector": "Destruction of keys -> data loss / ransomware leverage",
+      "recommendation": "Enable soft delete and purge protection on all vaults.",
+      "controls": { "cis_azure": ["8.4"], "mitre": ["T1485", "T1486"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-KV-NO-PURGE-PROTECTION",
+        "kql": "Resources | where type =~ 'microsoft.keyvault/vaults' | project id, name, type, resourceGroup, subscriptionId, location, enableSoftDelete = properties.enableSoftDelete, enablePurgeProtection = properties.enablePurgeProtection"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "enableSoftDelete", "op": "eq", "value": false },
+          { "not": { "field": "enablePurgeProtection", "op": "eq", "value": true } }
+        ]
+      },
+      "evidence_fields": ["enableSoftDelete", "enablePurgeProtection"]
+    },
+    {
+      "check_id": "CHK-STOR-NO-INFRA-ENCRYPTION",
+      "finding_class": "storage-no-infra-encryption",
+      "title": "Storage account without infrastructure (double) encryption at rest",
+      "category": "Storage",
+      "severity_default": "Low",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "requireInfrastructureEncryption is not enabled, so data at rest is encrypted with a single layer only.",
+      "attack_vector": "Single-layer encryption weakens at-rest protection if the primary key/layer is compromised",
+      "recommendation": "Enable infrastructure (double) encryption on accounts holding sensitive data; pair with customer-managed keys where required. Note this can only be set at account creation.",
+      "controls": { "cis_azure": ["3.x"], "mitre": ["T1530"], "nist_csf": ["PR.DS-01"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-NO-INFRA-ENCRYPTION",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, requireInfrastructureEncryption = properties.encryption.requireInfrastructureEncryption"
+      },
+      "evaluate": { "not": { "field": "requireInfrastructureEncryption", "op": "eq", "value": true } },
+      "evidence_fields": ["requireInfrastructureEncryption"]
+    },
+    {
+      "check_id": "CHK-STOR-NO-SAS-EXPIRATION-POLICY",
+      "finding_class": "storage-no-sas-expiration-policy",
+      "title": "Storage account has no SAS expiration policy (long-lived SAS tokens allowed)",
+      "category": "Storage",
+      "severity_default": "Medium",
+      "agent": "data-protection",
+      "id_prefix": "AZ-STOR",
+      "description": "The account has no SAS expiration policy (sasPolicy), so account-level and service SAS tokens can be issued with very long or unbounded lifetimes. Metadata only — never enumerate or read SAS token values.",
+      "attack_vector": "A leaked or over-scoped long-lived SAS token gives persistent, hard-to-revoke data access independent of Entra identity",
+      "recommendation": "Define a SAS expiration policy with a short period, prefer short-lived user-delegation SAS bound to Entra identity over account-key SAS, and set a key rotation policy.",
+      "controls": { "cis_azure": ["3.x"], "mitre": ["T1078.004", "T1552.001"], "nist_csf": ["PR.AA-05"] },
+      "query": {
+        "method": "resource-graph",
+        "ref": "tools/az-cli/storage.md#CHK-STOR-NO-SAS-EXPIRATION-POLICY",
+        "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, sasExpirationPeriod = properties.sasPolicy.sasExpirationPeriod, keyExpirationPeriodInDays = properties.keyPolicy.keyExpirationPeriodInDays"
+      },
+      "evaluate": { "field": "sasExpirationPeriod", "op": "missing" },
+      "evidence_fields": ["sasExpirationPeriod", "keyExpirationPeriodInDays"]
+    }
+  ]
+}

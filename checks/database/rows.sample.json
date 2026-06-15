@@ -1,0 +1,37 @@
+{
+  "CHK-DB-SQL-ALLOW-AZURE-SERVICES": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql1/firewallRules/AllowAllWindowsAzureIps", "name": "AllowAllWindowsAzureIps", "serverName": "sql1", "type": "microsoft.sql/servers/firewallrules", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "startIpAddress": "0.0.0.0", "endIpAddress": "0.0.0.0" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql1/firewallRules/corp-egress", "name": "corp-egress", "serverName": "sql1", "type": "microsoft.sql/servers/firewallrules", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "startIpAddress": "203.0.113.10", "endIpAddress": "203.0.113.20" }
+  ],
+  "CHK-DB-SQL-PUBLIC-NETWORK": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql1", "name": "sql1", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql2", "name": "sql2", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled" }
+  ],
+  "CHK-DB-SQL-NO-ENTRA-ADMIN": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-noaad", "name": "sql-noaad", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "hasEntraAdmin": false, "azureADOnlyAuthentication": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-mixed", "name": "sql-mixed", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "hasEntraAdmin": true, "azureADOnlyAuthentication": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-entraonly", "name": "sql-entraonly", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "hasEntraAdmin": true, "azureADOnlyAuthentication": true }
+  ],
+  "CHK-DB-SQL-NO-TDE": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql1/databases/appdb", "name": "appdb", "serverName": "sql1", "type": "microsoft.sql/servers/databases", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "tdeState": "Disabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql1/databases/securedb", "name": "securedb", "serverName": "sql1", "type": "microsoft.sql/servers/databases", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "tdeState": "Enabled" }
+  ],
+  "CHK-DB-SQL-NO-AUDIT": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-noaudit", "name": "sql-noaudit", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "auditState": "Disabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-audited", "name": "sql-audited", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "auditState": "Enabled" }
+  ],
+  "CHK-DB-COSMOS-PUBLIC-FIREWALL": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-open", "name": "cosmos-open", "type": "microsoft.documentdb/databaseaccounts", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "ipRuleCount": 0, "isVirtualNetworkFilterEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-iprules", "name": "cosmos-iprules", "type": "microsoft.documentdb/databaseaccounts", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "ipRuleCount": 3, "isVirtualNetworkFilterEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-private", "name": "cosmos-private", "type": "microsoft.documentdb/databaseaccounts", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "ipRuleCount": 0, "isVirtualNetworkFilterEnabled": true }
+  ],
+  "CHK-DB-FLEX-PUBLIC-ACCESS": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg5/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-open", "name": "pg-open", "type": "microsoft.dbforpostgresql/flexibleservers", "resourceGroup": "rg5", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "hasAllowAllRule": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg5/providers/Microsoft.DBforMySQL/flexibleServers/mysql-restricted", "name": "mysql-restricted", "type": "microsoft.dbformysql/flexibleservers", "resourceGroup": "rg5", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "hasAllowAllRule": false }
+  ],
+  "CHK-DB-SQL-NO-DEFENDER-VA": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-nodefender", "name": "sql-nodefender", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "alertPolicyState": "Disabled", "vaRecurringScansEnabled": false, "vaResultsStoreConfigured": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-noscan", "name": "sql-noscan", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "alertPolicyState": "Enabled", "vaRecurringScansEnabled": false, "vaResultsStoreConfigured": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Sql/servers/sql-protected", "name": "sql-protected", "type": "microsoft.sql/servers", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "alertPolicyState": "Enabled", "vaRecurringScansEnabled": true, "vaResultsStoreConfigured": true }
+  ]
+}

@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
   <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
-  <img src="https://img.shields.io/badge/checks-140-2496ed" alt="140 security checks">
+  <img src="https://img.shields.io/badge/checks-147-2496ed" alt="147 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
 </p>
@@ -40,9 +40,19 @@
 
 ---
 
+## ⚠️ AI Disclosure & Disclaimer
+
+**This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct penetration testing and security assessments.** AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings. **Use at your own risk and validate all findings independently.** This tool is intended as a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for:**
+- Verifying all findings before acting on them
+- Independently validating any vulnerability claims
+- Assessing the accuracy and completeness of the assessment
+- Ensuring all assessments are authorized and compliant with your policies and laws
+
+For production environments, always combine agentic assessments with manual review by experienced security professionals.
+
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fourteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fifteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge. Copilot pulls the relevant skill in based on its `description`, giving every agent its methodology and `az` runner without manual wiring.
 - **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
 
@@ -51,7 +61,7 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 ## 🤖 Agent Team
 
 <p align="center">
-  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fourteen domain specialists" width="100%">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fifteen domain specialists" width="100%">
 </p>
 
 | Agent | Domain | Key Focus |
@@ -61,7 +71,8 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 | **Identity Posture** | Entra ID | MFA gaps, Conditional Access, app registrations, guest users, credential hygiene |
 | **Authorization & Attack Path** | RBAC / Privilege | Over-permissioned roles, custom role abuse, managed identity chains, priv esc paths |
 | **Network Exposure** | Networking | Public IPs, NSG rules, firewall gaps, VNet peering, DNS exposure, private endpoints |
-| **Compute Platform** | Compute / Kubernetes / Containers | VM patching, AKS & Kubernetes RBAC, Container Apps/Instances, ACR, Function Apps, App Service hardening |
+| **Compute Platform** | Compute (VM / App Service / Functions) | VM disk encryption & patching, public RunCommand exposure, Function Apps, App Service auth / FTP-debug / plaintext-secret hardening |
+| **Azure Container & Kubernetes** | AKS / Kubernetes / ACR / Containers | AKS & in-cluster Kubernetes RBAC, Pod Security Admission, workload identity, ACR content-trust & image scanning, Container Apps/Instances — read-only posture **plus an optional, hard-gated lane that scans *inside* running containers** |
 | **Data Protection** | Storage / Data / SQL | Storage account exposure, Key Vault policies, SQL & database firewall rules, encryption |
 | **Web & Static Sites** | Web edge / delivery | CDN/Front Door, WAF, TLS, Static Web Apps & storage static sites, API Management |
 | **AI & Foundry** | AI services | Azure AI Foundry, Azure OpenAI, Cognitive Services, Machine Learning workspace exposure |
@@ -73,7 +84,9 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 | **External Vulnerability (EVA)** *(gated, active)* | Active external testing | OWASP Top 10 validation of Azure-discovered URLs/IPs + optional offline static analysis — scope-locked, **off by default** |
 | **Reporting** | Output | Finding normalization, severity reconciliation, executive + technical reports |
 
-> The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only when M365 is in engagement scope. EntraID, RBAC, SQL/databases, and Kubernetes/containers are covered by the Identity, Authorization, Data, and Compute agents respectively.
+> The **Email Security** agent covers Microsoft 365 / Exchange Online and is dispatched only when M365 is in engagement scope. EntraID, RBAC, and SQL/databases are covered by the Identity, Authorization, and Data agents respectively; AKS / Kubernetes / containers / ACR are covered by the dedicated **Azure Container & Kubernetes** agent (the Compute agent now focuses on VMs, App Service, and Functions).
+
+> **The Azure Container & Kubernetes agent** runs a read-only posture assessment by default. Its **cluster-active lane** — the only path that reaches *inside* a running cluster/container or pulls and scans images — is **off by default** and unlocks only when the engagement `mode` is `cluster-active-testing` with a signed authorization, scope-locked fail-closed to an Azure-derived cluster/registry allowlist by a third cluster guardrail (alongside the read-only and egress guardrails).
 
 > **The External Vulnerability Agent (EVA)** is the only agent that sends real traffic to live endpoints. It is **off by default** and dispatched only when the engagement `mode` is `external-active-testing` with a signed authorization. EVA tests **only** hosts on an Azure-derived allowlist, enforced fail-closed by a second egress guardrail. See [Operating Modes](#-operating-modes) and the [EVA docs](https://contoso-state.github.io/red-team-agent-orchestration/external-vuln).
 
@@ -90,7 +103,8 @@ graph TD
     subgraph Agents[Domain Agents]
         ID[Identity Posture]
         NET[Network Exposure]
-        COMP[Compute / Kubernetes]
+        COMP[Compute · VM/App Service]
+        CNTR[Containers & Kubernetes]
         DATA[Data Protection]
         WEB[Web & Static Sites]
         AI[AI & Foundry]
@@ -142,9 +156,12 @@ further ("start with the exposed surface?").
 - **Budgets, not best-effort** — `scale.*` knobs (`sample_per_type`, `max_resource_calls`, `time_budget_min`, `concurrency`, `prioritize_exposed`) cap the work; `tools/orchestration/estimate-cost.mjs` projects API calls / runtime *before* the run so you can narrow scope first.
 - **Durable, resumable orchestration** — work is a task manifest keyed by `(agent, subscription, check, scope)`; an interrupted run resumes (skips `done`, retries `failed`) and a deterministic reduce merges per-task output.
 - **Honest coverage** — every task's outcome (`assessed` / `sampled` / `skipped-by-budget` / `failed` / `permission-denied` / `partial`) becomes a coverage cell, so a reader never mistakes *"not assessed"* for *"no findings."*
+- **Scripted evaluation, agentic judgment** — the mechanical pass/fail evaluation of deterministic checks runs in a **zero-LLM engine** (`tools/checks/run-checks.mjs`) over a per-domain *predicate bank* (`checks/<domain>/predicates.json` — **99 of 147 checks** mechanized). Agents stay the primary reasoning engine but read a **compact triage summary** instead of raw Azure JSON, so token spend goes to correlation and attack-path judgment, not field comparison. Every report carries a **total token-usage** figure (Appendix D) and respects an optional `scale.token_budget`. See [`knowledge/token-optimization.md`](knowledge/token-optimization.md).
 
 | Concept | Tool |
 |---|---|
+| Deterministic check engine (zero-LLM predicate eval) | `tools/checks/run-checks.mjs` |
+| Token ledger + per-report usage accounting | `tools/tokens/ledger.mjs` |
 | Inventory census (paged ARG) | `tools/powershell/Export-Inventory.ps1` |
 | Scope brief (operator rollup) | `tools/resource-graph/scope-brief.mjs` |
 | Preflight cost / time estimate | `tools/orchestration/estimate-cost.mjs` |
@@ -159,7 +176,7 @@ The team uses three native Copilot CLI layers that map cleanly onto **who acts**
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fourteen specialists set
+The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the
 `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective
 agent" real. The Orchestrator is **dispatch-only** — it has no `execute`/shell capability, so it
@@ -172,7 +189,8 @@ never runs `az` itself; it assigns work to the specialist and presents the findi
 | `redteam-identity.agent.md` | Red Team Identity | Orchestrator |
 | `redteam-authorization.agent.md` | Red Team Authorization | Orchestrator |
 | `redteam-network.agent.md` | Red Team Network | Orchestrator |
-| `redteam-compute.agent.md` | Red Team Compute (incl. Kubernetes & containers) | Orchestrator |
+| `redteam-compute.agent.md` | Red Team Compute (VM / App Service / Functions) | Orchestrator |
+| `redteam-aks-container.agent.md` | Red Team Azure Container & Kubernetes (gated in-cluster lane) | Orchestrator |
 | `redteam-data.agent.md` | Red Team Data (incl. SQL/databases) | Orchestrator |
 | `redteam-web.agent.md` | Red Team Web & Static Sites | Orchestrator |
 | `redteam-ai.agent.md` | Red Team AI & Foundry | Orchestrator |
@@ -194,7 +212,8 @@ Each agent's deep methodology is a Copilot skill, loaded automatically by `descr
 | `azure-redteam-identity` | Entra ID / authentication posture |
 | `azure-redteam-authorization` | RBAC, privilege escalation, attack-path correlation |
 | `azure-redteam-network` | Public exposure, NSGs, segmentation |
-| `azure-redteam-compute` | VM, AKS / Kubernetes, container, serverless security |
+| `azure-redteam-compute` | VM, App Service, Function App, serverless compute security |
+| `azure-redteam-aks-container` | AKS / Kubernetes RBAC & Pod Security, ACR, Container Apps/Instances + gated in-cluster scanning |
 | `azure-redteam-data` | Storage, Key Vault, SQL / database protection |
 | `azure-redteam-web` | Web edge/delivery: WAF, TLS, static sites, API Management |
 | `azure-redteam-ai` | Azure AI Foundry, OpenAI, Cognitive Services, ML |
@@ -237,13 +256,15 @@ Each skill stays thin and delegates to the detailed methodology in `agents/<name
 
 ### 1. Define engagement scope
 
-Run the guided setup — it lists the subscriptions you can access, asks which one to assess, asks
+Run the guided setup — it lists the subscriptions you can access, asks which **single** subscription to assess, asks
 **what your assessment focus is** (the whole estate, or a slice like *Virtual Machines*, *Public IP
 addresses*, *Data stores*, *Identity*…), and writes `engagement.yaml` for you:
 
 ```text
 /setup
 ```
+
+> Single-subscription contract: one engagement run targets exactly one subscription. To assess additional subscriptions, run `/setup` again and create a separate run.
 
 Prefer to do it by hand? Copy the template instead:
 
@@ -388,10 +409,14 @@ Full reference: [`knowledge/datastore.md`](knowledge/datastore.md).
 | `attack-path-analysis` | Read-only + build attack path graphs | 🟡 Low |
 | `controlled-validation` | Read-only + state-changing actions require explicit human approval (the guardrail prompts, never auto-allows) | 🟠 Medium |
 | `external-active-testing` | Unlocks the gated **External Vulnerability Agent (EVA)** for active OWASP Top 10 testing of Azure-discovered URLs/IPs — scope-locked to an Azure-derived allowlist, requires a signed authorization, **off by default** | 🔴 High |
+| `cluster-active-testing` | Unlocks the gated cluster-active lane of the **Azure Container & Kubernetes** agent — `kubectl exec`/`debug`, in-cluster benchmarks (kube-bench/kubesec), and image CVE scans (trivy/grype) against an Azure-derived cluster/registry allowlist, requires a signed authorization, **off by default** | 🔴 High |
 
 Mode is set in `engagement.yaml` and enforced by the `redteam-guardrails` hook across all agents.
 `external-active-testing` additionally arms a second, independent fail-closed **egress** guardrail so
-EVA can never reach a host that isn't on the Azure-derived target allowlist. Run it with `/external`.
+EVA can never reach a host that isn't on the Azure-derived target allowlist; `cluster-active-testing`
+arms a third, independent fail-closed **cluster** guardrail so no in-cluster/image command can touch a
+cluster or registry that isn't on the Azure-derived allowlist. Both lanes are off by default and never
+mutate workloads. Run EVA with `/external`.
 See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orchestration/external-vuln) for the full safety model.
 
 ## 🗂️ Repository Structure
@@ -399,7 +424,7 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 ```
 ├── engagement.example.yaml      # Engagement scope template
 ├── .github/
-│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 14 specialists + gated EVA)
+│   ├── agents/                  # Custom agents — dispatchable team (redteam-orchestrator + 15 specialists + gated EVA)
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
 │   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny) + EVA egress lock
 │   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck /external (gated)
@@ -409,7 +434,8 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 │   ├── identity-posture/        # Entra ID and authentication security
 │   ├── authorization-attack-path/ # RBAC analysis and privilege escalation
 │   ├── network-exposure/        # Network security and public exposure
-│   ├── compute-platform/        # VM, AKS / Kubernetes, containers, serverless security
+│   ├── compute-platform/        # VM, App Service, Function App, serverless security
+│   ├── aks-container/           # AKS / Kubernetes / ACR / containers + gated in-cluster active lane
 │   ├── data-protection/         # Storage, SQL/databases, Key Vault, encryption
 │   ├── web-exposure/            # Web edge: WAF, TLS, static sites, API Management
 │   ├── ai-foundry/              # Azure AI Foundry, OpenAI, Cognitive Services, ML
@@ -431,6 +457,7 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 │   ├── datastore/              # SQLite engagement datastore: ingest / query / export / promote
 │   ├── resource-graph/         # ARG queries + scope-brief generator
 │   ├── powershell/             # Inventory export + bounded per-resource fan-out
+│   ├── cluster/                # Gated cluster-active lane: allowlist builder, safe kube audit, scoped scanner
 │   └── report/                 # Findings-driven HTML report generator + sample
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)

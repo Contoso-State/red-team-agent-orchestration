@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://red-team-agent-orchestration/schemas/predicate-pack.schema.json",
+  "title": "Predicate Pack",
+  "description": "Machine-readable detection predicates for one domain's checks, consumed by tools/checks/run-checks.mjs to evaluate findings DETERMINISTICALLY with zero LLM tokens. The human-readable detection.logic stays in checks/<domain>/checks.yaml; this JSON is the executable form (the repo is dependency-free Node with no YAML parser, so the machine form is JSON, not inline YAML). Every predicate's check_id MUST exist in the matching checks/<domain>/checks.yaml. Only deterministically-evaluable read-only checks belong here; judgment/active/correlation checks stay agentic.",
+  "type": "object",
+  "required": ["domain", "predicates"],
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "type": "string",
+      "enum": ["identity", "rbac", "network", "compute", "container", "storage", "database", "logging", "ai", "web", "easm", "external-vuln", "email", "governance", "supplychain"]
+    },
+    "predicates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/predicateEntry" }
+    }
+  },
+  "$defs": {
+    "predicateEntry": {
+      "type": "object",
+      "required": ["check_id", "finding_class", "title", "severity_default", "agent", "id_prefix", "query", "evaluate", "evidence_fields"],
+      "additionalProperties": false,
+      "properties": {
+        "check_id": { "type": "string", "pattern": "^CHK-[A-Z]+-[A-Z0-9-]+$" },
+        "finding_class": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "title": { "type": "string" },
+        "category": { "type": "string", "description": "Report category, e.g. Storage, Identity, Network." },
+        "severity_default": { "type": "string", "enum": ["Critical", "High", "Medium", "Low", "Informational"] },
+        "confidence": { "type": "string", "enum": ["High", "Medium", "Low"], "description": "Confidence of a deterministic predicate match. Default High (config facts are high-confidence)." },
+        "agent": {
+          "type": "string",
+          "enum": ["identity-posture", "authorization-attack-path", "network-exposure", "compute-platform", "aks-container", "data-protection", "logging-coverage", "ai-foundry", "web-exposure", "attack-surface", "external-vuln", "email-security", "governance-posture", "devops-supplychain"]
+        },
+        "id_prefix": { "type": "string", "pattern": "^AZ-[A-Z]+$", "description": "Finding ID prefix, e.g. AZ-STOR. The engine appends a zero-padded sequence (AZ-STOR-001)." },
+        "description": { "type": "string" },
+        "attack_vector": { "type": "string" },
+        "recommendation": { "type": "string" },
+        "controls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cis_azure": { "type": "array", "items": { "type": "string" } },
+            "mitre": { "type": "array", "items": { "type": "string" } },
+            "nist_csf": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "query": {
+          "type": "object",
+          "required": ["method"],
+          "additionalProperties": false,
+          "properties": {
+            "method": { "type": "string", "enum": ["resource-graph", "azure-cli", "msgraph", "kql", "kube-api"] },
+            "kql": { "type": "string", "description": "Inline ARG/KQL that produces the candidate rows (server-side filter; project only what evidence_fields and evaluate need)." },
+            "ref": { "type": "string", "description": "Pointer to the runner/query, e.g. 'tools/az-cli/storage.md#CHK-STOR-PUBLIC-BLOB'." },
+            "row_path": { "type": "string", "description": "Optional dot-path to the array of rows inside the query output (default: the value is already an array)." }
+          }
+        },
+        "evaluate": { "$ref": "#/$defs/predicate" },
+        "evidence_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Dot-paths of projected columns to capture into the finding evidence summary (never secret values)."
+        }
+      }
+    },
+    "predicate": {
+      "type": "object",
+      "oneOf": [
+        { "required": ["all"], "additionalProperties": false, "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/predicate" }, "minItems": 1 } } },
+        { "required": ["any"], "additionalProperties": false, "properties": { "any": { "type": "array", "items": { "$ref": "#/$defs/predicate" }, "minItems": 1 } } },
+        { "required": ["not"], "additionalProperties": false, "properties": { "not": { "$ref": "#/$defs/predicate" } } },
+        {
+          "required": ["field", "op"],
+          "additionalProperties": false,
+          "properties": {
+            "field": { "type": "string", "description": "Dot-path into the row object, e.g. properties.allowBlobPublicAccess." },
+            "op": { "type": "string", "enum": ["eq", "ne", "eqi", "in", "ini", "nin", "gt", "gte", "lt", "lte", "exists", "missing", "contains", "ncontains", "regex", "version_lt"] },
+            "value": {}
+          }
+        }
+      ]
+    }
+  }
+}

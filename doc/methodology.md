@@ -61,7 +61,11 @@ Playbooks are multi-step assessment methodologies that combine checks across dom
 - **`entra-attack-techniques.md`** — Entra ID / identity attack methodology (consent
   phishing, service-principal & app-ownership abuse, federation trust, standing privilege).
 - **`kubernetes-security.md`**, **`container-security.md`** — AKS / Kubernetes RBAC, Pod
-  Security, workload-identity exposure, and container-image / registry posture.
+  Security, workload-identity exposure, and container-image / registry posture (with gated
+  cluster-active confirmation tiers).
+- **`aks-security-baseline.md`** — Microsoft Cloud Security Benchmark–mapped AKS baseline used
+  by the Azure Container & Kubernetes agent, linking each MCSB family to the relevant checks
+  and the read-only vs. gated cluster-active lane.
 - **`oauth-saml-jwt.md`** — OAuth2/OIDC, JWT, and SAML federation testing methodology used
   by the gated EVA lane.
 - **`cloud-posture-benchmarks.md`** — CIS / CSPM / cloud-vulnerability-management posture
@@ -97,6 +101,12 @@ defenders:
   probes), `Invoke-ScopedScan.ps1` (scope-locked DAST wrapper), and `Invoke-StaticAnalysis.ps1`
   (offline SAST). These run only in `external-active-testing` mode and are bounded by a
   second fail-closed egress guardrail.
+- **`tools/cluster/`** — the **gated** cluster-active toolchain for the Azure Container &
+  Kubernetes agent: `build-cluster-targets.mjs` (derives the Azure-scoped cluster/registry
+  allowlist), `safe-kube-audit.mjs` (dependency-free Tier-C1 read-only `kubectl` audit), and
+  `Invoke-ScopedClusterScan.ps1` (scope-locked kube-bench/kubesec/trivy/grype wrapper). These
+  run only in `cluster-active-testing` mode, never mutate workloads, and are bounded by a
+  third fail-closed cluster guardrail.
 
 All read-only commands pass through the guardrail described in
 [Safety & Authorization](safety.md). The `tools/external/` toolchain is the **one active

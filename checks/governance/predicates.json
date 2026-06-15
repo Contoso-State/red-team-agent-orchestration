@@ -1,0 +1,249 @@
+{
+  "domain": "governance",
+  "predicates": [
+    {
+      "check_id": "CHK-GOV-POLICY-COVERAGE",
+      "finding_class": "governance-policy-coverage-gap",
+      "title": "Subscription or management group lacks baseline Azure Policy guardrails",
+      "category": "Governance",
+      "severity_default": "High",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "No policy assignment references a security initiative (e.g. Microsoft Cloud Security Benchmark), or all assignments are Disabled/DoNotEnforce, or assignment count is effectively zero at the in-scope subscription/MG, so insecure configurations are never denied or audited.",
+      "attack_vector": "Absent guardrails let an attacker (or insider) deploy public, unencrypted, or over-permissioned resources unchallenged",
+      "recommendation": "Assign the Microsoft Cloud Security Benchmark initiative at the management-group root with Deny/Audit effects; remediate non-compliant resources.",
+      "controls": { "cis_azure": ["2.1", "1.x"], "mitre": ["T1578", "T1098"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-POLICY-COVERAGE"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "securityInitiativeAssigned", "op": "eq", "value": false },
+          { "field": "enforcedAssignmentCount", "op": "lte", "value": 0 },
+          { "field": "allAssignmentsDoNotEnforce", "op": "eq", "value": true }
+        ]
+      },
+      "evidence_fields": ["securityInitiativeAssigned", "enforcedAssignmentCount", "allAssignmentsDoNotEnforce"]
+    },
+    {
+      "check_id": "CHK-GOV-POLICY-EXEMPTIONS",
+      "finding_class": "governance-broad-policy-exemption",
+      "title": "Broad or long-lived Azure Policy exemptions weaken guardrails",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "Policy exemptions are scoped broadly (subscription or management group), never expire, or waive security-relevant initiatives, silently disabling controls for large parts of the estate.",
+      "attack_vector": "An over-broad exemption disables Deny/Audit guardrails so misconfigurations pass unflagged",
+      "recommendation": "Scope exemptions to individual resources, require expiry dates and justification, and review exemptions on security initiatives regularly.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1562.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-POLICY-EXEMPTIONS"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "expiresOn", "op": "missing" },
+          {
+            "all": [
+              { "field": "exemptionCategory", "op": "eqi", "value": "Waiver" },
+              { "field": "targetsSecurityInitiative", "op": "eq", "value": true }
+            ]
+          },
+          { "field": "scopeLevel", "op": "ini", "value": ["subscription", "managementGroup"] }
+        ]
+      },
+      "evidence_fields": ["exemptionCategory", "scopeLevel", "expiresOn", "targetsSecurityInitiative"]
+    },
+    {
+      "check_id": "CHK-GOV-SECURE-SCORE-LOW",
+      "finding_class": "governance-low-secure-score",
+      "title": "Low Defender for Cloud secure score with unactioned critical recommendations",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "The Microsoft Defender for Cloud secure score is below the engagement threshold (default 60%) and/or high-severity assessments remain Unhealthy, indicating systemic posture debt. Distinct from logging's plan on/off check.",
+      "attack_vector": "Each unhealthy recommendation is a concrete, Microsoft-confirmed exposure an attacker can exploit",
+      "recommendation": "Triage and remediate high-severity Defender for Cloud recommendations; track secure score as a posture KPI.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1190", "T1078"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-SECURE-SCORE-LOW"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "scorePercentage", "op": "lt", "value": 60 },
+          { "field": "unhealthyHighSeverityAssessmentCount", "op": "gt", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["scorePercentage", "unhealthyHighSeverityAssessmentCount"]
+    },
+    {
+      "check_id": "CHK-GOV-MG-HIERARCHY-GUARDRAILS",
+      "finding_class": "governance-weak-mg-hierarchy",
+      "title": "Weak management-group hierarchy without inherited guardrails",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "The in-scope subscription is a direct child of the tenant root management group, or the hierarchy has no intermediate landing-zone group carrying policy/RBAC, so no guardrails are inherited from above the subscription. The deterministic trigger (parent is tenant root / no guardrail-bearing intermediate group) is mechanized; landing-zone design judgment stays agentic.",
+      "attack_vector": "Without inherited guardrails each subscription is an independent trust boundary an attacker can pivot through unchecked",
+      "recommendation": "Adopt a landing-zone management-group hierarchy (platform / landing zones / sandbox) and assign guardrail policy + RBAC at intermediate groups.",
+      "controls": { "cis_azure": ["1.x", "2.1"], "mitre": ["T1578"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-MG-HIERARCHY-GUARDRAILS"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "parentIsTenantRoot", "op": "eq", "value": true },
+          { "field": "intermediateGuardrailGroupCount", "op": "lte", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["parentIsTenantRoot", "intermediateGuardrailGroupCount"]
+    },
+    {
+      "check_id": "CHK-GOV-NO-RESOURCE-LOCKS",
+      "finding_class": "governance-missing-resource-lock",
+      "title": "Critical resources without CanNotDelete or ReadOnly locks",
+      "category": "Governance",
+      "severity_default": "Low",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "High-value resources or resource groups (Key Vaults, storage with data, production workloads) have no management lock, so a compromised contributor can delete or alter them with no safety net. Candidate rows are pre-filtered by the runner to high-value resources; criticality judgment stays agentic.",
+      "attack_vector": "Destructive action / ransomware deletes unprotected resources to maximize impact or cover tracks",
+      "recommendation": "Apply CanNotDelete locks to production resource groups and ReadOnly where appropriate; pair with policy and RBAC.",
+      "controls": { "mitre": ["T1485", "T1490"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-NO-RESOURCE-LOCKS"
+      },
+      "evaluate": { "field": "hasDeleteOrReadOnlyLock", "op": "eq", "value": false },
+      "evidence_fields": ["hasDeleteOrReadOnlyLock"]
+    },
+    {
+      "check_id": "CHK-GOV-MG-RBAC-INHERITANCE",
+      "finding_class": "governance-broad-standing-privilege",
+      "title": "Broad standing privilege granted at management-group or root scope",
+      "category": "Governance",
+      "severity_default": "High",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "Owner, Contributor, or User Access Administrator is assigned at the tenant root or a high-level management group, so the grant is inherited by every child subscription as permanent standing access. This agent flags the inheritance/blast-radius angle; per-assignment RBAC analysis stays with authorization-attack-path.",
+      "attack_vector": "Compromising one principal with root-MG Owner yields standing control of every subscription beneath it",
+      "recommendation": "Remove broad standing assignments at MG/root; use narrowly-scoped, PIM-eligible, time-bound roles at the lowest necessary scope.",
+      "controls": { "cis_azure": ["1.x"], "mitre": ["T1098", "T1078.004"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-MG-RBAC-INHERITANCE"
+      },
+      "evaluate": {
+        "all": [
+          { "field": "roleName", "op": "ini", "value": ["Owner", "Contributor", "User Access Administrator"] },
+          { "field": "scopeLevel", "op": "ini", "value": ["managementGroup", "root", "tenantRoot"] }
+        ]
+      },
+      "evidence_fields": ["roleName", "scopeLevel", "principalType"]
+    },
+    {
+      "check_id": "CHK-GOV-NO-SECURITY-CONTACT",
+      "finding_class": "governance-no-security-contact",
+      "title": "Defender for Cloud security contact and notifications not configured",
+      "category": "Governance",
+      "severity_default": "Low",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "No security contact email or alert notification is configured for Microsoft Defender for Cloud, so high-severity alerts and attack notifications have no owner. This is a posture/accountability gap, distinct from logging's detection-pipeline coverage.",
+      "attack_vector": "Active-attack alerts are raised but never reach a human, delaying or preventing response",
+      "recommendation": "Configure a monitored security contact email and enable high-severity alert notifications in Defender for Cloud.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1562.001"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-NO-SECURITY-CONTACT"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "securityContactEmailConfigured", "op": "eq", "value": false },
+          { "field": "alertNotificationsEnabled", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["securityContactEmailConfigured", "alertNotificationsEnabled"]
+    },
+    {
+      "check_id": "CHK-GOV-NO-CIS-COMPLIANCE-STANDARD",
+      "finding_class": "governance-no-benchmark-standard",
+      "title": "No CIS Azure benchmark compliance standard monitored in Defender for Cloud",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "No industry-benchmark regulatory compliance standard (CIS Microsoft Azure Foundations Benchmark, ISO 27001, PCI DSS) is assigned to the subscription's Defender for Cloud compliance dashboard, so benchmark drift is never measured. Distinct from policy-coverage (the Azure Policy MCSB initiative) — this is the regulatory/benchmark standards layer on top.",
+      "attack_vector": "Without a measured benchmark, systemic CIS control failures accumulate unseen and provide ready footholds",
+      "recommendation": "Add the CIS Microsoft Azure Foundations Benchmark (and any required regulatory standards) to Defender for Cloud, and track passed/failed controls over time as a posture KPI.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1078.004", "T1580"], "nist_csf": ["GV.PO-01"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-NO-CIS-COMPLIANCE-STANDARD"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "cisStandardPresent", "op": "eq", "value": false },
+          { "field": "benchmarkStandardCount", "op": "lte", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["cisStandardPresent", "benchmarkStandardCount"]
+    },
+    {
+      "check_id": "CHK-GOV-NO-DEFENDER-CSPM-PLAN",
+      "finding_class": "governance-defender-cspm-disabled",
+      "title": "Defender CSPM (foundational posture) plan not enabled",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "The Defender Cloud Security Posture Management (CloudPosture) plan is on the Free tier or its posture extensions are off, so attack-path analysis, the cloud security graph, agentless secret/malware scanning, and governance rules are unavailable. Workload-protection plans are owned by logging (CHK-LOG-DEFENDER-DISABLED); this covers only the foundational CSPM plan.",
+      "attack_vector": "Without attack-path analysis and the security graph, exploitable multi-step exposure chains are never surfaced or prioritized",
+      "recommendation": "Enable the Defender CSPM plan and its extensions (agentless scanning, attack-path analysis, governance rules) on in-scope subscriptions.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1078.004", "T1580"], "nist_csf": ["GV.RM-01"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-NO-DEFENDER-CSPM-PLAN"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "pricingTier", "op": "eqi", "value": "Free" },
+          { "field": "agentlessScanningEnabled", "op": "eq", "value": false },
+          { "field": "attackPathAnalysisEnabled", "op": "eq", "value": false }
+        ]
+      },
+      "evidence_fields": ["pricingTier", "agentlessScanningEnabled", "attackPathAnalysisEnabled"]
+    },
+    {
+      "check_id": "CHK-GOV-NO-VULN-POSTURE-MGMT",
+      "finding_class": "governance-no-vuln-posture",
+      "title": "Cloud vulnerability posture management (agentless/VA) not in effect",
+      "category": "Governance",
+      "severity_default": "Medium",
+      "agent": "governance-posture",
+      "id_prefix": "AZ-GOV",
+      "description": "Continuous vulnerability assessment of machines, containers, and registry images is not deployed (no VA solution / agentless scanning off) and/or high-severity vulnerability assessments remain Unhealthy. The CVM backlog view, distinct from overall secure score and from the plan on/off check owned by logging. Deep sub-assessment triage stays agentic.",
+      "attack_vector": "Unpatched CVEs on exposed VMs, containers, and images give an attacker a direct, scanner-confirmed exploitation path",
+      "recommendation": "Enable agentless/integrated vulnerability assessment (via Defender CSPM / Defender for Servers / Containers) and triage high-severity findings on a defined SLA.",
+      "controls": { "cis_azure": ["2.1"], "mitre": ["T1190", "T1203", "T1068"], "nist_csf": ["ID.RA-01"] },
+      "query": {
+        "method": "azure-cli",
+        "ref": "tools/az-cli/governance.md#CHK-GOV-NO-VULN-POSTURE-MGMT"
+      },
+      "evaluate": {
+        "any": [
+          { "field": "vaSolutionDeployed", "op": "eq", "value": false },
+          { "field": "agentlessVulnScanningEnabled", "op": "eq", "value": false },
+          { "field": "unhealthyHighSeverityVaCount", "op": "gt", "value": 0 }
+        ]
+      },
+      "evidence_fields": ["vaSolutionDeployed", "agentlessVulnScanningEnabled", "unhealthyHighSeverityVaCount"]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "_comment": "Sample candidate rows keyed by check_id for checks/rbac/predicates.json. Mirrors tools/checks/sample/rows.sample.json. Each check carries matching (vulnerable) and non-matching (safe) rows. Field shapes mirror what the read-only Resource Graph / az runner (tools/az-cli/rbac.md) projects after flattening role definitions and classifying scope level.",
+  "CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleDefinitions/role-1", "name": "AppDeployer", "subscriptionId": "sub-a", "roleName": "AppDeployer", "roleType": "CustomRole", "actions": ["Microsoft.Resources/deployments/*", "Microsoft.Authorization/roleAssignments/write"] },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleDefinitions/role-2", "name": "SuperRole", "subscriptionId": "sub-a", "roleName": "SuperRole", "roleType": "CustomRole", "actions": ["*"] },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleDefinitions/role-3", "name": "ReaderPlus", "subscriptionId": "sub-a", "roleName": "ReaderPlus", "roleType": "CustomRole", "actions": ["Microsoft.Compute/virtualMachines/read", "Microsoft.Storage/storageAccounts/read"] }
+  ],
+  "CHK-RBAC-WILDCARD-ACTION": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleDefinitions/role-2", "name": "SuperRole", "subscriptionId": "sub-a", "roleName": "SuperRole", "roleType": "CustomRole", "actions": ["*"] },
+    { "id": "/subscriptions/sub-b/providers/Microsoft.Authorization/roleDefinitions/role-4", "name": "WriteAnything", "subscriptionId": "sub-b", "roleName": "WriteAnything", "roleType": "CustomRole", "actions": ["*/write"] },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleDefinitions/role-3", "name": "ReaderPlus", "subscriptionId": "sub-a", "roleName": "ReaderPlus", "roleType": "CustomRole", "actions": ["Microsoft.Compute/virtualMachines/read"] }
+  ],
+  "CHK-RBAC-SUB-OWNER-SPRAWL": [
+    { "id": "/subscriptions/sub-a", "name": "prod-sub", "subscriptionId": "sub-a", "scope": "/subscriptions/sub-a", "ownerCount": 7 },
+    { "id": "/subscriptions/sub-b", "name": "sandbox-sub", "subscriptionId": "sub-b", "scope": "/subscriptions/sub-b", "ownerCount": 2 }
+  ],
+  "CHK-RBAC-SP-PRIVILEGED": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleAssignments/ra-1", "name": "ra-1", "subscriptionId": "sub-a", "principalType": "ServicePrincipal", "roleDefinitionName": "Owner", "scopeLevel": "subscription", "principalDisplayName": "ci-deployer-sp" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleAssignments/ra-2", "name": "ra-2", "subscriptionId": "sub-a", "principalType": "ServicePrincipal", "roleDefinitionName": "Contributor", "scopeLevel": "subscription", "principalDisplayName": "automation-sp" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleAssignments/ra-3", "name": "ra-3", "subscriptionId": "sub-a", "principalType": "User", "roleDefinitionName": "Owner", "scopeLevel": "subscription", "principalDisplayName": "alice" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/roleAssignments/ra-4", "name": "ra-4", "subscriptionId": "sub-a", "principalType": "ServicePrincipal", "roleDefinitionName": "Reader", "scopeLevel": "subscription", "principalDisplayName": "monitor-sp" }
+  ],
+  "CHK-RBAC-CLASSIC-ADMIN": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/classicAdministrators/ca-1", "name": "ca-1", "subscriptionId": "sub-a", "roleDefinitionName": "CoAdministrator", "principalName": "legacy-admin" },
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Authorization/classicAdministrators/ca-2", "name": "ca-2", "subscriptionId": "sub-a", "roleDefinitionName": "Reader", "principalName": "not-a-classic-admin" }
+  ],
+  "CHK-RBAC-MI-PRIVILEGED-FROM-COMPUTE": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/web01", "name": "web01", "subscriptionId": "sub-a", "resourceGroup": "rg1", "type": "microsoft.compute/virtualmachines", "computeAttached": true, "computeResourceId": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/web01", "roleDefinitionName": "Contributor", "scopeLevel": "subscription" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Web/sites/func01", "name": "func01", "subscriptionId": "sub-a", "resourceGroup": "rg2", "type": "microsoft.web/sites", "computeAttached": true, "computeResourceId": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.Web/sites/func01", "roleDefinitionName": "Reader", "scopeLevel": "subscription" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Compute/virtualMachines/db01", "name": "db01", "subscriptionId": "sub-a", "resourceGroup": "rg3", "type": "microsoft.compute/virtualmachines", "computeAttached": false, "computeResourceId": "", "roleDefinitionName": "Owner", "scopeLevel": "subscription" }
+  ],
+  "CHK-RBAC-MI-DATA-PLANE-SECRETS": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/web01", "name": "web01", "subscriptionId": "sub-a", "resourceGroup": "rg1", "type": "microsoft.compute/virtualmachines", "computeAttached": true, "computeResourceId": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Compute/virtualMachines/web01", "roleDefinitionName": "Key Vault Secrets User" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.App/containerApps/api01", "name": "api01", "subscriptionId": "sub-a", "resourceGroup": "rg2", "type": "microsoft.app/containerapps", "computeAttached": true, "computeResourceId": "/subscriptions/sub-a/resourceGroups/rg2/providers/Microsoft.App/containerApps/api01", "roleDefinitionName": "Storage Blob Data Contributor" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Compute/virtualMachines/cache01", "name": "cache01", "subscriptionId": "sub-a", "resourceGroup": "rg3", "type": "microsoft.compute/virtualmachines", "computeAttached": true, "computeResourceId": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.Compute/virtualMachines/cache01", "roleDefinitionName": "Reader" }
+  ]
+}

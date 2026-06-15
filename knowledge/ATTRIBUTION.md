@@ -25,17 +25,17 @@ External Vulnerability Agent (EVA) lane — never into a default read-only runne
 | detecting-azure-lateral-movement | rbac | `checks/rbac/checks.yaml`, `knowledge/azure-attack-matrix.md` |
 | detecting-azure-storage-account-misconfigurations | storage | `checks/storage/checks.yaml`, `tools/az-cli/storage.md` |
 | detecting-misconfigured-azure-storage | storage | `checks/storage/checks.yaml`, `tools/az-cli/storage.md` |
-| auditing-kubernetes-cluster-rbac | compute | `checks/compute/checks.yaml`, `knowledge/kubernetes-security.md` |
-| implementing-rbac-hardening-for-kubernetes | compute | `knowledge/kubernetes-security.md` |
-| implementing-kubernetes-pod-security-standards | compute | `checks/compute/checks.yaml`, `knowledge/kubernetes-security.md` |
-| scanning-kubernetes-manifests-with-kubesec | compute | `knowledge/kubernetes-security.md`, `tools/preflight/check-environment.mjs` |
-| performing-kubernetes-cis-benchmark-with-kube-bench | compute | `knowledge/kubernetes-security.md`, `tools/preflight/check-environment.mjs` |
-| securing-kubernetes-on-cloud | compute | `knowledge/kubernetes-security.md` |
-| performing-kubernetes-penetration-testing | compute | `knowledge/kubernetes-security.md` (active → knowledge only) |
-| scanning-containers-with-trivy-in-cicd | compute / supplychain | `checks/compute/checks.yaml`, `knowledge/container-security.md` |
-| securing-container-registry-images | compute | `checks/compute/checks.yaml`, `knowledge/container-security.md` |
-| detecting-container-escape-attempts | compute | `knowledge/container-security.md` |
-| hardening-docker-containers-for-production | compute | `knowledge/container-security.md` |
+| auditing-kubernetes-cluster-rbac | container | `checks/container/checks.yaml`, `knowledge/kubernetes-security.md` |
+| implementing-rbac-hardening-for-kubernetes | container | `knowledge/kubernetes-security.md` |
+| implementing-kubernetes-pod-security-standards | container | `checks/container/checks.yaml`, `knowledge/kubernetes-security.md` |
+| scanning-kubernetes-manifests-with-kubesec | container | `knowledge/kubernetes-security.md`, `tools/cluster/safe-kube-audit.mjs`, `tools/preflight/check-environment.mjs` |
+| performing-kubernetes-cis-benchmark-with-kube-bench | container | `knowledge/kubernetes-security.md`, `tools/cluster/safe-kube-audit.mjs`, `tools/preflight/check-environment.mjs` |
+| securing-kubernetes-on-cloud | container | `knowledge/kubernetes-security.md`, `knowledge/aks-security-baseline.md` |
+| performing-kubernetes-penetration-testing | container | `knowledge/kubernetes-security.md` (active → `aks-container` gated cluster-active lane) |
+| scanning-containers-with-trivy-in-cicd | container / supplychain | `checks/container/checks.yaml`, `knowledge/container-security.md`, `tools/cluster/Invoke-ScopedClusterScan.ps1` |
+| securing-container-registry-images | container | `checks/container/checks.yaml`, `knowledge/container-security.md` |
+| detecting-container-escape-attempts | container | `knowledge/container-security.md` |
+| hardening-docker-containers-for-production | container | `knowledge/container-security.md` |
 | analyzing-azure-activity-logs-for-threats | logging | `checks/logging/checks.yaml`, `tools/az-cli/logging.md` |
 | building-cloud-siem-with-sentinel | logging | `checks/logging/checks.yaml`, `tools/az-cli/logging.md` |
 | securing-azure-with-microsoft-defender | logging | `checks/logging/checks.yaml`, `tools/az-cli/logging.md` |

@@ -12,7 +12,7 @@ environment, then hands you a leadership-ready report, an interactive HTML repor
 slide deck.
 
 The team ships as native **GitHub Copilot CLI** primitives. Once this repo is checked out,
-Copilot automatically discovers the **Pentest Manager** (Orchestrator) and its fourteen
+Copilot automatically discovers the **Pentest Manager** (Orchestrator) and its fifteen
 domain specialists — no manual wiring required.
 
 :::{important}
@@ -27,13 +27,18 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 [Safety & Authorization](safety.md#active-external-testing-eva).
 :::
 
+:::{warning}
+**AI Disclosure & Disclaimer:** This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct security assessments. **AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings.** Use at your own risk and validate all findings independently. This tool is a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for verifying findings, ensuring authorization, and assessing accuracy.** Always combine agentic assessments with manual review by experienced security professionals before acting on findings in production environments.
+:::
+
 ## What you get
 
-- **A dispatchable agent team** — one user-facing Orchestrator that coordinates fourteen
-  read-only domain specialists (identity, network, compute, data, web, AI, EASM, logging,
-  governance, supply chain, email, authorization/attack-path, inventory, reporting), plus a
-  **gated** active-testing agent (EVA) that stays off until explicitly authorized.
-- **Atomic security checks** across 13 domains, each mapped to CIS Azure, MITRE
+- **A dispatchable agent team** — one user-facing Orchestrator that coordinates fifteen
+  read-only domain specialists (identity, network, compute, container/Kubernetes, data, web,
+  AI, EASM, logging, governance, supply chain, email, authorization/attack-path, inventory,
+  reporting), plus **gated** active-testing lanes (the EVA agent and the Container &
+  Kubernetes in-cluster lane) that stay off until explicitly authorized.
+- **Atomic security checks** across 14 domains, each mapped to CIS Azure, MITRE
   ATT&CK cloud techniques, and NIST CSF 2.0.
 - **Attack-path correlation** that chains single-domain findings into multi-step
   compromise scenarios.
@@ -53,9 +58,14 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 Define scope, start the Pentest Manager, and run your first assessment in seven steps.
 :::
 
+:::{card} 🔐 Permissions & Least Privilege
+:link: permissions.md
+Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
+:::
+
 :::{card} 🤖 The Agent Team
 :link: agent-team.md
-Meet the Orchestrator and its fourteen domain specialists, and see how they coordinate.
+Meet the Orchestrator and its fifteen domain specialists, and see how they coordinate.
 :::
 
 :::{card} 🧠 Skills

@@ -1,0 +1,21 @@
+{
+  "CHK-STOR-PUBLIC-BLOB": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sa1", "name": "sa1", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowBlobPublicAccess": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sa2", "name": "sa2", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowBlobPublicAccess": true },
+    { "id": "/subscriptions/sub-b/resourceGroups/rg9/providers/Microsoft.Storage/storageAccounts/sa9", "name": "sa9", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg9", "subscriptionId": "sub-b", "location": "westus", "allowBlobPublicAccess": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/safe1", "name": "safe1", "type": "microsoft.storage/storageaccounts", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "allowBlobPublicAccess": false }
+  ],
+  "CHK-STOR-PUBLIC-NETWORK": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/sa1", "name": "sa1", "subscriptionId": "sub-a", "resourceGroup": "rg1", "publicNetworkAccess": "Enabled", "defaultAction": "Allow" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/safe1", "name": "safe1", "subscriptionId": "sub-a", "resourceGroup": "rg1", "publicNetworkAccess": "Enabled", "defaultAction": "Deny" }
+  ],
+  "CHK-STOR-NO-HTTPS-ONLY": [
+    { "id": "/subscriptions/sub-a/.../sa1", "name": "sa1", "subscriptionId": "sub-a", "httpsOnly": false, "minTls": "TLS1_2" },
+    { "id": "/subscriptions/sub-a/.../sa3", "name": "sa3", "subscriptionId": "sub-a", "httpsOnly": true, "minTls": "TLS1_0" },
+    { "id": "/subscriptions/sub-a/.../safe2", "name": "safe2", "subscriptionId": "sub-a", "httpsOnly": true, "minTls": "TLS1_2" }
+  ],
+  "CHK-STOR-ANON-CONTAINER": [
+    { "id": "/subscriptions/sub-a/.../sa1/blobServices/default/containers/public", "name": "public", "subscriptionId": "sub-a", "publicAccess": "Container" },
+    { "id": "/subscriptions/sub-a/.../sa1/blobServices/default/containers/priv", "name": "priv", "subscriptionId": "sub-a", "publicAccess": "None" }
+  ]
+}

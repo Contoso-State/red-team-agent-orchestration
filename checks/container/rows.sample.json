@@ -1,0 +1,68 @@
+{
+  "CHK-COMP-AKS-PUBLIC-API": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enablePrivateCluster": false, "authorizedIpRangeCount": 0 },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks2", "name": "aks2", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enablePrivateCluster": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks3", "name": "aks3", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enablePrivateCluster": true, "authorizedIpRangeCount": 0 },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks4", "name": "aks4", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enablePrivateCluster": false, "authorizedIpRangeCount": 3 }
+  ],
+  "CHK-COMP-AKS-LOCAL-ADMIN": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "disableLocalAccounts": false, "aadProfileEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks3", "name": "aks3", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "disableLocalAccounts": true, "aadProfileEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks5", "name": "aks5", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "disableLocalAccounts": false, "aadProfileEnabled": false }
+  ],
+  "CHK-COMP-AKS-NO-NETPOL": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "networkPolicy": "none" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks2", "name": "aks2", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks6", "name": "aks6", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "networkPolicy": "azure" }
+  ],
+  "CHK-COMP-AKS-NO-ENTRA-RBAC": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enableRBAC": false, "aadProfileEnabled": false, "enableAzureRBAC": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks7", "name": "aks7", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "enableRBAC": true, "aadProfileEnabled": true, "enableAzureRBAC": true }
+  ],
+  "CHK-COMP-AKS-NO-POD-SECURITY": [
+    { "id": "ns/payments", "name": "payments", "kind": "Namespace", "subscriptionId": "sub-a", "isSystem": false, "podSecurityEnforce": null },
+    { "id": "pod/payments/api-7c", "name": "api-7c", "kind": "Pod", "subscriptionId": "sub-a", "privileged": true, "hostNetwork": false, "hostPID": false, "hostIPC": false, "hasHostPath": false, "runAsNonRoot": false },
+    { "id": "ns/restricted", "name": "restricted", "kind": "Namespace", "subscriptionId": "sub-a", "isSystem": false, "podSecurityEnforce": "restricted" },
+    { "id": "ns/kube-system", "name": "kube-system", "kind": "Namespace", "subscriptionId": "sub-a", "isSystem": true, "podSecurityEnforce": null },
+    { "id": "pod/restricted/safe-app", "name": "safe-app", "kind": "Pod", "subscriptionId": "sub-a", "privileged": false, "hostNetwork": false, "hostPID": false, "hostIPC": false, "hasHostPath": false, "runAsNonRoot": true }
+  ],
+  "CHK-COMP-CONTAINER-PRIVILEGED-INGRESS": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.App/containerApps/ca1", "name": "ca1", "type": "microsoft.app/containerapps", "kind": "microsoft.app/containerapps", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "ingressExternal": true, "ipRestrictionCount": 0 },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.ContainerInstance/containerGroups/cg1", "name": "cg1", "type": "microsoft.containerinstance/containergroups", "kind": "microsoft.containerinstance/containergroups", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "hasPublicIp": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.App/containerApps/ca2", "name": "ca2", "type": "microsoft.app/containerapps", "kind": "microsoft.app/containerapps", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "ingressExternal": true, "ipRestrictionCount": 3 },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg3/providers/Microsoft.App/containerApps/ca3", "name": "ca3", "type": "microsoft.app/containerapps", "kind": "microsoft.app/containerapps", "resourceGroup": "rg3", "subscriptionId": "sub-a", "location": "eastus", "ingressExternal": false, "hasPublicIp": false }
+  ],
+  "CHK-COMP-ACR-ADMIN-USER": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1", "name": "acr1", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "adminUserEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr2", "name": "acr2", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "adminUserEnabled": false }
+  ],
+  "CHK-COMP-ACR-PUBLIC-ANON": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1", "name": "acr1", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "networkRuleCount": 0, "anonymousPullEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr3", "name": "acr3", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "anonymousPullEnabled": true },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr4", "name": "acr4", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "networkRuleCount": 3, "anonymousPullEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr5", "name": "acr5", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Disabled", "anonymousPullEnabled": false }
+  ],
+  "CHK-COMP-ACR-NO-DEFENDER-SCAN": [
+    { "id": "/subscriptions/sub-a/providers/Microsoft.Security/pricings/Containers", "name": "Containers", "subscriptionId": "sub-a", "pricingTier": "Free" },
+    { "id": "/subscriptions/sub-b/providers/Microsoft.Security/pricings/Containers", "name": "Containers", "subscriptionId": "sub-b", "pricingTier": "Standard" }
+  ],
+  "CHK-COMP-ACR-NO-CONTENT-TRUST": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1", "name": "acr1", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "sku": "Premium", "trustPolicyStatus": "disabled", "quarantinePolicyStatus": "disabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr6", "name": "acr6", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "sku": "Basic", "trustPolicyStatus": "disabled" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr7", "name": "acr7", "type": "microsoft.containerregistry/registries", "resourceGroup": "rg4", "subscriptionId": "sub-a", "location": "eastus", "sku": "Premium", "trustPolicyStatus": "enabled", "quarantinePolicyStatus": "enabled" }
+  ],
+  "CHK-COMP-CONTAINER-IMAGE-VULN": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1/images/api", "name": "api", "image": "acr1.azurecr.io/api", "tag": "1.4.2", "subscriptionId": "sub-a", "resourceGroup": "rg4", "defenderSeverity": "High" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1/images/web", "name": "web", "image": "acr1.azurecr.io/web", "tag": "latest", "subscriptionId": "sub-a", "resourceGroup": "rg4", "defenderSeverity": "Low" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg4/providers/Microsoft.ContainerRegistry/registries/acr1/images/worker", "name": "worker", "image": "acr1.azurecr.io/worker", "tag": "2.0.1", "subscriptionId": "sub-a", "resourceGroup": "rg4", "defenderSeverity": "Low" }
+  ],
+  "CHK-CNTR-NO-CSI-SECRETS": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "keyvaultSecretsProviderEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks2", "name": "aks2", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus" },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks8", "name": "aks8", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "keyvaultSecretsProviderEnabled": true }
+  ],
+  "CHK-CNTR-NO-IMAGE-INTEGRITY": [
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks1", "name": "aks1", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "azurePolicyEnabled": false, "imageCleanerEnabled": false },
+    { "id": "/subscriptions/sub-a/resourceGroups/rg1/providers/Microsoft.ContainerService/managedClusters/aks9", "name": "aks9", "type": "microsoft.containerservice/managedclusters", "resourceGroup": "rg1", "subscriptionId": "sub-a", "location": "eastus", "azurePolicyEnabled": true, "imageCleanerEnabled": true }
+  ]
+}
