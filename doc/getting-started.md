@@ -30,6 +30,9 @@ Minimum Azure RBAC on the target scope is **`Reader` + `Security Reader`**; `Log
 Reader`, `Directory Reader`, and `Key Vault Reader` improve coverage. Keep it read-only —
 assign your identity read roles only.
 
+For a hardened least-privilege setup across both Azure RBAC and Entra ID, see
+[Permissions & Least Privilege](permissions.md).
+
 Run the environment doctor to confirm everything in one shot (it's read-only and tells you
 how to fix anything missing):
 

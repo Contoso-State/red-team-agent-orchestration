@@ -23,6 +23,7 @@
  * Usage:
  *   node tools/datastore/ingest.mjs --db <path> --session <sessionDir>
  *   node tools/datastore/ingest.mjs --db <path> --resources <f> --findings <dir|file> [--coverage <f>] ...
+ *   node tools/datastore/ingest.mjs --db <path> --findings <dir|file> --replace-findings
  *
  * Read-only with respect to Azure. Dependency-free (node:sqlite + stdlib).
  */
@@ -84,6 +85,12 @@ function parseArgs(argv) {
     out[key] = eq >= 0 ? a.slice(eq + 1) : argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
   }
   return out;
+}
+
+function parseBool(v) {
+  if (v === true) return true;
+  if (v === false || v == null) return false;
+  return /^(1|true|yes)$/i.test(String(v).trim());
 }
 
 function readJson(p) { return JSON.parse(readFileSync(p, 'utf8')); }
@@ -169,6 +176,12 @@ function findTargetId(db, f) {
   }
   const byId = db.prepare('SELECT finding_id FROM findings WHERE finding_id = ?').get(f.id);
   return byId ? byId.finding_id : null;
+}
+
+function clearFindings(db) {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM findings').get();
+  db.prepare('DELETE FROM findings').run();
+  return row?.n ?? 0;
 }
 
 function insertFindingRow(db, f) {
@@ -392,8 +405,12 @@ function main() {
   const attackPathsPath = args.attack_paths ?? src.attackPaths;
   const tasksPath = args.tasks ?? src.tasks;
   const findingsArg = args.findings ?? src.findings;
+  const replaceFindings = parseBool(args.replace_findings);
   const factsPath = args.facts;
   const relPath = args.relationships ?? src.relationships;
+  const findingsPath = findingsArg ? resolve(process.cwd(), findingsArg) : null;
+  const findingsPathExists = findingsPath ? existsSync(findingsPath) : false;
+  const files = findingFiles(findingsArg);
 
   // Open (creating if needed). For a pre-existing file ensure the schema is present and
   // current so an empty or older-schema DB self-heals instead of failing "no such table".
@@ -414,7 +431,13 @@ function main() {
     if (factsPath && existsSync(resolve(process.cwd(), factsPath))) stats.facts = ingestFacts(db, readRecords(factsPath));
     if (relPath && existsSync(resolve(process.cwd(), relPath))) stats.relationships = ingestRelationships(db, readRecords(relPath));
 
-    const files = findingFiles(findingsArg);
+    if (replaceFindings) {
+      if (!findingsPathExists) {
+        throw new Error('--replace-findings requires an existing findings file or directory (pass --findings <path> or use --session with findings/raw present).');
+      }
+      stats.findings_cleared = clearFindings(db);
+    }
+
     if (files.length) {
       const all = [];
       for (const file of files) for (const r of readRecords(file)) all.push(r);
@@ -429,6 +452,11 @@ function main() {
       for (const f of all) if (upsertFinding(db, f).merged) merged++;
       stats.findings_in = all.length;
       stats.findings_merged = merged;
+    } else if (replaceFindings) {
+      // Existing findings were intentionally cleared and no current findings files were provided.
+      // This represents a valid "zero findings" snapshot for the current report pass.
+      stats.findings_in = 0;
+      stats.findings_merged = 0;
     }
 
     if (coveragePath && existsSync(coveragePath)) stats.coverage = ingestCoverage(db, readRecords(coveragePath));

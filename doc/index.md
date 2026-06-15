@@ -54,6 +54,11 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 Define scope, start the Pentest Manager, and run your first assessment in seven steps.
 :::
 
+:::{card} 🔐 Permissions & Least Privilege
+:link: permissions.md
+Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
+:::
+
 :::{card} 🤖 The Agent Team
 :link: agent-team.md
 Meet the Orchestrator and its fifteen domain specialists, and see how they coordinate.

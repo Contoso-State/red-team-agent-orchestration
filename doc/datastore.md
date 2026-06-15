@@ -103,6 +103,9 @@ To avoid write contention under the orchestrator's parallel fan-out:
 - **Finding merge is deterministic:** match by `dedupe_key` (fallback `id`), union
   `affected_resources[]`, first-write-wins on everything else. Re-ingesting the same file is
   idempotent.
+- **Reporting snapshot mode:** when a report must reflect only current raw findings, run ingest with
+  `--replace-findings --findings engagements/<session>/findings/raw` before export so stale prior
+  findings are cleared for that report pass.
 - **The read API is read-only-guarded** — it refuses anything but `SELECT` / `EXPLAIN` /
   `PRAGMA`, so reads can't accidentally mutate state.
 
@@ -121,7 +124,7 @@ All under `tools/datastore/`, dependency-free Node ESM:
 | Tool | Role |
 |---|---|
 | `db.mjs` | core helpers + CLI (`init` / `info` / `migrate` / `query`); read-only-guarded `query` |
-| `ingest.mjs` | files → DB (the single writer); auto-discovers resources, relationships, coverage, tasks, findings |
+| `ingest.mjs` | files → DB (the single writer); auto-discovers resources, relationships, coverage, tasks, findings; supports `--replace-findings` for report-safe snapshots |
 | `query.mjs` | read-only cache API: `resources` / `facts` / `fresh` / `findings` / `coverage` / `neighbors` / `next-tasks` / `stats` |
 | `export.mjs` | DB → canonical `findings.json` artifacts |
 | `promote.mjs` | run → history + lifecycle; emits `delta.json` |
@@ -129,6 +132,7 @@ All under `tools/datastore/`, dependency-free Node ESM:
 ```text
 init      node tools/datastore/db.mjs   init    --db engagements/<session>/engagement.db --engagement <id>
 ingest    node tools/datastore/ingest.mjs       --db engagements/<session>/engagement.db --session engagements/<session>
+refresh   node tools/datastore/ingest.mjs       --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings
 query     node tools/datastore/query.mjs facts  --db engagements/<session>/engagement.db --resource <id>
 export    node tools/datastore/export.mjs       --db engagements/<session>/engagement.db --session engagements/<session> --what all
 promote   node tools/datastore/promote.mjs      --db engagements/<session>/engagement.db --history engagements/_history/<id>.db --out engagements/<session>/reports/delta.json
