@@ -72,6 +72,10 @@ Record any missing role as a coverage limitation for the final report.
 - `scope.subscriptions` must contain exactly one entry.
 - If it contains zero or more than one, stop and return a clear error instructing the user to run `/setup` and select one subscription.
 
+### Step 2.5 — Enforce single-subscription scope
+- `scope.subscriptions` must contain exactly one entry.
+- If it contains zero or more than one, stop and return a clear error instructing the user to run `/setup` and select one subscription.
+
 ### Step 3 — Enumerate resources
 Prefer **Azure Resource Graph** (via `azure-arm`) for speed and consistency — a single snapshot avoids throttling:
 
