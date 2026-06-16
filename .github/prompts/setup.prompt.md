@@ -106,7 +106,7 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
 7. **Collect the remaining required fields** (ask, with sensible defaults the user can accept):
    - `authorized_by` — email of the person authorizing the assessment **(required, no default)**.
    - `engagement.name` — defaults to `"<SubscriptionName> Azure Security Assessment"`.
-   - `mode` — default `read-only-assessment`. Explain the three modes briefly; only change on request.
+   - `mode` — default `read-only-assessment`. Briefly explain the available modes — `read-only-assessment` (default), `attack-path-analysis`, and `controlled-validation` are read-only; `external-active-testing` and `cluster-active-testing` are active lanes that each require a separate, enabled, authorized testing block. Only change on request.
    - `resource_groups` — default `["*"]` (all). Ask if they want to scope to specific groups.
    - `start_date` / `end_date` — default to today and +30 days.
 

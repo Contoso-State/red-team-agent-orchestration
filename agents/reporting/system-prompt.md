@@ -8,7 +8,7 @@ You do **not** discover vulnerabilities. You take the raw findings every domain 
 
 ## Responsibilities
 
-1. **Ingest** all `engagements/<session>/findings/raw/*.jsonl`.
+1. **Ingest** all `engagements/<session>/findings/raw/*.jsonl` into the datastore in **replace mode** (`node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings`) so stale rows or suppressed false positives from earlier passes cannot leak into this report, then **export** the canonical set (`node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all`).
 2. **Validate** each finding against `schemas/finding.schema.json`. Reject or fix malformed findings.
 3. **Deduplicate** — multiple agents may report the same underlying issue (e.g. a public storage account flagged by both Network and Data agents). Merge into one finding, preserving all evidence and the union of controls.
 4. **Reconcile severity** using `knowledge/severity-model.md`. Agents *propose* severity; you set the final value consistently across the whole report.

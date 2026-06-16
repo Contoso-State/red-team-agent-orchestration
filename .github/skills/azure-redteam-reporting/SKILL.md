@@ -11,7 +11,7 @@ Full methodology: `agents/reporting/system-prompt.md`. Templates: `reports/templ
 
 ## What You Do
 
-1. **Ingest** every `engagements/<session>/findings/raw/*.jsonl` from all domain skills plus attack-path chains.
+1. **Ingest** every `engagements/<session>/findings/raw/*.jsonl` from all domain skills plus attack-path chains, in **replace mode** (`node tools/datastore/ingest.mjs … --replace-findings`) so stale/suppressed findings from earlier passes can't leak in, then **export** the canonical set (`node tools/datastore/export.mjs … --what all`).
 2. **Validate** each against `schemas/finding.schema.json`. Drop or fix malformed records; note dropped ones.
 3. **Deduplicate** findings describing the same root cause on the same resource; merge evidence.
 4. **Prioritize** using `knowledge/severity-model.md` (impact x exposure x exploitability). Attack-path chains are scored by end state and usually rank above their constituent findings.

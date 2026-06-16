@@ -17,6 +17,9 @@ import {
   clusterInvocation,
   classifyClusterSegment,
   extractImageRefs,
+  extractKubectlSelectors,
+  hasKubectlClusterSelector,
+  kubectlTargetsAllowlistedCluster,
   readClusterTestingConfig,
   loadClusterAllowlist,
   registryOnAllowlist,
@@ -308,12 +311,62 @@ eq(evaluateCluster(null, '.').deny, false, 'null args allowed');
   cleanup(fx.root);
 }
 
-// Fully authorized -> gated tool allowed
+// Fully authorized -> standalone gated tool allowed; kubectl reach-in must target in-scope cluster
 {
   const fx = makeEngagement();
   eq(evaluateCluster({ command: 'kube-bench run' }, fx.root).deny, false, 'kube-bench allowed under full authorization');
-  eq(evaluateCluster({ command: 'kubectl exec -it pod -- id' }, fx.root).deny, false, 'kubectl exec allowed under full authorization');
+  eq(
+    evaluateCluster({ command: `kubectl --context ${ALLOW_CLUSTER} exec -it pod -- id` }, fx.root).deny,
+    false,
+    'kubectl exec allowed when it targets the in-scope cluster',
+  );
+  eq(
+    evaluateCluster({ command: `kubectl exec -it pod --context=${ALLOW_CLUSTER} -- id` }, fx.root).deny,
+    false,
+    'kubectl exec allowed with --context= form after positional args',
+  );
   cleanup(fx.root);
+}
+
+// Reach-into-cluster kubectl with NO cluster selector -> DENY even when fully authorized
+{
+  const fx = makeEngagement();
+  const d = evaluateCluster({ command: 'kubectl exec -it pod -- id' }, fx.root);
+  eq(d.deny, true, 'kubectl exec without --context denied (current-context not trusted)');
+  ok(/does not name a target cluster/.test(d.reason), 'reason explains the missing cluster selector');
+  cleanup(fx.root);
+}
+
+// Reach-into-cluster kubectl targeting an OFF-allowlist cluster -> DENY
+{
+  const fx = makeEngagement();
+  const d = evaluateCluster({ command: 'kubectl --context not-in-scope exec -it pod -- id' }, fx.root);
+  eq(d.deny, true, 'kubectl exec against an off-allowlist context denied');
+  ok(/not on the Azure-derived cluster allowlist/.test(d.reason), 'reason cites the cluster allowlist');
+  cleanup(fx.root);
+}
+
+// debug / cp are likewise scope-locked to the cluster selector
+{
+  const fx = makeEngagement();
+  eq(evaluateCluster({ command: 'kubectl debug node/n1 -it' }, fx.root).deny, true, 'kubectl debug without context denied');
+  eq(
+    evaluateCluster({ command: `kubectl --context ${ALLOW_CLUSTER} cp pod:/etc/hosts ./h` }, fx.root).deny,
+    false,
+    'kubectl cp allowed against the in-scope cluster',
+  );
+  cleanup(fx.root);
+}
+
+// extractKubectlSelectors / matchers (unit)
+eq(extractKubectlSelectors('kubectl --context Aks-Contoso exec p -- sh'.split(/\s+/)).context, 'aks-contoso', 'context lowercased');
+eq(extractKubectlSelectors('kubectl exec p --cluster=c1 -- sh'.split(/\s+/)).cluster, 'c1', '--cluster= parsed');
+eq(extractKubectlSelectors('kubectl exec p -- sh --context evil'.split(/\s+/)).context, undefined, 'selectors after -- are ignored');
+ok(!hasKubectlClusterSelector(extractKubectlSelectors('kubectl exec p -- sh'.split(/\s+/))), 'no selector detected');
+{
+  const al = { clusters: new Set(['aks-contoso']) };
+  ok(kubectlTargetsAllowlistedCluster({ context: 'aks-contoso' }, al), 'context on allowlist matches');
+  ok(!kubectlTargetsAllowlistedCluster({ context: 'other' }, al), 'off-list context rejected');
 }
 
 // Image scan: in-scope registry allowed, out-of-scope registry denied

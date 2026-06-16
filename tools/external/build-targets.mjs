@@ -41,7 +41,7 @@ import {
 } from './host-classify.mjs';
 import { createHash } from 'node:crypto';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const TARGETS_SCHEMA = 'external-targets/v1';
@@ -261,6 +261,22 @@ function resolveOut(args) {
   return null;
 }
 
+/**
+ * Record the active session for the guardrails/scoped-scanner consumers by writing
+ * engagements/.current-session next to the session folder. This is the ONLY mechanism the
+ * egress guardrail uses to locate the allowlist, so the active-testing lane is unusable
+ * unless it is present. Best-effort + only when the output really sits under engagements/.
+ */
+function recordCurrentSession(outPath) {
+  try {
+    const sessionDir = dirname(dirname(outPath)); // <sessionDir>/scope/<file>.json
+    const engagementsDir = dirname(sessionDir);
+    if (basename(engagementsDir).toLowerCase() !== 'engagements') return;
+    mkdirSync(engagementsDir, { recursive: true });
+    writeFileSync(join(engagementsDir, '.current-session'), sessionDir);
+  } catch { /* best-effort; the guardrail still fails closed if the marker is absent */ }
+}
+
 function main() {
   const args = parseArgs(process.argv);
   if (!args.db || typeof args.db !== 'string') {
@@ -288,6 +304,7 @@ function main() {
 
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(doc, null, 2) + '\n');
+  recordCurrentSession(out);
 
   // Summary to stdout intentionally omits the host list (it is sensitive target data).
   const summary = {

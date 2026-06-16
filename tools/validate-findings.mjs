@@ -204,7 +204,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help || !args.findings) {
     console.log('Usage: node tools/validate-findings.mjs --findings <path> [--attack-paths <path>]');
-    process.exit(args.findings ? 0 : 2);
+    process.exit(args.help ? 0 : 2);
   }
   const findingIndex = validateFindings(asFindings(loadJson(args.findings, 'findings')));
   if (args.attackPaths) validateAttackPaths(loadJson(args.attackPaths, 'attack-paths'), findingIndex);
