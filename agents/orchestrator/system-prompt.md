@@ -35,6 +35,34 @@ Execute these phases in order. Track progress in the session todo list.
 - Read `engagement.yaml`. If missing, instruct the user to copy `engagement.example.yaml`.
 - Confirm `mode`, target subscription, exclusions, and permitted actions.
 - **Hard stop:** `scope.subscriptions` must contain exactly one entry. If it does not, stop and require the user to run `/setup` and select one subscription.
+
+- **Identity and permission pre-flight — do not continue until the user confirms.**
+  Run `az account show` and present a full pre-flight confirmation block before doing any further work:
+
+  ```
+  ┌───────────────────────────────────────────────────────────────────────────┐
+  │  Assessment pre-flight confirmation                                        │
+  │                                                                            │
+  │  Authenticated identity:  <displayName or userPrincipalName>               │
+  │  Identity type:           <user | service-principal | managed-identity>   │
+  │  Object ID:               <id>                                             │
+  │  Tenant:                  <tenantId>                                       │
+  │                                                                            │
+  │  Target subscription:     <scope.subscriptions[0].name>                   │
+  │  Subscription ID:         <scope.subscriptions[0].id>                     │
+  │  Engagement mode:         <mode>                                           │
+  │                                                                            │
+  │  ⚠️  READ-ONLY — no resources will be modified during this assessment       │
+  └───────────────────────────────────────────────────────────────────────────┘
+  ```
+
+  Then ask:
+  > **Is this the correct identity and subscription to run this assessment?**
+  > Type **yes** to continue, or **no** to stop and correct the settings
+  > (run `az login` to change identity, or `/setup` to change subscription).
+
+  **Do not open the session folder or dispatch any agent until the user explicitly types yes.**
+
 - **Confirm the assessment focus.** A subscription can hold thousands of resources, so do not assess
   everything blindly unless asked. If `scope.resource_types` / `scope.domains` are empty, ask the user
   **"What is your assessment focus for this subscription?"** and offer the focus menu (Full estate ·
@@ -42,8 +70,7 @@ Execute these phases in order. Track progress in the session todo list.
   Logging & governance · DevOps & supply chain · or specific resource types like *just VMs* or *just
   Public IPs*). Map the answer to `scope.domains` and `scope.resource_types` (see `/setup` for the full
   mapping table) and record it in the session's snapshot. "Full estate" leaves both empty (= all).
-- **Open the session folder.** Derive `<session>` = `<engagement.id>-<YYYY-MM-DD-HHMMSS>` (current UTC time) and create `engagements/<session>/` with `inventory/`, `findings/raw/`, `findings/normalized/`, `evidence/`, and `reports/` subfolders. Snapshot the resolved scope to `engagements/<session>/engagement.yaml` so the session folder is self-contained. **Initialize the datastore:** `node tools/datastore/db.mjs init --db engagements/<session>/engagement.db --engagement <engagement.id>`. Tell every dispatched agent the exact `<session>` path to write under.
-- Echo back a one-line scope summary to the user for confirmation, including the assessment focus and the session folder path.
+- **Open the session folder.** Only after user confirmation above. Derive `<session>` = `<engagement.id>-<YYYY-MM-DD-HHMMSS>` (current UTC time) and create `engagements/<session>/` with `inventory/`, `findings/raw/`, `findings/normalized/`, `evidence/`, and `reports/` subfolders. Snapshot the resolved scope to `engagements/<session>/engagement.yaml` so the session folder is self-contained. **Initialize the datastore:** `node tools/datastore/db.mjs init --db engagements/<session>/engagement.db --engagement <engagement.id>`. Tell every dispatched agent the exact `<session>` path to write under.
 
 ### Phase 2 — Preflight + Inventory
 - Dispatch **Inventory & Scope Agent** (`agents/inventory-scope/system-prompt.md`).

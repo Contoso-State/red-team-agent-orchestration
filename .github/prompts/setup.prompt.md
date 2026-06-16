@@ -14,10 +14,32 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
    name, mode, and target subscription, and ask the user whether to **keep**, **edit**, or
    **replace** it. Only continue if they want to create or replace.
 
-2. **Confirm Azure sign-in.** Run `az account show`. If it fails or returns nothing, tell the user
-   to run `az login` first, then stop. *(Tip: `node tools/preflight/check-environment.mjs` verifies
-   sign-in plus the rest of the toolchain — Node, the Azure CLI, and the `resource-graph` extension
-   — in one read-only step.)*
+2. **Confirm Azure sign-in and identity.** Run `az account show`. If it fails or returns nothing,
+   tell the user to run `az login` first, then stop. *(Tip: `node tools/preflight/check-environment.mjs`
+   verifies sign-in plus the rest of the toolchain — Node, the Azure CLI, and the `resource-graph`
+   extension — in one read-only step.)*
+
+   Once signed in, display the authenticated identity in a clear summary block:
+
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  Authenticated identity                                      │
+   │  Name/UPN:  <displayName or userPrincipalName>               │
+   │  Type:      <user | service-principal | managed-identity>   │
+   │  Object ID: <id>                                             │
+   │  Tenant:    <tenantId>                                       │
+   └─────────────────────────────────────────────────────────────┘
+   ```
+
+   Then ask explicitly:
+   > ⚠️ **This assessment runs in READ-ONLY mode.** All Azure operations are restricted to
+   > read/query commands. No resources will be modified.
+   >
+   > **Is this the correct identity to run the assessment as?**
+   > - Type **yes** to continue.
+   > - Type **no** (or run `az login` / `az login --service-principal`) to change identity first.
+
+   **Do not continue until the user types yes.**
 
 3. **List the subscriptions the user can assess.** Run:
 
@@ -33,9 +55,28 @@ Azure account context and *write* the local `engagement.yaml` scope file. Never 
    subscriptions, stop and tell them this workflow is one subscription per run (use separate
    runs/engagement files for additional subscriptions).
 
-5. **Capture the details for the chosen subscription.** From the `az account list` output, take its
-   `SubscriptionId`, `Name`, and `TenantId`. Confirm the selection back to the user in one line:
-   `Assessing: <Name> (<SubscriptionId>) in tenant <TenantId>`.
+5. **Confirm the selection with the user — do not proceed until they say yes.** From the
+   `az account list` output, take the chosen entry's `SubscriptionId`, `Name`, and `TenantId`.
+   Present a clear confirmation block and wait for an explicit response:
+
+   ```
+   ┌─────────────────────────────────────────────────────────────┐
+   │  Subscription selected for assessment                        │
+   │  Name:           <Name>                                      │
+   │  Subscription ID:<SubscriptionId>                            │
+   │  Tenant ID:      <TenantId>                                  │
+   │  Mode:           read-only-assessment                        │
+   └─────────────────────────────────────────────────────────────┘
+   ```
+
+   > ⚠️ **You are about to configure a security assessment of this subscription.**
+   > The assessment will read resource configurations and security posture data.
+   > No resources will be created, modified, or deleted.
+   >
+   > **Is this the correct subscription? Type yes to confirm or choose a different one.**
+
+   **Do not write `engagement.yaml` or continue until the user explicitly confirms.**
+   If they say no or choose a different subscription, return to step 4.
 
 6. **Ask the assessment focus (scope *within* the subscription).** A subscription can hold
    thousands of resources, so ask the user what they want to focus on rather than assessing

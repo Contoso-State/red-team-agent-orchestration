@@ -10,9 +10,49 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 
 1. **Verify the environment.** Run `node tools/preflight/check-environment.mjs`. If any **required** check fails (Node ≥ 22.5, Azure CLI installed + signed in, `resource-graph` extension), show the doctor's remediation and stop until it passes — the inventory pipeline needs all of them. This is read-only.
 2. **Load scope.** Read `engagement.yaml`. If it does not exist, tell the user to copy `engagement.example.yaml` to `engagement.yaml` and fill it in, then stop.
-3. **Validate scope** against `schemas/engagement.schema.json`. Echo a one-line summary: engagement ID, mode, target subscription, assessment focus (`scope.domains` / `scope.resource_types`), and any exclusions. Confirm with the user before proceeding if anything looks off.
-   - **Hard stop:** `scope.subscriptions` must contain **exactly one** subscription. If not, stop and require `/setup` to regenerate `engagement.yaml` for a single-subscription run.
-   - **If no focus is set** (`scope.resource_types` and `scope.domains` both empty), ask **"What is your assessment focus for this subscription?"** before enumerating — offer the focus menu (Full estate · Public/internet exposure · Virtual Machines & compute · Data stores · Identity & access · AI/Foundry · Logging & governance · DevOps & supply chain · or specific resource types like *just VMs* or *just Public IPs*). Pass the chosen `scope.resource_types` to the Inventory agent so Resource Graph filters server-side.
+3. **Validate scope** against `schemas/engagement.schema.json`. Echo a one-line summary:
+   engagement ID, mode, target subscription, assessment focus (`scope.domains` /
+   `scope.resource_types`), and any exclusions. Confirm with the user before proceeding if
+   anything looks off.
+   - **Hard stop:** `scope.subscriptions` must contain **exactly one** subscription. If not,
+     stop and require `/setup` to regenerate `engagement.yaml` for a single-subscription run.
+   - **If no focus is set** (`scope.resource_types` and `scope.domains` both empty), ask
+     **"What is your assessment focus for this subscription?"** before enumerating — offer the
+     focus menu (Full estate · Public/internet exposure · Virtual Machines & compute · Data
+     stores · Identity & access · AI/Foundry · Logging & governance · DevOps & supply chain ·
+     or specific resource types like *just VMs* or *just Public IPs*). Pass the chosen
+     `scope.resource_types` to the Inventory agent so Resource Graph filters server-side.
+
+3.5. **Confirm identity, target, and mode — do not proceed until the user says yes.**
+
+   Run `az account show` and present a full pre-flight confirmation block:
+
+   ```
+   ┌─────────────────────────────────────────────────────────────────────────────┐
+   │  Reconnaissance pre-flight summary                                           │
+   │                                                                              │
+   │  Identity:        <displayName or userPrincipalName>                         │
+   │  Identity type:   <user | service-principal | managed-identity>              │
+   │  Tenant:          <tenantId>                                                 │
+   │                                                                              │
+   │  Target subscription:  <scope.subscriptions[0].name>                        │
+   │  Subscription ID:      <scope.subscriptions[0].id>                          │
+   │  Resource groups:      <resource_groups or *>                               │
+   │  Domains in scope:     <domains or all>                                     │
+   │  Mode:                 <mode>                                                │
+   │                                                                              │
+   │  ⚠️  READ-ONLY — no resources will be modified during this assessment        │
+   └─────────────────────────────────────────────────────────────────────────────┘
+   ```
+
+   Then ask:
+   > **Are these the correct identity and subscription? Type yes to start reconnaissance,
+   > or no to stop and correct the settings.**
+   >
+   > If the identity is wrong, run `az login` (or `az login --service-principal`) and re-run
+   > `/recon`. If the subscription is wrong, run `/setup` to regenerate `engagement.yaml`.
+
+   **Do not open the session folder or call any agent until the user explicitly confirms.**
 4. **Open the session folder.** Derive `<session>` = `<engagement.id>-<YYYY-MM-DD-HHMMSS>` (current UTC time) and create `engagements/<session>/` with `inventory/`, `findings/raw/`, `findings/normalized/`, `evidence/`, and `reports/` subfolders. Snapshot the scope to `engagements/<session>/engagement.yaml`. The whole `engagements/` tree is gitignored, so every run is self-contained and never overwrites a prior session. Set `$env:REDTEAM_SESSION` to this path if you use the PowerShell helpers. **Initialize the datastore:** `node tools/datastore/db.mjs init --db engagements/<session>/engagement.db --engagement <engagement.id>`.
 5. **Dispatch the Inventory & Scope Agent** (`agents/inventory-scope/system-prompt.md`):
    - Confirm the authenticated Azure identity (`az account show`).

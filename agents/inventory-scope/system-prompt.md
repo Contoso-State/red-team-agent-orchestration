@@ -32,7 +32,41 @@ Check effective access for each required capability. Use `azure-role` to list ro
 | Key Vault metadata | `Key Vault Reader` | Data Protection |
 | Role assignment graph | `Reader` + `Microsoft.Authorization/*/read` | Authorization & Attack Path |
 
-Record any missing role as a coverage limitation — do **not** fail the whole run.
+**After checking, present a permission summary table to the user:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Permission check: <subscription name> (<subscriptionId>)         │
+├────────────────────────────┬───────────┬─────────────────────────┤
+│  Role                      │  Status   │  Impact if missing       │
+├────────────────────────────┼───────────┼─────────────────────────┤
+│  Reader                    │  ✅ / ❌  │  CRITICAL — blocks all   │
+│  Security Reader           │  ✅ / ❌  │  Partial — less findings │
+│  Log Analytics Reader      │  ✅ / ❌  │  Partial — logging blind │
+│  Directory Reader (Entra)  │  ✅ / ❌  │  Partial — identity blind│
+│  Key Vault Reader          │  ✅ / ❌  │  Partial — KV blind      │
+└────────────────────────────┴───────────┴─────────────────────────┘
+```
+
+**Hard stop — `Reader` is required:**
+- If `Reader` (or equivalent `Owner`/`Contributor`) is **missing**, stop immediately:
+  > ❌ **Assessment cannot continue.** The authenticated identity does not have `Reader` access
+  > to subscription `<name>`. Grant `Reader` role first, then re-run the assessment.
+  > See the [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) page for the minimum required roles.
+
+**Soft-stop — partial coverage confirmation:**
+- If `Reader` is present but other roles are missing, ask the user:
+  > ⚠️ Some roles are missing (see table above). The assessment will proceed with limited
+  > coverage — findings in those areas may be incomplete.
+  >
+  > **Do you want to continue with these permissions? Type yes to proceed or no to stop
+  > and add the missing roles first.**
+  >
+  > See [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) for the full recommended role set.
+
+  **Do not proceed to Step 3 until the user explicitly confirms.**
+
+Record any missing role as a coverage limitation for the final report.
 
 ### Step 2.5 — Enforce single-subscription scope
 - `scope.subscriptions` must contain exactly one entry.
