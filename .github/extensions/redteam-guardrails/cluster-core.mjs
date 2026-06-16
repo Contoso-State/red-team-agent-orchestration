@@ -173,6 +173,53 @@ function secondSubcommand(tokens, valueFlags = new Set()) {
 }
 
 /**
+ * Pull the cluster-selector flags (--context / --cluster / --server|-s) out of a kubectl
+ * token list. Reach-into-cluster verbs are scope-locked to one of these, so the kubeconfig
+ * current-context can never silently widen scope. Stops at `--` (the in-container command).
+ */
+export function extractKubectlSelectors(tokens) {
+  const sel = { context: undefined, cluster: undefined, server: undefined };
+  for (let i = 1; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t === '--') break; // everything past `--` is the in-container command, not kubectl flags
+    if (!t || !t.startsWith('-')) continue;
+    const eq = t.indexOf('=');
+    const name = (eq >= 0 ? t.slice(0, eq) : t).replace(/^--?/, '').toLowerCase();
+    const isSelector = name === 'context' || name === 'cluster' || name === 'server' || name === 's';
+    let val;
+    if (eq >= 0) val = t.slice(eq + 1);
+    else if (KUBECTL_VALUE_FLAGS.has(name)) { val = tokens[i + 1]; i++; } // consume the value token
+    if (!isSelector || val == null) continue;
+    const v = String(val).replace(/^['"]|['"]$/g, '').toLowerCase();
+    if (!v) continue;
+    if (name === 'context') sel.context = v;
+    else if (name === 'cluster') sel.cluster = v;
+    else sel.server = v; // --server / -s
+  }
+  return sel;
+}
+
+/** True if a kubectl invocation names an in-scope (allowlisted) cluster selector. */
+export function hasKubectlClusterSelector(selectors) {
+  return Boolean(selectors && (selectors.context || selectors.cluster || selectors.server));
+}
+
+/** True if a kubectl selector resolves to a cluster on the Azure-derived allowlist. */
+export function kubectlTargetsAllowlistedCluster(selectors, allowlist) {
+  if (!allowlist || !allowlist.clusters || !selectors) return false;
+  for (const name of [selectors.context, selectors.cluster]) {
+    if (name && allowlist.clusters.has(name)) return true;
+  }
+  if (selectors.server) {
+    let host = selectors.server;
+    try { host = new URL(selectors.server).host.toLowerCase(); } catch { /* not a URL; use raw value */ }
+    host = host.replace(/:\d+$/, '');
+    if (host && allowlist.clusters.has(host)) return true;
+  }
+  return false;
+}
+
+/**
  * Classify a single cluster invocation without consulting the gate. Returns one of:
  *   { kind: 'allow' }                       -> read-only, always permitted
  *   { kind: 'deny', reason }                -> mutating / unrecognized, denied in all modes
@@ -200,7 +247,9 @@ export function classifyClusterSegment(segment) {
         : { kind: 'deny', reason: `kubectl rollout ${sub || '<subcommand>'} mutates a workload (denied in all modes)` };
     }
     if (KUBECTL_READ_VERBS.has(verb)) return { kind: 'allow' };
-    if (KUBECTL_GATED_VERBS.has(verb)) return { kind: 'gated', tool: `kubectl ${verb}`, images: [] };
+    if (KUBECTL_GATED_VERBS.has(verb)) {
+      return { kind: 'gated', tool: `kubectl ${verb}`, images: [], kube: true, selectors: extractKubectlSelectors(tokens) };
+    }
     if (KUBECTL_MUTATING_VERBS.has(verb)) {
       return { kind: 'deny', reason: `kubectl ${verb} mutates cluster state — the posture is read-only (denied in all modes)` };
     }
@@ -445,6 +494,33 @@ export function evaluateCluster(toolArgs, cwd, toolName = '', now = new Date()) 
             reason:
               `image registry '${host}' is not on the Azure-derived cluster allowlist — ` +
               `cluster-active scanning may only target in-scope ACR registries`,
+          };
+        }
+      }
+      // Reach-into-cluster kubectl verbs must explicitly name an in-scope cluster. The
+      // kubeconfig current-context is NOT trusted for scope-lock (it could point at any
+      // cluster the operator has credentials for), so we require --context/--cluster/--server.
+      if (cls.kube) {
+        if (!hasKubectlClusterSelector(cls.selectors)) {
+          return {
+            deny: true,
+            tool: cls.tool,
+            segment,
+            reason:
+              `${cls.tool} does not name a target cluster — reach-into-cluster verbs must pass an ` +
+              `explicit --context (or --cluster/--server) matching an in-scope AKS cluster; the ` +
+              `kubeconfig current-context is not trusted for scope-lock`,
+          };
+        }
+        if (!kubectlTargetsAllowlistedCluster(cls.selectors, gate.allowlist)) {
+          const named = cls.selectors.context || cls.selectors.cluster || cls.selectors.server;
+          return {
+            deny: true,
+            tool: cls.tool,
+            segment,
+            reason:
+              `${cls.tool} targets cluster '${named}', which is not on the Azure-derived cluster ` +
+              `allowlist — cluster-active reach-in may only target in-scope AKS clusters`,
           };
         }
       }

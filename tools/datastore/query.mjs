@@ -57,6 +57,11 @@ function cmdResources(db, args) {
   print(rows);
 }
 
+/** Parse a stored fact value; tolerate legacy/raw rows by returning the string as-is. */
+function parseFactValue(s) {
+  try { return JSON.parse(s); } catch { return s; }
+}
+
 function cmdFacts(db, args) {
   if (!args.resource) { console.error('Error: --resource <id> is required.'); process.exit(1); }
   let sql = 'SELECT fact_key, fact_value_json, source, collected_at FROM resource_facts WHERE resource_id = ?';
@@ -65,7 +70,7 @@ function cmdFacts(db, args) {
   sql += ' ORDER BY fact_key';
   print(db.prepare(sql).all(...params).map((r) => ({
     fact_key: r.fact_key,
-    value: r.fact_value_json == null ? null : JSON.parse(r.fact_value_json),
+    value: r.fact_value_json == null ? null : parseFactValue(r.fact_value_json),
     source: r.source, collected_at: r.collected_at,
   })));
 }

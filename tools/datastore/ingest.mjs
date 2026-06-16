@@ -277,7 +277,20 @@ function ingestFacts(db, items) {
   let n = 0;
   for (const f of items) {
     if (!f || !f.resource_id || !f.fact_key) continue;
-    const v = f.fact_value_json ?? (f.fact_value !== undefined ? JSON.stringify(f.fact_value) : null);
+    // Always persist VALID JSON in fact_value_json so `query facts` (which JSON.parses it)
+    // can never crash on stored data. A pre-serialized string is validated; anything that
+    // isn't valid JSON is re-encoded as a JSON string rather than stored raw.
+    let v = null;
+    if (f.fact_value_json !== undefined && f.fact_value_json !== null) {
+      if (typeof f.fact_value_json === 'string') {
+        try { JSON.parse(f.fact_value_json); v = f.fact_value_json; }
+        catch { v = JSON.stringify(f.fact_value_json); }
+      } else {
+        v = JSON.stringify(f.fact_value_json);
+      }
+    } else if (f.fact_value !== undefined) {
+      v = JSON.stringify(f.fact_value);
+    }
     ins.run(f.resource_id, f.fact_key, v, f.source ?? null, f.collected_at ?? at);
     n++;
   }

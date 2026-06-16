@@ -188,7 +188,7 @@ function main() {
     }
     case 'query': {
       if (!args.sql || typeof args.sql !== 'string') { console.error('Error: --sql "SELECT ..." is required.'); process.exit(1); }
-      if (!/^\s*(select|with|pragma)\b/i.test(args.sql)) { console.error('Error: query is read-only (must start with SELECT/WITH/PRAGMA).'); process.exit(1); }
+      if (!/^\s*(select|with)\b/i.test(args.sql)) { console.error('Error: query is read-only (must start with SELECT or WITH). Use the `info` command for schema/metadata.'); process.exit(1); }
       const db = openDb(requireDb(args), { create: false });
       console.log(JSON.stringify(db.prepare(args.sql).all(), null, 2));
       db.close();

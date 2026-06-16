@@ -134,13 +134,14 @@ export function buildLedger(components, { ratio = DEFAULT_RATIO, method, now, no
 // ---------------------------------------------------------------------------
 
 /** Parse a usage.jsonl into measured components. Tolerant of blank lines. */
-export function parseMeasured(text) {
+export function parseMeasured(text, stats) {
   const out = [];
+  let malformed = 0;
   for (const line of String(text).split(/\r?\n/)) {
     const t = line.trim();
     if (!t) continue;
     let rec;
-    try { rec = JSON.parse(t); } catch { continue; }
+    try { rec = JSON.parse(t); } catch { malformed++; continue; }
     const phase = rec.phase || 'measured';
     const agent = rec.agent || '(shared)';
     if (Number.isFinite(rec.input_tokens)) {
@@ -150,6 +151,7 @@ export function parseMeasured(text) {
       out.push(component(`${phase}:${agent}:out`, { phase, agent, direction: 'output', tokens: rec.output_tokens, method: 'measured' }));
     }
   }
+  if (stats && typeof stats === 'object') stats.malformed = malformed;
   return out;
 }
 
@@ -239,7 +241,7 @@ function main() {
   const args = parseArgs(process.argv);
   if (args.help || args.h || (!args.session && !args.usage)) {
     console.log('Usage: node tools/tokens/ledger.mjs --session <dir> [--repo .] [--agents a,b,c] [--ratio 4.0] [--usage runs/usage.jsonl] [--out reports/token-usage.json]');
-    process.exit(args.session || args.usage ? 0 : 1);
+    process.exit(args.help || args.h ? 0 : 1);
   }
   const ratio = args.ratio ? Number(args.ratio) : DEFAULT_RATIO;
   const now = new Date().toISOString();
@@ -261,12 +263,18 @@ function main() {
       : (typeof args.session === 'string' ? join(args.session, args.usage) : resolve(args.usage));
     const txt = readIf(usagePath);
     if (txt) {
-      const measured = parseMeasured(txt);
+      const stats = {};
+      const measured = parseMeasured(txt, stats);
       const measuredKeys = new Set(measured.map((m) => `${m.phase}|${m.agent}|${m.direction}`));
       // Measured wins: drop estimated components that a measured line covers.
       components = components.filter((c) => !(c.method === 'estimated' && measuredKeys.has(`${c.phase}|${c.agent}|${c.direction}`)));
       components.push(...measured);
       notes.push(`Applied ${measured.length} measured usage component(s) from ${basename(usagePath)}.`);
+      if (stats.malformed > 0) {
+        const warn = `Skipped ${stats.malformed} malformed line(s) in ${basename(usagePath)} — measured totals may be understated.`;
+        notes.push(warn);
+        console.warn(`Warning: ${warn}`);
+      }
     } else {
       notes.push(`Measured usage file not found: ${usagePath}`);
     }

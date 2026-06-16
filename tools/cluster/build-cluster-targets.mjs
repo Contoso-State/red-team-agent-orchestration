@@ -31,7 +31,7 @@
 import { openDb } from '../datastore/db.mjs';
 import { createHash } from 'node:crypto';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const CLUSTER_TARGETS_SCHEMA = 'cluster-targets/v1';
@@ -181,6 +181,22 @@ function resolveOut(args) {
   return null;
 }
 
+/**
+ * Record the active session for the cluster guardrail / scoped scanner by writing
+ * engagements/.current-session next to the session folder. The cluster guardrail uses this
+ * marker to locate scope/cluster-targets.json, so the cluster-active lane is unusable unless
+ * it is present. Best-effort + only when the output really sits under engagements/.
+ */
+function recordCurrentSession(outPath) {
+  try {
+    const sessionDir = dirname(dirname(outPath)); // <sessionDir>/scope/<file>.json
+    const engagementsDir = dirname(sessionDir);
+    if (basename(engagementsDir).toLowerCase() !== 'engagements') return;
+    mkdirSync(engagementsDir, { recursive: true });
+    writeFileSync(join(engagementsDir, '.current-session'), sessionDir);
+  } catch { /* best-effort; the guardrail still fails closed if the marker is absent */ }
+}
+
 function main() {
   const args = parseArgs(process.argv);
   if (!args.db || typeof args.db !== 'string') {
@@ -208,6 +224,7 @@ function main() {
 
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(doc, null, 2) + '\n');
+  recordCurrentSession(out);
 
   const summary = {
     wrote: out,

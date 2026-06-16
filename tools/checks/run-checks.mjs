@@ -293,7 +293,7 @@ function main() {
   const args = parseArgs(process.argv);
   if (args.help || args.h || !args.predicates) {
     console.log('Usage: node tools/checks/run-checks.mjs --predicates <file|dir> --rows <rows.json> [--agent A] [--session <dir>] [--out <dir>] [--dry-run]');
-    process.exit(args.predicates ? 0 : 1);
+    process.exit(args.help || args.h ? 0 : 1);
   }
   const now = new Date().toISOString();
   const packFiles = discoverPackFiles(args.predicates);

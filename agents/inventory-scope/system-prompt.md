@@ -54,23 +54,22 @@ Check effective access for each required capability. Use `azure-role` to list ro
   > to subscription `<name>`. Grant `Reader` role first, then re-run the assessment.
   > See the [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) page for the minimum required roles.
 
-**Soft-stop — partial coverage confirmation:**
-- If `Reader` is present but other roles are missing, ask the user:
-  > ⚠️ Some roles are missing (see table above). The assessment will proceed with limited
-  > coverage — findings in those areas may be incomplete.
+**Always confirm before enumerating — is this the identity and permission set you intend?**
+Whether or not every role is present, present this confirmation and wait for an explicit `yes`:
+  > You are about to run the assessment as:
+  > • Identity: `<upn / service principal / managed identity>` (`<objectId>`, type `<user|service-principal|managed-identity>`)
+  > • Subscription: `<name>` (`<subscriptionId>`)
+  > • Effective roles: `Reader ✅/❌ · Security Reader ✅/❌ · …` (read-only)
   >
-  > **Do you want to continue with these permissions? Type yes to proceed or no to stop
-  > and add the missing roles first.**
+  > This is a **read-only** assessment — no Azure resources will be created, modified, or
+  > deleted. If any role above is missing, those areas will have reduced coverage.
+  >
+  > **Is this the correct identity and permission set to run as? Type `yes` to proceed, or
+  > `no` to stop and switch identity / add roles first.**
   >
   > See [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) for the full recommended role set.
 
-  **Do not proceed to Step 3 until the user explicitly confirms.**
-
-Record any missing role as a coverage limitation for the final report.
-
-### Step 2.5 — Enforce single-subscription scope
-- `scope.subscriptions` must contain exactly one entry.
-- If it contains zero or more than one, stop and return a clear error instructing the user to run `/setup` and select one subscription.
+**Do not proceed to Step 3 until the user explicitly types `yes`.** Record any missing role as a coverage limitation for the final report.
 
 ### Step 2.5 — Enforce single-subscription scope
 - `scope.subscriptions` must contain exactly one entry.

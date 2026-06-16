@@ -91,7 +91,9 @@ if (-not $Session) {
     }
     $Session = (Get-Content -LiteralPath $marker -Raw).Trim()
 }
-if ($Session -match '[\\/]') {
+if ([System.IO.Path]::IsPathRooted($Session)) {
+    $sessionDir = (Resolve-Path -LiteralPath $Session).Path
+} elseif ($Session -match '[\\/]') {
     $sessionDir = (Resolve-Path -LiteralPath (Join-Path $repoRoot $Session)).Path
 } else {
     $sessionDir = Join-Path $repoRoot (Join-Path 'engagements' $Session)

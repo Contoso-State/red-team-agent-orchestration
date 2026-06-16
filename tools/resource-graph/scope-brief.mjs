@@ -122,10 +122,15 @@ function loadRecords(path) {
   if (!raw) return [];
   if (raw[0] === '[') return JSON.parse(raw);
   if (raw[0] === '{') {
-    const obj = JSON.parse(raw);
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.rows)) return obj.rows;
-    return [obj];
+    try {
+      const obj = JSON.parse(raw);
+      if (Array.isArray(obj.data)) return obj.data;
+      if (Array.isArray(obj.rows)) return obj.rows;
+      return [obj];
+    } catch {
+      // Not a single JSON object — fall through to JSONL parsing
+      // (a JSONL stream whose first record starts with '{' lands here).
+    }
   }
   // JSONL
   return raw
