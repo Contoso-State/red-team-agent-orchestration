@@ -22,6 +22,28 @@ import { evaluateEgress } from './core/egress-core.mjs';
 import { evaluateCluster } from './core/cluster-core.mjs';
 import { pathToFileURL } from 'node:url';
 
+// Session-start context banner. Single source of truth shared by every runtime adapter
+// (Copilot extension, Claude/Codex/Cursor session-start hooks) so the read-only posture
+// is described identically everywhere.
+export const READONLY_BANNER =
+  'redteam-guardrails active: this is an Azure red team engagement with a READ-ONLY posture. ' +
+  'Only read/query Azure commands are permitted (az list/show/get/query, Get-Az*, ' +
+  'az rest --method GET). Mutating az/azd/Az PowerShell commands are blocked unless ' +
+  'engagement.yaml sets mode: controlled-validation, in which case they require explicit ' +
+  'human approval. The orchestrator must dispatch specialist agents — it does not run az itself. ' +
+  'Active external probing (curl/nuclei/zap/sqlmap/nikto/httpx/testssl/nmap and similar) against ' +
+  'public hosts is BLOCKED by default and only permitted for the External Vulnerability Agent ' +
+  '(EVA) when the engagement is in mode: external-active-testing with external_testing enabled + ' +
+  'authorized, and only against hosts on the Azure-derived allowlist ' +
+  '(engagements/<session>/scope/external-targets.json). ' +
+  'Reaching INTO a live cluster or container (kubectl exec/debug/cp/attach/port-forward/run, ' +
+  'kube-bench, kubesec, trivy, grype, crictl, docker/nerdctl/podman run|exec) is BLOCKED by ' +
+  'default and only permitted for the Azure Container & Kubernetes Agent when the engagement is ' +
+  'in mode: cluster-active-testing with cluster_testing enabled + authorized, and only against ' +
+  'clusters/registries on the Azure-derived cluster allowlist ' +
+  '(engagements/<session>/scope/cluster-targets.json). Mutating kubectl/helm/runtime commands ' +
+  'are blocked in EVERY mode; read-only kubectl (get/describe/logs/auth can-i) is always allowed.';
+
 const FAIL_CLOSED_READONLY =
   'Red team guardrail could not evaluate this command, so it was blocked to ' +
   'preserve the read-only guarantee (fail-closed). Re-run a clearly read-only ' +
