@@ -5,13 +5,16 @@ description: Define scope, start the Pentest Manager, and run your first read-on
 
 # Getting Started
 
-The team runs inside **GitHub Copilot CLI**. Check out the repo, then drive the engagement
-either through the **Pentest Manager** agent or the slash-command shortcuts. Every run is
-read-only by default and writes all of its output into a single timestamped session folder.
+The team runs inside **GitHub Copilot CLI** — and natively on **Claude Code**, **OpenAI
+Codex CLI**, and **Cursor** (see [AI Model Runtimes](runtimes.md)). Check out the repo, then
+drive the engagement either through the **Pentest Manager** agent or the slash-command
+shortcuts. Every run is read-only by default — enforced by the same guard core on every
+runtime — and writes all of its output into a single timestamped session folder.
 
 :::{tip}
-Prefer to talk to the team in natural language? Just ask Copilot to *"run an Azure red team
-assessment"* — it loads the orchestrator skill and follows the same flow described below.
+Prefer to talk to the team in natural language? Just ask your AI runtime to *"run an Azure
+red team assessment"* — it loads the orchestrator skill and follows the same flow described
+below.
 :::
 
 ## Prerequisites
@@ -20,7 +23,7 @@ Install these once, then verify your machine is ready:
 
 | Requirement | Why | Install / verify |
 |---|---|---|
-| **GitHub Copilot CLI** | Hosts the agents, skills, and guardrail | [Copilot CLI install guide](https://docs.github.com/copilot/github-copilot-in-the-cli) |
+| **GitHub Copilot CLI** | Hosts the agents, skills, and guardrail (or use [Claude Code, Codex, or Cursor](runtimes.md)) | [Copilot CLI install guide](https://docs.github.com/copilot/github-copilot-in-the-cli) |
 | **Azure CLI** (`az`) | Every domain agent runs read-only `az` queries | [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) |
 | **`resource-graph` extension** | Inventory + scope brief run `az graph query` | `az extension add --name resource-graph` |
 | **Node.js ≥ 22.5** | Datastore + report generator use the built-in `node:sqlite` (no `npm install`) | [nodejs.org](https://nodejs.org/) |

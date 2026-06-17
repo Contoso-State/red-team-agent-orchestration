@@ -8,7 +8,7 @@ description: The Orchestrator and its fifteen Azure domain specialists, and how 
 ![Orchestrator dispatches fifteen domain specialists](assets/agent-team.svg)
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
-hands tasks to fifteen domain specialists via Copilot's `agent` (Task) tool — plus two
+hands tasks to fifteen domain specialists via the runtime's agent-dispatch (Task) tool — plus two
 **gated** active-testing lanes (the EVA agent and the Azure Container & Kubernetes agent's
 in-cluster lane) that are off by default. The orchestrator is
 **dispatch-only** — it has no shell access and never runs `az` itself; it assigns work to
@@ -94,8 +94,10 @@ graph TD
 
 ## How the team is packaged
 
-The team uses three native Copilot CLI layers that map cleanly onto **who acts**, **what
-they know**, and **what they're allowed to do**.
+The team uses three native AI-runtime layers that map cleanly onto **who acts**, **what
+they know**, and **what they're allowed to do**. The canonical layout below is Copilot's
+(`.github/`); the [generator](runtimes.md) mirrors these same three layers into the Claude,
+Codex, and Cursor runtimes from this single source.
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
@@ -118,3 +120,9 @@ Because it is session-wide, it covers **every** agent. See
 Each skill stays thin and delegates to the detailed methodology in
 `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`,
 keeping a single source of truth.
+
+:::{tip}
+**Running on Claude Code, OpenAI Codex, or Cursor?** All three layers are generated for you
+from these `.github/` sources — agents, skills, and the read-only guard hook — so the team
+behaves identically on every runtime. See [AI Model Runtimes](runtimes.md).
+:::

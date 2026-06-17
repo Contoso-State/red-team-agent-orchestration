@@ -12,6 +12,11 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
 │   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny) + EVA egress lock
 │   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck /external (gated)
+├── guardrails/                  # Platform-neutral read-only guard core (guard.mjs + core/) — shared by every runtime
+├── .claude/                     # Claude Code runtime — agents, commands, skills + PreToolUse guard hook (generated)
+├── .cursor/                     # Cursor runtime — rules, commands + beforeShellExecution/MCP guard hook (generated)
+├── .codex/                      # OpenAI Codex runtime — guard hook (PreToolUse/PermissionRequest) + config.toml posture
+├── .agents/skills/              # Codex skills — open agent-skills standard (generated from .github/skills)
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
 │   ├── inventory-scope/         # Preflight — enumeration and permission checks
@@ -36,6 +41,7 @@ description: How agents, skills, hooks, checks, and per-session output are organ
 ├── controls/                    # CIS, MITRE ATT&CK, NIST CSF 2.0 mappings
 ├── knowledge/                   # Azure attack matrix, common misconfigs, severity model, token-optimization contract, web/OWASP testing (EVA)
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, datastore, HTML report generator
+│   ├── agents/                  # Anti-drift generator (build-agent-defs.mjs) — emits Claude/Cursor/Codex defs from .github + adapter-parity tests
 │   ├── checks/                  # Deterministic zero-LLM check engine — evaluates predicate banks into findings + a compact triage summary
 │   ├── tokens/                  # Token ledger — per-phase/per-agent token accounting for the report's Engagement Cost appendix
 │   ├── datastore/               # SQLite engagement datastore — ingest (single writer), read-only query cache, export, promote/lifecycle

@@ -11,9 +11,12 @@ domain specialist — runs comprehensive, **read-only** penetration testing agai
 environment, then hands you a leadership-ready report, an interactive HTML report, and a
 slide deck.
 
-The team ships as native **GitHub Copilot CLI** primitives. Once this repo is checked out,
-Copilot automatically discovers the **Pentest Manager** (Orchestrator) and its fifteen
-domain specialists — no manual wiring required.
+The team ships as native **GitHub Copilot CLI** primitives — and the **same team runs
+natively on [Claude Code, OpenAI Codex CLI, and Cursor](runtimes.md)**, all backed by one
+shared read-only guard core so a given command reaches an identical decision on every
+platform. Once this repo is checked out, your AI runtime automatically discovers the
+**Pentest Manager** (Orchestrator) and its fifteen domain specialists — no manual wiring
+required.
 
 :::{important}
 This is a **read-only methodology template**. Every Azure interaction goes through a
@@ -58,6 +61,12 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 Define scope, start the Pentest Manager, and run your first assessment in seven steps.
 :::
 
+:::{card} 🧠 AI Model Runtimes
+:link: runtimes.md
+Run the same read-only team on GitHub Copilot, Claude Code, OpenAI Codex, and Cursor — one
+guard core, four runtimes.
+:::
+
 :::{card} 🔐 Permissions & Least Privilege
 :link: permissions.md
 Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
@@ -70,7 +79,8 @@ Meet the Orchestrator and its fifteen domain specialists, and see how they coord
 
 :::{card} 🧠 Skills
 :link: skills.md
-The auto-loaded Copilot skills that give each agent its Azure domain methodology.
+The auto-loaded skills that give each agent its Azure domain methodology — mirrored across
+every runtime.
 :::
 
 :::{card} 🧪 Methodology

@@ -33,6 +33,26 @@ The Orchestrator additionally has **no shell access at all** (dispatch-only), so
 never run `az` itself — it only assigns work to specialists and aggregates their findings.
 :::
 
+## The same guard on every runtime
+
+Read-only enforcement is **not** Copilot-specific. The decision logic lives in one
+platform-neutral core (`guardrails/guard.mjs`, wrapping the unit-tested evaluators in
+`guardrails/core/`), and every runtime has a thin adapter that calls that core and maps the
+verdict to its native hook format. A given command therefore reaches an **identical**
+allow / ask / deny outcome on every platform — and every adapter **fails closed**.
+
+| Runtime | Enforcement hook | Fail-closed signal |
+|---|---|---|
+| GitHub Copilot CLI | `.github/extensions/redteam-guardrails` (`preToolUse`) | deny verdict |
+| Claude Code | `.claude/hooks/redteam-guard.mjs` (`PreToolUse`, `SessionStart`) | `permissionDecision: "deny"` |
+| OpenAI Codex CLI | `.codex/hooks/redteam-guard.mjs` (`PreToolUse`, `PermissionRequest`, `SessionStart`) + `.codex/config.toml` | stderr + `exit 2` (Codex fails *open* on a non-2 exit, so deny/ask/error all use exit 2) |
+| Cursor | `.cursor/hooks/redteam-guard.mjs` (`beforeShellExecution`, `beforeMCPExecution`) | deny verdict + `failClosed: true` |
+
+`tools/agents/adapter-parity.test.mjs` spawns **every** adapter against the shared golden
+fixtures (`guardrails/fixtures/decisions.json`) and asserts they all reach the same decision,
+so the runtimes can't drift apart. See [AI Model Runtimes](runtimes.md) for per-platform
+setup — including the one-time Codex `/hooks` trust step.
+
 ## Operating modes
 
 The mode is set in `engagement.yaml` and enforced by the guardrail across all agents.
