@@ -4,6 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
+  <img src="https://img.shields.io/badge/also_runs_on-Claude_·_Codex_·_Cursor-8A2BE2" alt="Also runs on Claude, Codex, and Cursor">
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
   <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
@@ -241,6 +242,33 @@ agent — and the orchestrator additionally has **no shell access at all** (disp
 never run `az` itself.
 
 Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`, and the gated `/external`) are convenient entry points that drive the same team.
+
+## 🧠 Runs on Copilot, Claude, Codex & Cursor
+
+The same team runs on four AI runtimes. One platform-neutral guard core
+(`guardrails/guard.mjs`) backs every runtime, so a given command reaches an **identical**
+allow / ask / deny decision everywhere — the read-only guarantee never forks per platform.
+
+| Runtime | Reads its team from | Read-only enforced by | Launch |
+|---|---|---|---|
+| **GitHub Copilot CLI** | `.github/agents`, `.github/skills`, `.github/prompts` | `.github/extensions/redteam-guardrails` | `/agent redteam-orchestrator` |
+| **Claude Code** | `.claude/agents`, `.claude/skills`, `.claude/commands` | `.claude/hooks/redteam-guard.mjs` | `/agent redteam-orchestrator` |
+| **OpenAI Codex CLI** | `AGENTS.md` + `.agents/skills` | `.codex/hooks/redteam-guard.mjs` + `.codex/config.toml` | ask Codex to *"run an Azure red team assessment"* |
+| **Cursor** | `.cursor/rules`, `.cursor/commands` + `.github/skills` | `.cursor/hooks/redteam-guard.mjs` | invoke the rule / command in chat |
+
+The Copilot definitions under `.github/` are canonical; the per-platform files are produced by
+an **anti-drift generator** so the runtimes can never silently diverge:
+
+```bash
+node tools/agents/build-agent-defs.mjs          # regenerate every runtime
+node tools/agents/build-agent-defs.mjs --check  # CI: fail if any runtime is stale
+```
+
+> **Codex first-run trust:** Codex requires you to trust the project hook before it runs —
+> start Codex in the repo and run **`/hooks`** once to trust
+> `.codex/hooks/redteam-guard.mjs`. Full per-runtime setup is in the
+> [AI Model Runtimes](https://contoso-state.github.io/red-team-agent-orchestration/runtimes)
+> guide.
 
 ## 🚀 Quick Start
 

@@ -14,6 +14,8 @@ project:
   toc:
     - file: index.md
     - file: getting-started.md
+    - file: runtimes.md
+      title: AI Model Runtimes
     - file: permissions.md
       title: Permissions Best Practices
     - file: agent-team.md
