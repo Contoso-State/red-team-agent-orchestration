@@ -8,12 +8,14 @@
 // prompt instead of being allowed silently — the read-only guarantee can never be bypassed
 // without intent.
 //
-// Decision logic lives in guardrails-core.mjs (pure + unit-tested in guardrails-core.test.mjs).
+// Decision logic lives in the platform-neutral shared core at guardrails/core/ (pure +
+// unit-tested). This extension is only the Copilot-SDK wire adapter; Claude, Codex and
+// Cursor have their own thin adapters over the same core.
 
 import { joinSession } from "@github/copilot-sdk/extension";
-import { evaluate, engagementMode } from "./guardrails-core.mjs";
-import { evaluateEgress } from "./egress-core.mjs";
-import { evaluateCluster } from "./cluster-core.mjs";
+import { evaluate, engagementMode } from "../../../guardrails/core/guardrails-core.mjs";
+import { evaluateEgress } from "../../../guardrails/core/egress-core.mjs";
+import { evaluateCluster } from "../../../guardrails/core/cluster-core.mjs";
 
 const session = await joinSession({
   hooks: {

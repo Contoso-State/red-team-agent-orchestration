@@ -31,7 +31,7 @@ import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } fr
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { connect as tlsConnect } from 'node:tls';
-import { externalTestingGate } from '../../.github/extensions/redteam-guardrails/egress-core.mjs';
+import { externalTestingGate } from '../../guardrails/core/egress-core.mjs';
 
 // ---------------------------------------------------------------------------
 // Pure analyzers (no network) — unit-tested in safe-prober.test.mjs

@@ -68,16 +68,20 @@ and friends — are recognized and gated:
 
 ## Files
 
-- `extension.mjs` — session wiring (`joinSession`, `onSessionStart`, `onPreToolUse`); calls both the
-  read-only `evaluate()` and the egress `evaluateEgress()` inside a fail-closed try/catch.
-- `guardrails-core.mjs` — pure read-only decision logic (`evaluate`, `violation`, allowlists, wrapper
-  extraction). Importable and side-effect free.
-- `egress-core.mjs` — pure EVA scope-lock logic (`evaluateEgress`, `parseProbeSegment`,
-  `externalTestingGate`, allowlist loading). Shares host classification with
-  `tools/external/host-classify.mjs`.
-- `guardrails-core.test.mjs` / `egress-core.test.mjs` — unit tests. Run with
-  `node .github/extensions/redteam-guardrails/guardrails-core.test.mjs` and
-  `node .github/extensions/redteam-guardrails/egress-core.test.mjs`.
+- `extension.mjs` — session wiring (`joinSession`, `onSessionStart`, `onPreToolUse`); calls the
+  read-only `evaluate()`, the egress `evaluateEgress()`, and the cluster `evaluateCluster()` inside a
+  fail-closed try/catch. This file is the Copilot-SDK wire adapter only.
+- The decision logic lives in the platform-neutral shared core at **`guardrails/core/`** (single source
+  of truth, also used by the Claude/Codex/Cursor adapters):
+  - `guardrails/core/guardrails-core.mjs` — pure read-only decision logic (`evaluate`, `violation`,
+    allowlists, wrapper extraction). Importable and side-effect free.
+  - `guardrails/core/egress-core.mjs` — pure EVA scope-lock logic (`evaluateEgress`, `parseProbeSegment`,
+    `externalTestingGate`, allowlist loading). Shares host classification with
+    `tools/external/host-classify.mjs`.
+  - `guardrails/core/cluster-core.mjs` — pure AKS/cluster scope-lock logic (`evaluateCluster`).
+  - `guardrails/core/*.test.mjs` — unit tests. Run with
+    `node guardrails/core/guardrails-core.test.mjs`, `node guardrails/core/egress-core.test.mjs`, and
+    `node guardrails/core/cluster-core.test.mjs`.
 
 ## Lifecycle
 
@@ -86,7 +90,7 @@ The CLI discovers this automatically from `.github/extensions/` at the git root,
 
 ## Customizing
 
-Edit `guardrails-core.mjs`:
+Edit `guardrails/core/guardrails-core.mjs`:
 
 - `AZ_READ_OP` / `PS_READ_VERBS` — the read allowlists (widen/narrow the permitted operations).
 - `AZ_BENIGN` / `PS_BENIGN` — session/local-context commands exempted from the read check.
