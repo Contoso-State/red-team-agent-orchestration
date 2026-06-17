@@ -11,7 +11,10 @@
  * so the team never drifts between platforms:
  *   Claude Code -> .claude/agents, .claude/commands, .claude/skills
  *   Cursor      -> .cursor/rules,  .cursor/commands
- *   Codex CLI   -> .codex/prompts
+ *   Codex CLI   -> .agents/skills  (open agent-skills standard, Codex's repo-scope skills
+ *                  location). Codex orchestration + read-only posture are carried natively
+ *                  by AGENTS.md, and read-only enforcement by .codex/hooks (hand-authored,
+ *                  not generated) — so Codex needs only the skill libraries emitted here.
  *
  * Usage:
  *   node tools/agents/build-agent-defs.mjs                 # generate all platforms
@@ -299,9 +302,31 @@ function generateCursor(agents, prompts, skillDirs, nameMap) {
   return { files, dirs: [], roots: ['.cursor/rules', '.cursor/commands'] };
 }
 
+// ----- Codex -----
+//
+// Codex reads repo-scope skills from .agents/skills/<name>/SKILL.md (the open agent-skills
+// standard, the same SKILL.md format Claude uses), so the domain knowledge is copied there
+// verbatim — single-sourced from .github/skills/ just like the Claude skills. Codex does
+// NOT auto-load repo-level slash-command prompts, and its specialist roster + read-only
+// posture are expressed natively in AGENTS.md; read-only enforcement lives in .codex/hooks
+// (hand-authored). So the generator's Codex job is exactly the skill libraries.
+
+function codexSkillDirs(skillDirs) {
+  return skillDirs.map((name) => ({
+    fromDir: join(SRC.skills, name),
+    toDir: join('.agents', 'skills', name),
+  }));
+}
+
+function generateCodex(agents, prompts, skillDirs) {
+  const dirs = codexSkillDirs(skillDirs);
+  return { files: [], dirs, roots: ['.agents/skills'] };
+}
+
 const PLATFORMS = {
   claude: generateClaude,
   cursor: generateCursor,
+  codex: generateCodex,
 };
 
 // ---------------------------------------------------------------------------
