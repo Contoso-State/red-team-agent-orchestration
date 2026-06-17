@@ -34,6 +34,7 @@ import {
 } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { READONLY_BANNER } from '../../guardrails/guard.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..', '..');
@@ -142,6 +143,14 @@ function applyNameMap(body, nameMap) {
   return out;
 }
 
+// Apply both body rewrites every generated agent/command body needs: re-home skill path
+// references to the platform's skill location, and swap sub-agent display names for slugs.
+function rewriteBody(body, nameMap, skillTarget) {
+  let out = body.replace(/\.github\/skills\//g, skillTarget);
+  out = applyNameMap(out, nameMap);
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Generic emit/collect: every generator returns { path, content } records and (for
 // skills) { copyDir } records, so --check can compare without writing.
@@ -163,8 +172,7 @@ function mapTools(tools, platform) {
 
 function claudeAgentFile(agent, nameMap) {
   const tools = mapTools(agent.data.tools, 'claude').join(', ');
-  let body = agent.body.replace(/\.github\/skills\//g, '.claude/skills/');
-  body = applyNameMap(body, nameMap);
+  let body = rewriteBody(agent.body, nameMap, '.claude/skills/');
   const fm = [
     '---',
     `name: ${agent.slug}`,
@@ -182,8 +190,7 @@ function claudeAgentFile(agent, nameMap) {
 }
 
 function claudeCommandFile(prompt, nameMap) {
-  let body = prompt.body.replace(/\.github\/skills\//g, '.claude/skills/');
-  body = applyNameMap(body, nameMap);
+  let body = rewriteBody(prompt.body, nameMap, '.claude/skills/');
   const fm = [
     '---',
     `description: ${prompt.raw.description ?? prompt.data.description ?? ''}`,
@@ -219,8 +226,82 @@ function generateClaude(agents, prompts, skillDirs, nameMap) {
   return { files, dirs, roots: ['.claude/agents', '.claude/commands', '.claude/skills'] };
 }
 
+// ----- Cursor -----
+//
+// Cursor has no native named-subagent or skills directory, so the roster is expressed as
+// rules (description-triggered context) plus slash commands, and skill knowledge is
+// referenced at its canonical .github/skills/ location (read on demand). Read-only
+// enforcement is handled by .cursor/hooks (not the generator).
+
+// Escape a frontmatter scalar so a description containing ':' or quotes stays valid YAML.
+function yamlScalar(value) {
+  const v = String(value ?? '');
+  if (v === '') return "''";
+  if (/[:#"'\[\]{}|>&*!?%@`]/.test(v) || /^\s|\s$/.test(v)) {
+    return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return v;
+}
+
+// Always-on rule carrying the read-only posture. Generated from the single READONLY_BANNER
+// source in guardrails/guard.mjs so the posture text never drifts between runtimes.
+function cursorPostureRule() {
+  const content = [
+    '---',
+    'description: Azure red team engagement — read-only posture and guardrails (always applied)',
+    'alwaysApply: true',
+    '---',
+    '',
+    `<!-- ${GENERATED_NOTE} Source: guardrails/guard.mjs (READONLY_BANNER) -->`,
+    '',
+    '# Azure Red Team — Read-Only Posture',
+    '',
+    READONLY_BANNER,
+    '',
+    'The `.cursor/hooks` guard enforces this allowlist on every shell command and surfaces ' +
+      'MCP tool calls for approval; never attempt to bypass it. Validate engagement scope ' +
+      'and operate on one subscription at a time.',
+    '',
+  ].join('\n');
+  return { path: join('.cursor', 'rules', '00-redteam-readonly.mdc'), content };
+}
+
+function cursorAgentRule(agent, nameMap) {
+  const body = rewriteBody(agent.body, nameMap, '.github/skills/');
+  const fm = [
+    '---',
+    `description: ${yamlScalar(agent.raw.description ?? agent.data.description ?? '')}`,
+    'alwaysApply: false',
+    '---',
+    '',
+    `<!-- ${GENERATED_NOTE} Source: .github/agents/${agent.file} -->`,
+    '',
+  ].join('\n');
+  return {
+    path: join('.cursor', 'rules', `${agent.slug}.mdc`),
+    content: fm + body.replace(/^\n+/, ''),
+  };
+}
+
+function cursorCommandFile(prompt, nameMap) {
+  const body = rewriteBody(prompt.body, nameMap, '.github/skills/');
+  const head = `<!-- ${GENERATED_NOTE} Source: .github/prompts/${prompt.file} -->\n\n`;
+  return {
+    path: join('.cursor', 'commands', `${prompt.slug}.md`),
+    content: head + body.replace(/^\n+/, ''),
+  };
+}
+
+function generateCursor(agents, prompts, skillDirs, nameMap) {
+  const files = [cursorPostureRule()];
+  for (const a of agents) files.push(cursorAgentRule(a, nameMap));
+  for (const p of prompts) files.push(cursorCommandFile(p, nameMap));
+  return { files, dirs: [], roots: ['.cursor/rules', '.cursor/commands'] };
+}
+
 const PLATFORMS = {
   claude: generateClaude,
+  cursor: generateCursor,
 };
 
 // ---------------------------------------------------------------------------
