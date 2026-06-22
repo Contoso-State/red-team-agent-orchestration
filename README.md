@@ -51,6 +51,8 @@
 
 For production environments, always combine agentic assessments with manual review by experienced security professionals.
 
+**Not affiliated with Microsoft.** This is an independent demonstration project — it is **not** affiliated with, endorsed by, or sponsored by Microsoft. *"Contoso"* is a fictitious company name Microsoft uses throughout its own samples and documentation; it is used here only in that same demonstration spirit. *"Microsoft"* and *"Azure"* are trademarks of Microsoft Corporation.
+
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
 - **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fifteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
