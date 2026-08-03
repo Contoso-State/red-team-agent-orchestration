@@ -30,12 +30,17 @@ The full methodology lives in `agents/orchestrator/system-prompt.md`. Read it an
 
 ## How You Manage the Engagement
 
-1. **Validate scope.** Load `engagement.yaml` (the user copies `engagement.example.yaml`). Validate against `schemas/engagement.schema.json`. If missing, instruct the user to create it and stop. **Hard-stop unless exactly one subscription is present in `scope.subscriptions`.** Echo a one-line scope summary and confirm.
-2. **Enforce mode.** The engagement `mode` gates what the team may do — `read-only-assessment` (default), `attack-path-analysis`, and `controlled-validation` are read-only; `external-active-testing` and `cluster-active-testing` are active lanes that each require an enabled, authorized testing block. Never exceed it.
-3. **Dispatch preflight.** Always run `azure-redteam-inventory` first. No domain skill runs until the inventory exists and permissions are validated.
-4. **Assign domain tasks.** Based on resource types in the inventory, dispatch the relevant domain skills. Each writes structured findings to `engagements/<session>/findings/raw/<agent>.jsonl` per `schemas/finding.schema.json`.
-5. **Correlate.** Dispatch `azure-redteam-authorization` to chain findings into multi-step attack paths.
-6. **Report.** Dispatch `azure-redteam-reporting` to normalize and render `engagements/<session>/reports/`.
+The engagement is a **declarative graph** (`graph/redteam.graph.json`, 14 nodes) with explicit self-improving loops — a bounded evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, a human-in-the-loop authorization interrupt for the gated active lanes, and read/write methodology-memory nodes for cross-run learning. Run the nodes in graph order. Full model: `doc/graph-engineering.md`.
+
+1. **Validate scope (`validate_scope`).** Load `engagement.yaml` (the user copies `engagement.example.yaml`). Validate against `schemas/engagement.schema.json`. If missing, instruct the user to create it and stop. **Hard-stop unless exactly one subscription is present in `scope.subscriptions`.** Confirm the target subscription and that the caller holds a read-only role before any access. Echo a one-line scope summary and confirm.
+2. **Load methodology memory (`memory_load`).** Inject prior-run learning (confirmed-finding signatures, false-positive suppression rules, investigation workflows, evolved prompts) as read-only context from the `methodology` namespace only. Never read or write the guardrail namespaces.
+3. **Enforce mode.** The engagement `mode` gates what the team may do — `read-only-assessment` (default), `attack-path-analysis`, and `controlled-validation` are read-only; `external-active-testing` and `cluster-active-testing` are active lanes that each require an enabled, authorized testing block **and** pass the `authorize_active` human approval interrupt. Never exceed it.
+4. **Dispatch preflight (`preflight_inventory`).** Always run `azure-redteam-inventory` first. No domain skill runs until the inventory exists and permissions are validated.
+5. **Fan out the specialists (`plan_specialists` → `run_specialist`).** Based on resource types in the inventory, dispatch the relevant domain skills **in parallel**, each in its own context, backed by the durable task manifest so the fan-out is resumable. Each specialist runs read-only checks, applies a bounded **Self-Refine** pass on its own draft, and writes structured findings to `engagements/<session>/findings/raw/<agent>.jsonl` per `schemas/finding.schema.json`.
+6. **Reduce, evaluate, reflect, judge (`collect_raw` → `evaluate` → `judge`).** Deterministically merge specialist output into deduped candidates, then run the evaluator-optimizer head (zero-LLM `tools/checks/run-checks.mjs` + a critic score). If `revision < 2` **and** `quality < 0.85`, loop back to a **targeted** re-scan; otherwise send candidates to the Agent-as-a-Judge false-positive gate, which re-verifies each with 1–3 read-only queries and promotes only confirmed findings (auto-learning FP suppressions into memory).
+7. **Correlate (`correlate`).** Dispatch `azure-redteam-authorization` to chain confirmed findings into multi-step attack paths.
+8. **Report (`report`).** Dispatch `azure-redteam-reporting` to normalize and render `engagements/<session>/reports/`.
+9. **Reflexion debrief (`reflexion_debrief`).** Autonomously persist the run's learning (signatures, FP patterns, workflows, self-rewritten prompts) back into `methodology` memory for the next run. Firewall: this never touches `guardrails/**`, the allowlists, or the read-only role.
 
 ## Dispatch in GitHub Copilot CLI
 

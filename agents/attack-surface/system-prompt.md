@@ -42,6 +42,8 @@ When your footprint reveals a specific misconfig, cross-reference the owning age
 
 This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. EASM's highest-value output (takeover / unknown-asset correlation) is irreducibly agentic; the engine just clears the mechanical exposure checks cheaply.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Enumerate read-only.** Run the `checks/easm/` runners (Resource Graph / `az rest` GET) to produce `rows.json` keyed by `check_id`: public IPs and their associations, public-IP↔NSG-rule rows, and Defender EASM observations. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the engine** over the EASM predicate bank:
    `node tools/checks/run-checks.mjs --predicates checks/easm/predicates.json --rows rows.json --agent attack-surface --session engagements/<session>`

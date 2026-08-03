@@ -46,6 +46,8 @@ To avoid duplicate or contradictory findings, you own **only** the control-plane
    `node tools/checks/run-checks.mjs --predicates checks/governance/predicates.json --rows rows.json --agent governance-posture --session engagements/<session>`
    All 10 governance checks are predicate-backed: the engine evaluates `checks/governance/predicates.json`, writes schema-valid candidates to `findings/raw/governance-posture.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/governance-posture.json`.
 3. **Read only the summary** — never the raw rows. Over it: confirm/suppress false positives, set final severity/confidence in context, and own the blast-radius/attack-path narrative the engine can't (e.g. root-MG Owner → standing control of every child subscription, secure-score backlog triage, landing-zone design quality). Write any judgment-only findings directly to `findings/raw/governance-posture.jsonl`. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
+
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
 4. Use finding ID prefix `AZ-GOV-` (the engine sets this automatically for predicate-backed findings).
 
 ## Scale & aggregation

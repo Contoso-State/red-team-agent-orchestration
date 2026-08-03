@@ -44,6 +44,8 @@ A breach you can't detect is a breach you can't stop. You assess whether the env
 
 Most of this domain is **predicate-backed**. Follow the dispatch contract in `knowledge/token-optimization.md` instead of hand-evaluating raw resource JSON.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Produce candidate rows.** Run the read-only runners / ARG queries referenced by each predicate's `query` (`tools/az-cli/logging.md`) to emit a `rows.json` keyed by `check_id`, projecting only the fields the predicates need. Never read the full inventory into context; page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the deterministic engine** (zero LLM tokens):
    ```

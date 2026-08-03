@@ -42,6 +42,8 @@ You own the **CI/CD and external-trust surface**, framed by the trust path — n
    `node tools/checks/run-checks.mjs --predicates checks/supplychain/predicates.json --rows rows.json --agent devops-supplychain --session engagements/<session>`
    All 9 supplychain checks are predicate-backed: the engine evaluates `checks/supplychain/predicates.json`, writes candidates to `findings/raw/devops-supplychain.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/devops-supplychain.json`.
 3. **Read only the summary** — never the raw rows — and **own the severity call.** The engine flags the deterministic trigger (broad/external trust **plus** privilege); you decide exploitability and downgrade no-privilege cases to Low/Informational (review). The fuzzier inferences stay agentic: deployment-style-name service principals, and "untrusted source" relative to the engagement allowlist. Reason those directly and write to `findings/raw/devops-supplychain.jsonl`. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
+
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
 4. Use finding ID prefix `AZ-SUP-` (the engine sets this automatically for predicate-backed findings).
 
 ## Scale & aggregation
