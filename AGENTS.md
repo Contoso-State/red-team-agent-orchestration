@@ -37,7 +37,7 @@ Engagement flow:
 | `tools/graph/run-graph.mjs` | Dependency-free Node graph runner for the four CLI runtimes |
 | `integrations/langgraph/` | First-class LangGraph deployment target for the same graph |
 | `.github/prompts/*.prompt.md` | Slash commands — `/setup` (pick subscription → `engagement.yaml`), `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck` |
-| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 14 specialists are dispatched by it |
+| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 16 specialists are dispatched by it |
 | `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |
 | `.github/extensions/redteam-guardrails/` | Hooks extension — `preToolUse` deny of mutating `az`/`azd` (logic in `guardrails-core.mjs`, tested by `guardrails-core.test.mjs`) |
 | `agents/*/system-prompt.md` | Detailed agent methodology and tool usage (single source of truth the skills/agents reference) |

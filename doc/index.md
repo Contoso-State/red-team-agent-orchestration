@@ -15,7 +15,7 @@ The team ships as native **GitHub Copilot CLI** primitives — and the **same te
 natively on [Claude Code, OpenAI Codex CLI, and Cursor](runtimes.md)**, all backed by one
 shared read-only guard core so a given command reaches an identical decision on every
 platform. Once this repo is checked out, your AI runtime automatically discovers the
-**Pentest Manager** (Orchestrator) and its fifteen domain specialists — no manual wiring
+**Pentest Manager** (Orchestrator) and its sixteen domain specialists — no manual wiring
 required.
 
 :::{important}
@@ -86,7 +86,7 @@ The canonical graph, bounded reflection loops, memory firewall, and Node + LangG
 
 :::{card} 🤖 The Agent Team
 :link: agent-team.md
-Meet the Orchestrator and its fifteen domain specialists, and see how they coordinate.
+Meet the Orchestrator and its sixteen domain specialists, and see how they coordinate.
 :::
 
 :::{card} 🧠 Skills

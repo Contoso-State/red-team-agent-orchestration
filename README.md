@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
   <img src="https://img.shields.io/badge/architecture-graph_%2B_self--improving-6f42c1" alt="Graph-engineered, self-improving loops">
-  <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
+  <img src="https://img.shields.io/badge/agents-17-ff2b40" alt="17 agents (orchestrator + 16 dispatch-only specialists, incl. gated EVA)">
   <img src="https://img.shields.io/badge/checks-147-2496ed" alt="147 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
@@ -57,7 +57,7 @@ For production environments, always combine agentic assessments with manual revi
 
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fifteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to sixteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge. Copilot pulls the relevant skill in based on its `description`, giving every agent its methodology and `az` runner without manual wiring.
 - **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
 
@@ -119,7 +119,7 @@ requirements. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering
 ## 🤖 Agent Team
 
 <p align="center">
-  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fifteen domain specialists" width="100%">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches sixteen domain specialists" width="100%">
 </p>
 
 | Agent | Domain | Key Focus |
@@ -241,7 +241,7 @@ The team uses three native Copilot CLI layers that map cleanly onto **who acts**
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
+The Orchestrator is the only **user-invocable** agent; the sixteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the
 `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective
 agent" real. The Orchestrator is **dispatch-only** — it has no `execute`/shell capability, so it

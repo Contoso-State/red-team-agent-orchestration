@@ -1,16 +1,16 @@
 ---
 title: The Agent Team
-description: The Orchestrator and its fifteen Azure domain specialists, and how they coordinate.
+description: The Orchestrator and its sixteen Azure domain specialists, and how they coordinate.
 ---
 
 # The Agent Team
 
-![Orchestrator dispatches fifteen domain specialists](assets/agent-team.svg)
+![Orchestrator dispatches sixteen domain specialists](assets/agent-team.svg)
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
-hands tasks to fifteen domain specialists via the runtime's agent-dispatch (Task) tool — plus two
-**gated** active-testing lanes (the EVA agent and the Azure Container & Kubernetes agent's
-in-cluster lane) that are off by default. In the canonical
+hands tasks to sixteen domain specialists via the runtime's agent-dispatch (Task) tool — two
+of which expose **gated** active-testing lanes (the EVA agent, and the Azure Container &
+Kubernetes agent's in-cluster lane) that are off by default. In the canonical
 [graph-engineered flow](graph-engineering.md), the read-only roster is the `plan_specialists`
 fan-out layer: each in-scope domain is sent to `run_specialist` in parallel, then reduced back
 into the shared finding state. The orchestrator is **dispatch-only** — it has no shell access
@@ -104,7 +104,7 @@ Codex, and Cursor runtimes from this single source.
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
+The Orchestrator is the only **user-invocable** agent; the sixteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them
 through the `agent` (Task) tool. The Orchestrator is **dispatch-only** — it has no
 `execute`/shell capability, so it never runs `az` itself.
