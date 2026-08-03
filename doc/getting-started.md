@@ -6,10 +6,15 @@ description: Define scope, start the Pentest Manager, and run your first read-on
 # Getting Started
 
 The team runs inside **GitHub Copilot CLI** — and natively on **Claude Code**, **OpenAI
-Codex CLI**, and **Cursor** (see [AI Model Runtimes](runtimes.md)). Check out the repo, then
-drive the engagement either through the **Pentest Manager** agent or the slash-command
-shortcuts. Every run is read-only by default — enforced by the same guard core on every
-runtime — and writes all of its output into a single timestamped session folder.
+Codex CLI**, and **Cursor** (see [AI Model Runtimes](runtimes.md)). Clone the repo, open it
+in your AI runtime, then drive the engagement either through the **Pentest Manager** agent or
+the slash-command shortcuts. Every run is read-only by default — enforced by the same guard
+core on every runtime — and writes all of its output into a single timestamped session folder.
+
+```bash
+git clone https://github.com/Contoso-State/red-team-agent-orchestration.git
+cd red-team-agent-orchestration
+```
 
 :::{tip}
 Prefer to talk to the team in natural language? Just ask your AI runtime to *"run an Azure

@@ -342,14 +342,25 @@ plans and runs engagements as the *same* self-improving graph (executed by the d
 ## 🚀 Quick Start
 
 > **First time?** See [Prerequisites](#-prerequisites) (Azure CLI + `resource-graph`
-> extension, Node.js ≥ 22.5, `az login`). Then verify your machine is ready:
->
-> ```bash
-> node tools/preflight/check-environment.mjs
-> ```
->
-> It confirms Node, the Azure CLI, your sign-in, and the `resource-graph` extension,
-> and tells you exactly how to fix anything missing — all read-only.
+> extension, Node.js ≥ 22.5, `az login`). Prefer a guided walkthrough on the web? The
+> **[Getting Started guide](https://contoso-state.github.io/red-team-agent-orchestration/getting-started)**
+> covers this same flow step by step.
+
+### 0. Get the repo
+
+```bash
+git clone https://github.com/Contoso-State/red-team-agent-orchestration.git
+cd red-team-agent-orchestration
+```
+
+Open the folder in **GitHub Copilot CLI** (or [Claude Code, Codex, or Cursor](#-runs-on-copilot-claude-codex--cursor)) — your runtime auto-discovers the team. Then verify your machine is ready:
+
+```bash
+node tools/preflight/check-environment.mjs
+```
+
+It confirms Node, the Azure CLI, your sign-in, and the `resource-graph` extension,
+and tells you exactly how to fix anything missing — all read-only.
 
 ### 1. Define engagement scope
 
