@@ -1,0 +1,15 @@
+# Keep the generator's sources and the generated per-runtime definitions checked out
+# with LF on every platform. On Windows, core.autocrlf would otherwise hand the
+# generator CRLF sources, and the string-assembled runtime files would pick up stray
+# carriage returns that make the anti-drift check (tools/agents/build-agent-defs.mjs
+# --check) disagree between a local Windows regen and Linux CI. LF everywhere keeps
+# generation deterministic.
+.github/agents/**   text eol=lf
+.github/prompts/**  text eol=lf
+.github/skills/**   text eol=lf
+.claude/**          text eol=lf
+.cursor/**          text eol=lf
+.agents/**          text eol=lf
+graph/*.json        text eol=lf
+tools/**            text eol=lf
+guardrails/**       text eol=lf

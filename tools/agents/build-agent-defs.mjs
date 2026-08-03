@@ -71,6 +71,16 @@ const TOOL_MAP = {
 // one-line JSON-style tools array; no nested YAML).
 // ---------------------------------------------------------------------------
 
+// Read a source file with line endings normalized to LF. Generation must be
+// deterministic regardless of how git checked out the sources: on Windows,
+// core.autocrlf yields CRLF working trees, and the string-assembled outputs would
+// then embed stray CR that the EOL-insensitive drift check (which only collapses
+// \r\n) cannot neutralize — so a Windows regen disagrees with Linux CI. Normalizing
+// on read keeps generated output pure-LF on every platform.
+function readText(path) {
+  return readFileSync(path, 'utf8').replace(/\r\n?/g, '\n');
+}
+
 function parseFrontmatter(text) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) return { data: {}, raw: {}, body: text };
@@ -105,7 +115,7 @@ function loadAgents() {
     .sort()
     .map((f) => {
       const slug = f.replace(/\.agent\.md$/, '');
-      const { data, raw, body } = parseFrontmatter(readFileSync(join(SRC.agents, f), 'utf8'));
+      const { data, raw, body } = parseFrontmatter(readText(join(SRC.agents, f)));
       return { slug, file: f, data, raw, body };
     });
 }
@@ -116,7 +126,7 @@ function loadPrompts() {
     .sort()
     .map((f) => {
       const slug = f.replace(/\.prompt\.md$/, '');
-      const { data, raw, body } = parseFrontmatter(readFileSync(join(SRC.prompts, f), 'utf8'));
+      const { data, raw, body } = parseFrontmatter(readText(join(SRC.prompts, f)));
       return { slug, file: f, data, raw, body };
     });
 }
@@ -187,7 +197,7 @@ function mapTools(tools, platform) {
 // ---------------------------------------------------------------------------
 
 function loadGraphMeta() {
-  const g = JSON.parse(readFileSync(GRAPH_SRC, 'utf8'));
+  const g = JSON.parse(readText(GRAPH_SRC));
   const params = g.params ?? {};
   return {
     name: g.name,
@@ -511,7 +521,9 @@ function doCheck(platformNames) {
   const problems = [];
   // Compare EOL-insensitively so a CRLF working tree (git autocrlf on Windows) does not
   // read as drift against the LF the generator emits — the check is about content, not EOL.
-  const norm = (buf) => buf.toString('utf8').replace(/\r\n/g, '\n');
+  // Collapse lone CR as well as CRLF so any stray carriage return can never masquerade as
+  // content drift between a Windows regen and Linux CI.
+  const norm = (buf) => buf.toString('utf8').replace(/\r\n?/g, '\n');
   for (const p of Object.values(plans)) {
     for (const f of p.files) {
       const abs = join(ROOT, f.path);
