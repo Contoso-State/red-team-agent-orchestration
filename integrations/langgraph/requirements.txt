@@ -1,0 +1,5 @@
+-e ./integrations/langgraph
+langgraph==0.2.76
+langgraph-checkpoint-sqlite==2.0.11
+langchain-core==0.3.59
+pytest==8.3.5

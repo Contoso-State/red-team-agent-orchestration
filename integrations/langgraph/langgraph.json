@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "redteam_azure": "./redteam_langgraph/builder.py:graph"
+  },
+  "env": ".env"
+}

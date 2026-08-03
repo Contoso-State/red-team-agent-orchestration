@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redteam-langgraph"
+version = "0.1.0"
+description = "LangGraph deployment target for the Azure red-team canonical graph"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph==0.2.76",
+  "langgraph-checkpoint-sqlite==2.0.11",
+  "langchain-core==0.3.59",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["redteam_langgraph*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
