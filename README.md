@@ -23,6 +23,7 @@
 <p align="center">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><b>📖 Documentation</b></a> ·
   <a href="#-quick-start"><b>Quick Start</b></a> ·
+  <a href="#-graph-engineering--self-improving-loops"><b>Graph Architecture</b></a> ·
   <a href="#-how-it-works"><b>How It Works</b></a> ·
   <a href="#-scoping-large-subscriptions"><b>Scoping at Scale</b></a> ·
   <a href="#-agent-team"><b>Agent Team</b></a> ·
@@ -60,6 +61,59 @@ The team ships as native **GitHub Copilot CLI** primitives, so once this repo is
 - **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
 
 Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
+
+## 🕸️ Graph engineering & self-improving loops
+
+The primary architecture is the canonical declarative graph in
+[`graph/redteam.graph.json`](graph/redteam.graph.json): scope validation and read-only permission
+checks run first, prior methodology memory is loaded, specialists fan out in parallel, findings
+fan back in through deterministic reducers, the evaluator-optimizer loop reflects only while
+bounded by `max_revisions: 2` and `quality_threshold: 0.85`, and the judge/debrief nodes
+self-improve `memory/methodology/` for later runs.
+
+```mermaid
+graph TD
+    START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
+    VS --> ML[memory_load<br/>methodology memory]
+    ML --> PI[preflight_inventory<br/>sequential inventory]
+    PI --> PS[plan_specialists<br/>Send fan-out]
+
+    subgraph Fanout[Parallel read-only specialist fan-out]
+        PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]
+    end
+
+    RS --> CR[collect_raw<br/>deterministic dedupe reduce]
+    CR --> EV[evaluate<br/>run-checks + critic score]
+
+    EV -->|route_after_evaluate: refine<br/>revision < max_revisions<br/>and quality < quality_threshold| PS
+    EV -->|route_after_evaluate: proceed| J[judge<br/>Agent-as-a-Judge FP gate]
+
+    J -->|auto-write FP suppressions| MW[(memory/methodology/)]
+    J --> AA{{authorize_active<br/>HITL interrupt}}
+    AA -->|route_active: external_active| EVA[eva_active<br/>gated external lane]
+    AA -->|route_active: cluster_active| CA[cluster_active<br/>gated AKS lane]
+    AA -->|route_active: none / rejected| CO[correlate<br/>RBAC + attack paths]
+    EVA --> CO
+    CA --> CO
+    CO --> RP[report<br/>deliverables]
+    RP --> RD[reflexion_debrief<br/>autonomous memory update]
+    RD -->|learned signatures, FP patterns,<br/>workflows, prompt revisions| MW
+    RD --> END([END])
+
+    classDef memory fill:#f8f4ff,stroke:#6f42c1,color:#3b245f;
+    classDef gate fill:#fff4e6,stroke:#d97706,color:#7c2d12;
+    classDef active fill:#fff1f2,stroke:#e11d48,color:#881337;
+    class ML,MW,RD memory;
+    class VS,AA,J gate;
+    class EVA,CA active;
+```
+
+One graph has two engines: the dependency-free Node runner (`tools/graph/run-graph.mjs`) for the
+four CLI runtimes, and the first-class LangGraph target in
+[`integrations/langgraph/`](integrations/langgraph/) for Python deployment. Self-improvement is
+auto-applied at runtime with no PR or human gate, but the memory firewall keeps the read-only
+guard immutable: it can never modify `guardrails/**`, egress/cluster allowlists, or role
+requirements. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
 
 ## 🤖 Agent Team
 

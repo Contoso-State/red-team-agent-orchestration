@@ -10,9 +10,12 @@ description: The Orchestrator and its fifteen Azure domain specialists, and how 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
 hands tasks to fifteen domain specialists via the runtime's agent-dispatch (Task) tool — plus two
 **gated** active-testing lanes (the EVA agent and the Azure Container & Kubernetes agent's
-in-cluster lane) that are off by default. The orchestrator is
-**dispatch-only** — it has no shell access and never runs `az` itself; it assigns work to
-specialists and aggregates the findings they return.
+in-cluster lane) that are off by default. In the canonical
+[graph-engineered flow](graph-engineering.md), the read-only roster is the `plan_specialists`
+fan-out layer: each in-scope domain is sent to `run_specialist` in parallel, then reduced back
+into the shared finding state. The orchestrator is **dispatch-only** — it has no shell access
+and never runs `az` itself; it assigns work to specialists and aggregates the findings they
+return.
 
 | Agent | Domain | Key Focus |
 |---|---|---|

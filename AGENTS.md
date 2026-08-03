@@ -6,11 +6,18 @@ This repository contains an agentic red team platform for Azure cloud infrastruc
 
 ## Architecture
 
-The system uses a **hub-and-spoke orchestration model**, wired with three native Copilot CLI layers:
+The system's primary orchestration standard is an **explicit declarative graph**, wired into the native Copilot CLI layers:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to fourteen domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
+- **Canonical graph** (`graph/redteam.graph.json`) — the single source of truth for scope validation, methodology memory, preflight inventory, parallel specialist fan-out, deterministic reduce, bounded evaluator-optimizer reflection, false-positive judging, human-in-the-loop active-lane interrupts, correlation, reporting, and Reflexion debrief.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge each agent draws on.
 - **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a session-wide `preToolUse` hook that enforces read-only as an allowlist (deny-by-default) across `az`/`azd` and Azure PowerShell, for every agent.
+
+### Graph engineering & self-improvement
+
+The graph is executed by the dependency-free Node runner (`tools/graph/run-graph.mjs`) inside the Copilot, Claude, Codex, and Cursor runtimes, and also by the first-class LangGraph deployment target in `integrations/langgraph/`, which compiles the same JSON spec into a `StateGraph` and reuses the same read-only guard through a subprocess bridge.
+
+Self-improvement is autonomous and auto-applied at runtime only inside `memory/methodology/`: the judge writes false-positive suppressions, and `reflexion_debrief` persists learned signatures, investigation workflows, and prompt revisions for later runs. The memory firewall is the immutable boundary: self-improvement must never touch `guardrails/**`, the egress or cluster allowlists, or the read-only role boundary.
 
 Engagement flow:
 
@@ -25,6 +32,10 @@ Engagement flow:
 | Path | Purpose |
 |---|---|
 | `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` (or run `/setup`) for real assessments |
+| `graph/redteam.graph.json` | Canonical declarative engagement graph — topology, state channels, routers, reducers, and self-improvement loops |
+| `schemas/graph.schema.json` | Graph contract; structural and memory-firewall validation is handled by `tools/graph/validate-graph.mjs` |
+| `tools/graph/run-graph.mjs` | Dependency-free Node graph runner for the four CLI runtimes |
+| `integrations/langgraph/` | First-class LangGraph deployment target for the same graph |
 | `.github/prompts/*.prompt.md` | Slash commands — `/setup` (pick subscription → `engagement.yaml`), `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck` |
 | `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 14 specialists are dispatched by it |
 | `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |

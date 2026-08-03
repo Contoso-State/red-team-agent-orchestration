@@ -38,6 +38,11 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 
 ## What you get
 
+- **Graph-engineered orchestration** — [`graph/redteam.graph.json`](../graph/redteam.graph.json)
+  is the canonical engagement topology: scope validation, methodology memory, parallel
+  specialist fan-out, deterministic reduce, bounded evaluator-optimizer reflection, read-only
+  false-positive judging, gated active-lane interrupts, reporting, and autonomous Reflexion
+  debrief. See [Graph Engineering & Self-Improvement](graph-engineering.md).
 - **A dispatchable agent team** — one user-facing Orchestrator that coordinates fifteen
   read-only domain specialists (identity, network, compute, container/Kubernetes, data, web,
   AI, EASM, logging, governance, supply chain, email, authorization/attack-path, inventory,
@@ -72,6 +77,11 @@ guard core, four runtimes.
 :::{card} 🔐 Permissions & Least Privilege
 :link: permissions.md
 Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
+:::
+
+:::{card} 🕸️ Graph Engineering & Self-Improvement
+:link: graph-engineering.md
+The canonical graph, bounded reflection loops, memory firewall, and Node + LangGraph engines.
 :::
 
 :::{card} 🤖 The Agent Team
@@ -117,6 +127,13 @@ How agents, skills, hooks, checks, and session output are organized.
 :::
 
 ::::
+
+## Primary architecture: graph engineering
+
+The engagement is defined as an explicit graph, not a static prompt pipeline. The same graph
+runs through the dependency-free Node runner in the four CLI runtimes and through the first-class
+LangGraph target, while self-improving loops can update only `memory/methodology/` — never the
+read-only guard. Start with [Graph Engineering & Self-Improvement](graph-engineering.md).
 
 ## How it works at a glance
 

@@ -9,6 +9,20 @@ The agents don't improvise. Every domain agent runs **its own read-only `az` CLI
 assessment** driven by atomic checks, follows structured playbooks for multi-step analysis,
 and grounds findings in a shared knowledge base and control mappings.
 
+## Methodology as a graph
+
+The methodology is now executed as the declarative graph in
+[`graph/redteam.graph.json`](../graph/redteam.graph.json), not as a static linear checklist. The
+graph loads prior methodology memory, runs preflight inventory first, fans out across the
+read-only specialist roster, dedupes findings, evaluates quality, reflects through a bounded
+optimizer loop, sends candidate findings through a read-only Agent-as-a-Judge false-positive
+filter, and writes a Reflexion debrief back to `memory/methodology/` for future runs.
+
+This does **not** weaken the safety model: self-improvement is confined by the memory firewall
+and cannot modify `guardrails/**`, the egress or cluster allowlists, or the read-only role
+boundary. See [Graph Engineering & Self-Improvement](graph-engineering.md) for the graph,
+reducers, routers, and self-improvement policy.
+
 ## Atomic checks (`checks/`)
 
 Each domain has a `checks/<domain>/checks.yaml` file of atomic, independently verifiable
