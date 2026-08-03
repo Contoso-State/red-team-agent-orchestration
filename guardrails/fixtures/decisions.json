@@ -1,0 +1,23 @@
+{
+  "_comment": "Shared golden decision fixtures for the platform-neutral red team guard. Each adapter (Copilot/Claude/Codex/Cursor) MUST translate these same inputs to its own wire format and reach the same allow|deny|ask outcome. cwd '.' resolves to the default read-only-assessment mode (no engagement.yaml). Cases needing controlled-validation/external-active/cluster-active modes are exercised directly in guard.test.mjs with temp engagements.",
+  "cases": [
+    { "name": "read-only az list", "input": { "command": "az vm list -o table", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "read-only az show", "input": { "command": "az group show -n rg", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "read-only az account list", "input": { "command": "az account list -o json", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "read-only az rest GET", "input": { "command": "az rest --method GET --url https://management.azure.com/subscriptions?api-version=2022-12-01", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "azure powershell read verb", "input": { "command": "Get-AzVM", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "benign shell ls", "input": { "command": "ls -la", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "benign git status", "input": { "command": "git status", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "read-only kubectl get", "input": { "command": "kubectl get pods -A", "cwd": ".", "toolName": "bash" }, "expect": "allow" },
+    { "name": "mutating az delete", "input": { "command": "az vm delete --name x -g rg --yes", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "mutating az create", "input": { "command": "az vm create -n x -g rg --image Ubuntu2204", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "mutating az role assignment create", "input": { "command": "az role assignment create --assignee x --role Owner --scope /subscriptions/s", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "external probe nuclei out of scope", "input": { "command": "nuclei -u https://contoso.azurewebsites.net", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "external probe curl public host", "input": { "command": "curl https://app-contoso.azurewebsites.net/", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "mutating kubectl delete", "input": { "command": "kubectl delete pod x", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "cluster-active kubectl exec out of scope", "input": { "command": "kubectl exec -it pod -- sh", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "mutating helm install", "input": { "command": "helm install foo ./chart", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "cluster-active docker run out of scope", "input": { "command": "docker run --rm alpine id", "cwd": ".", "toolName": "bash" }, "expect": "deny" },
+    { "name": "empty command", "input": { "command": "", "cwd": ".", "toolName": "bash" }, "expect": "allow" }
+  ]
+}

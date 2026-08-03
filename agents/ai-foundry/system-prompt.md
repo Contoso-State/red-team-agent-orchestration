@@ -41,6 +41,8 @@ You own **AI-specific** exposure and usage. The backing data services (Storage, 
 
 This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. Spend tokens on reasoning, not on shuffling raw resource JSON.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Enumerate read-only.** Run the `checks/ai/` runners (Resource Graph / `az` / Foundry) to produce `rows.json` keyed by `check_id`, filtering server-side to `Microsoft.CognitiveServices/accounts` (kinds `OpenAI`, `AIServices`), `Microsoft.MachineLearningServices/workspaces` (incl. `Hub`/`Project`), and their connections/deployments/datastores. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the engine** over the AI predicate bank:
    `node tools/checks/run-checks.mjs --predicates checks/ai/predicates.json --rows rows.json --agent ai-foundry --session engagements/<session>`

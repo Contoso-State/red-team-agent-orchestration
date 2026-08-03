@@ -6,11 +6,18 @@ This repository contains an agentic red team platform for Azure cloud infrastruc
 
 ## Architecture
 
-The system uses a **hub-and-spoke orchestration model**, wired with three native Copilot CLI layers:
+The system's primary orchestration standard is an **explicit declarative graph**, wired into the native Copilot CLI layers:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to fourteen domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
+- **Canonical graph** (`graph/redteam.graph.json`) — the single source of truth for scope validation, methodology memory, preflight inventory, parallel specialist fan-out, deterministic reduce, bounded evaluator-optimizer reflection, false-positive judging, human-in-the-loop active-lane interrupts, correlation, reporting, and Reflexion debrief.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable `redteam-orchestrator` (Pentest Manager) hands tasks to domain sub-agents through the `agent` (Task) tool. Sub-agents set `disable-model-invocation: true` so they only run when the Orchestrator dispatches them.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge each agent draws on.
 - **Extension/hooks** (`.github/extensions/redteam-guardrails`) — a session-wide `preToolUse` hook that enforces read-only as an allowlist (deny-by-default) across `az`/`azd` and Azure PowerShell, for every agent.
+
+### Graph engineering & self-improvement
+
+The graph is executed by the dependency-free Node runner (`tools/graph/run-graph.mjs`) inside the Copilot, Claude, Codex, and Cursor runtimes, and also by the first-class LangGraph deployment target in `integrations/langgraph/`, which compiles the same JSON spec into a `StateGraph` and reuses the same read-only guard through a subprocess bridge.
+
+Self-improvement is autonomous and auto-applied at runtime only inside `memory/methodology/`: the judge writes false-positive suppressions, and `reflexion_debrief` persists learned signatures, investigation workflows, and prompt revisions for later runs. The memory firewall is the immutable boundary: self-improvement must never touch `guardrails/**`, the egress or cluster allowlists, or the read-only role boundary.
 
 Engagement flow:
 
@@ -25,8 +32,12 @@ Engagement flow:
 | Path | Purpose |
 |---|---|
 | `engagement.example.yaml` | Engagement scope template — copy to `engagement.yaml` (or run `/setup`) for real assessments |
+| `graph/redteam.graph.json` | Canonical declarative engagement graph — topology, state channels, routers, reducers, and self-improvement loops |
+| `schemas/graph.schema.json` | Graph contract; structural and memory-firewall validation is handled by `tools/graph/validate-graph.mjs` |
+| `tools/graph/run-graph.mjs` | Dependency-free Node graph runner for the four CLI runtimes |
+| `integrations/langgraph/` | First-class LangGraph deployment target for the same graph |
 | `.github/prompts/*.prompt.md` | Slash commands — `/setup` (pick subscription → `engagement.yaml`), `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck` |
-| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 14 specialists are dispatched by it |
+| `.github/agents/redteam-*.agent.md` | Custom agents — the dispatchable team. `redteam-orchestrator` is user-invocable; 16 specialists are dispatched by it |
 | `.github/skills/azure-redteam-*/SKILL.md` | Copilot skills — auto-loaded domain knowledge; each delegates to an agent prompt |
 | `.github/extensions/redteam-guardrails/` | Hooks extension — `preToolUse` deny of mutating `az`/`azd` (logic in `guardrails-core.mjs`, tested by `guardrails-core.test.mjs`) |
 | `agents/*/system-prompt.md` | Detailed agent methodology and tool usage (single source of truth the skills/agents reference) |
@@ -55,6 +66,35 @@ rules that matter for agents:
 - **Every `*.db` is gitignored**; `resource_facts` holds **config only, never secrets**.
 
 Canonical doc: `knowledge/datastore.md`.
+
+## Multi-Runtime Support
+
+This repo is canonical for **GitHub Copilot CLI**, and the same team runs natively on
+**Claude Code**, **OpenAI Codex CLI**, and **Cursor**. One platform-neutral guard core
+(`guardrails/guard.mjs`, wrapping the unit-tested evaluators in `guardrails/core/`) backs
+every runtime, so a given command reaches an identical allow/ask/deny decision everywhere —
+the read-only guarantee never forks per platform.
+
+| Runtime | Team definitions | Read-only enforcement |
+|---|---|---|
+| GitHub Copilot CLI (canonical) | `.github/agents`, `.github/skills`, `.github/prompts` | `.github/extensions/redteam-guardrails` (`preToolUse`) |
+| Claude Code | `.claude/agents`, `.claude/skills`, `.claude/commands` | `.claude/hooks/redteam-guard.mjs` (`PreToolUse`, `SessionStart`) |
+| OpenAI Codex CLI | **this `AGENTS.md`** + `.agents/skills` | `.codex/hooks/redteam-guard.mjs` (`PreToolUse`, `PermissionRequest`, `SessionStart`) + `.codex/config.toml` |
+| Cursor | `.cursor/rules`, `.cursor/commands` + `.github/skills` | `.cursor/hooks/redteam-guard.mjs` (`beforeShellExecution`, `beforeMCPExecution`) |
+
+Rules for keeping this consistent:
+
+- **`.github/` is the single source of truth.** The Claude/Cursor/Codex files are generated by
+  `tools/agents/build-agent-defs.mjs`. Never hand-edit a generated file — edit the `.github/`
+  source and re-run the generator. CI runs `node tools/agents/build-agent-defs.mjs --check` to
+  fail on drift.
+- **Codex specifics:** Codex reads this `AGENTS.md` for the roster/posture and loads domain
+  skills from `.agents/skills/` (the open agent-skills standard). Its guard hook must fail
+  closed with `stderr + exit 2` (Codex fails *open* on an `ask` decision and on any non-2 exit
+  code). The project hook must be trusted once via `/hooks` on first run before it executes.
+- **Every adapter fails closed** and is covered by `tools/agents/adapter-parity.test.mjs`,
+  which asserts all runtimes map the shared fixtures (`guardrails/fixtures/decisions.json`) to
+  the same decision in their own wire format.
 
 ## Safety Rules
 

@@ -4,9 +4,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/GitHub_Copilot-CLI-1f6feb?logo=github&logoColor=white" alt="GitHub Copilot CLI">
+  <img src="https://img.shields.io/badge/also_runs_on-Claude_·_Codex_·_Cursor-8A2BE2" alt="Also runs on Claude, Codex, and Cursor">
   <img src="https://img.shields.io/badge/Microsoft_Azure-cloud-0078D4?logo=microsoftazure&logoColor=white" alt="Microsoft Azure">
   <img src="https://img.shields.io/badge/guardrail-read--only_enforced-e10600" alt="Read-only enforced">
-  <img src="https://img.shields.io/badge/agents-16-ff2b40" alt="16 agents (orchestrator + 14 specialists + gated EVA)">
+  <img src="https://img.shields.io/badge/architecture-graph_%2B_self--improving-6f42c1" alt="Graph-engineered, self-improving loops">
+  <img src="https://img.shields.io/badge/agents-17-ff2b40" alt="17 agents (orchestrator + 16 dispatch-only specialists, incl. gated EVA)">
   <img src="https://img.shields.io/badge/checks-147-2496ed" alt="147 security checks">
   <img src="https://img.shields.io/badge/status-template-555" alt="Template">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><img src="https://img.shields.io/badge/docs-mystmd_site-0078D4?logo=readthedocs&logoColor=white" alt="Documentation site"></a>
@@ -22,6 +24,7 @@
 <p align="center">
   <a href="https://contoso-state.github.io/red-team-agent-orchestration/"><b>📖 Documentation</b></a> ·
   <a href="#-quick-start"><b>Quick Start</b></a> ·
+  <a href="#-graph-engineering--self-improving-loops"><b>Graph Architecture</b></a> ·
   <a href="#-how-it-works"><b>How It Works</b></a> ·
   <a href="#-scoping-large-subscriptions"><b>Scoping at Scale</b></a> ·
   <a href="#-agent-team"><b>Agent Team</b></a> ·
@@ -50,18 +53,73 @@
 
 For production environments, always combine agentic assessments with manual review by experienced security professionals.
 
+**Not affiliated with Microsoft.** This is an independent demonstration project — it is **not** affiliated with, endorsed by, or sponsored by Microsoft. *"Contoso"* is a fictitious company name Microsoft uses throughout its own samples and documentation; it is used here only in that same demonstration spirit. *"Microsoft"* and *"Azure"* are trademarks of Microsoft Corporation.
+
 The team ships as native **GitHub Copilot CLI** primitives, so once this repo is checked out Copilot automatically discovers the Pentest Manager and its specialists. Three cooperating layers make it work:
 
-- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to fifteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
+- **Custom agents** (`.github/agents/*.agent.md`) — the dispatchable team. The user-invocable **Orchestrator** (Pentest Manager) coordinates and hands tasks to sixteen domain sub-agents via Copilot's `agent` (Task) tool. This is the wiring that lets "the agent the user talks to" actually call the specialist agents.
 - **Skills** (`.github/skills/azure-redteam-*`) — auto-loaded domain knowledge. Copilot pulls the relevant skill in based on its `description`, giving every agent its methodology and `az` runner without manual wiring.
 - **Extension / hooks** (`.github/extensions/redteam-guardrails`) — a `preToolUse` hook that **enforces read-only**, denying any mutating `az`/`azd` command unless `engagement.yaml` explicitly opts into `controlled-validation`.
 
 Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
 
+## 🕸️ Graph engineering & self-improving loops
+
+The primary architecture is the canonical declarative graph in
+[`graph/redteam.graph.json`](graph/redteam.graph.json): scope validation and read-only permission
+checks run first, prior methodology memory is loaded, specialists fan out in parallel, findings
+fan back in through deterministic reducers, the evaluator-optimizer loop reflects only while
+bounded by `max_revisions: 2` and `quality_threshold: 0.85`, and the judge/debrief nodes
+self-improve `memory/methodology/` for later runs.
+
+```mermaid
+graph TD
+    START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
+    VS --> ML[memory_load<br/>methodology memory]
+    ML --> PI[preflight_inventory<br/>sequential inventory]
+    PI --> PS[plan_specialists<br/>Send fan-out]
+
+    subgraph Fanout[Parallel read-only specialist fan-out]
+        PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]
+    end
+
+    RS --> CR[collect_raw<br/>deterministic dedupe reduce]
+    CR --> EV[evaluate<br/>run-checks + critic score]
+
+    EV -->|route_after_evaluate: refine<br/>revision < max_revisions<br/>and quality < quality_threshold| PS
+    EV -->|route_after_evaluate: proceed| J[judge<br/>Agent-as-a-Judge FP gate]
+
+    J -->|auto-write FP suppressions| MW[(memory/methodology/)]
+    J --> AA{{authorize_active<br/>HITL interrupt}}
+    AA -->|route_active: external_active| EVA[eva_active<br/>gated external lane]
+    AA -->|route_active: cluster_active| CA[cluster_active<br/>gated AKS lane]
+    AA -->|route_active: none / rejected| CO[correlate<br/>RBAC + attack paths]
+    EVA --> CO
+    CA --> CO
+    CO --> RP[report<br/>deliverables]
+    RP --> RD[reflexion_debrief<br/>autonomous memory update]
+    RD -->|learned signatures, FP patterns,<br/>workflows, prompt revisions| MW
+    RD --> END([END])
+
+    classDef memory fill:#f8f4ff,stroke:#6f42c1,color:#3b245f;
+    classDef gate fill:#fff4e6,stroke:#d97706,color:#7c2d12;
+    classDef active fill:#fff1f2,stroke:#e11d48,color:#881337;
+    class ML,MW,RD memory;
+    class VS,AA,J gate;
+    class EVA,CA active;
+```
+
+One graph has two engines: the dependency-free Node runner (`tools/graph/run-graph.mjs`) for the
+four CLI runtimes, and the first-class LangGraph target in
+[`integrations/langgraph/`](integrations/langgraph/) for Python deployment. Self-improvement is
+auto-applied at runtime with no PR or human gate, but the memory firewall keeps the read-only
+guard immutable: it can never modify `guardrails/**`, egress/cluster allowlists, or role
+requirements. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
+
 ## 🤖 Agent Team
 
 <p align="center">
-  <img src="assets/agent-team.svg" alt="Orchestrator dispatches fifteen domain specialists" width="100%">
+  <img src="assets/agent-team.svg" alt="Orchestrator dispatches sixteen domain specialists" width="100%">
 </p>
 
 | Agent | Domain | Key Focus |
@@ -91,6 +149,13 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 > **The External Vulnerability Agent (EVA)** is the only agent that sends real traffic to live endpoints. It is **off by default** and dispatched only when the engagement `mode` is `external-active-testing` with a signed authorization. EVA tests **only** hosts on an Azure-derived allowlist, enforced fail-closed by a second egress guardrail. See [Operating Modes](#-operating-modes) and the [EVA docs](https://contoso-state.github.io/red-team-agent-orchestration/external-vuln).
 
 ## 🧭 How It Works
+
+The diagram below is the **conceptual lifecycle** — recon, dispatch, correlate, report. The
+**authoritative execution model** is the canonical graph in
+[Graph engineering & self-improving loops](#-graph-engineering--self-improving-loops) above: the
+same four phases, plus the bounded evaluator-optimizer reflection loop, the Agent-as-a-Judge
+false-positive gate, the human-in-the-loop authorization interrupt for gated active lanes, and the
+autonomous methodology-memory nodes that let each run learn from the last.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#ffffff','primaryBorderColor':'#0078D4','primaryTextColor':'#0078D4','lineColor':'#0078D4','textColor':'#0078D4','titleColor':'#0078D4','clusterBkg':'#f4f8fd','clusterBorder':'#0078D4','edgeLabelBackground':'#ffffff','fontFamily':'Segoe UI, Helvetica, Arial, sans-serif'}}}%%
@@ -176,7 +241,7 @@ The team uses three native Copilot CLI layers that map cleanly onto **who acts**
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
+The Orchestrator is the only **user-invocable** agent; the sixteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them through the
 `agent` (Task) tool. This is the dispatch wiring that makes "the orchestrator calls the respective
 agent" real. The Orchestrator is **dispatch-only** — it has no `execute`/shell capability, so it
@@ -242,17 +307,60 @@ never run `az` itself.
 
 Each skill stays thin and delegates to the detailed methodology in `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`, keeping a single source of truth. Every domain agent runs **its own read-only `az` CLI assessment** using the per-domain command runner in `tools/az-cli/<domain>.md` (each command keyed to a check ID). The slash commands in `.github/prompts/` (`/setup`, `/recon`, `/assess`, `/attack-paths`, `/report`, `/deck`, and the gated `/external`) are convenient entry points that drive the same team.
 
+## 🧠 Runs on Copilot, Claude, Codex & Cursor
+
+The same team runs on four AI runtimes. One platform-neutral guard core
+(`guardrails/guard.mjs`) backs every runtime, so a given command reaches an **identical**
+allow / ask / deny decision everywhere — the read-only guarantee never forks per platform.
+
+| Runtime | Reads its team from | Read-only enforced by | Launch |
+|---|---|---|---|
+| **GitHub Copilot CLI** | `.github/agents`, `.github/skills`, `.github/prompts` | `.github/extensions/redteam-guardrails` | `/agent redteam-orchestrator` |
+| **Claude Code** | `.claude/agents`, `.claude/skills`, `.claude/commands` | `.claude/hooks/redteam-guard.mjs` | `/agent redteam-orchestrator` |
+| **OpenAI Codex CLI** | `AGENTS.md` + `.agents/skills` | `.codex/hooks/redteam-guard.mjs` + `.codex/config.toml` | ask Codex to *"run an Azure red team assessment"* |
+| **Cursor** | `.cursor/rules`, `.cursor/commands` + `.github/skills` | `.cursor/hooks/redteam-guard.mjs` | invoke the rule / command in chat |
+
+The Copilot definitions under `.github/` are canonical; the per-platform files are produced by
+an **anti-drift generator** so the runtimes can never silently diverge:
+
+```bash
+node tools/agents/build-agent-defs.mjs          # regenerate every runtime
+node tools/agents/build-agent-defs.mjs --check  # CI: fail if any runtime is stale
+```
+
+The generator also surfaces the canonical **graph-orchestration standard** — derived directly
+from [`graph/redteam.graph.json`](graph/redteam.graph.json) — into each runtime, so every platform
+plans and runs engagements as the *same* self-improving graph (executed by the dependency-free
+`tools/graph/run-graph.mjs`, or the LangGraph target for Python deployments).
+
+> **Codex first-run trust:** Codex requires you to trust the project hook before it runs —
+> start Codex in the repo and run **`/hooks`** once to trust
+> `.codex/hooks/redteam-guard.mjs`. Full per-runtime setup is in the
+> [AI Model Runtimes](https://contoso-state.github.io/red-team-agent-orchestration/runtimes)
+> guide.
+
 ## 🚀 Quick Start
 
 > **First time?** See [Prerequisites](#-prerequisites) (Azure CLI + `resource-graph`
-> extension, Node.js ≥ 22.5, `az login`). Then verify your machine is ready:
->
-> ```bash
-> node tools/preflight/check-environment.mjs
-> ```
->
-> It confirms Node, the Azure CLI, your sign-in, and the `resource-graph` extension,
-> and tells you exactly how to fix anything missing — all read-only.
+> extension, Node.js ≥ 22.5, `az login`). Prefer a guided walkthrough on the web? The
+> **[Getting Started guide](https://contoso-state.github.io/red-team-agent-orchestration/getting-started)**
+> covers this same flow step by step.
+
+### 0. Get the repo
+
+```bash
+git clone https://github.com/Contoso-State/red-team-agent-orchestration.git
+cd red-team-agent-orchestration
+```
+
+Open the folder in **GitHub Copilot CLI** (or [Claude Code, Codex, or Cursor](#-runs-on-copilot-claude-codex--cursor)) — your runtime auto-discovers the team. Then verify your machine is ready:
+
+```bash
+node tools/preflight/check-environment.mjs
+```
+
+It confirms Node, the Azure CLI, your sign-in, and the `resource-graph` extension,
+and tells you exactly how to fix anything missing — all read-only.
 
 ### 1. Define engagement scope
 
@@ -428,6 +536,7 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 │   ├── skills/                  # Copilot skills — auto-loaded domain knowledge (azure-redteam-*)
 │   ├── extensions/              # Hooks — redteam-guardrails enforces read-only (preToolUse deny) + EVA egress lock
 │   └── prompts/                 # Slash commands: /setup /recon /assess /attack-paths /report /deck /external (gated)
+├── graph/                       # Canonical declarative engagement graph (redteam.graph.json) — the single source of truth for orchestration
 ├── agents/                      # Agent system prompts and methodology (skills delegate here)
 │   ├── orchestrator/            # Team lead — coordinates the engagement
 │   ├── inventory-scope/         # Preflight — enumeration and permission checks
@@ -448,17 +557,21 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 │   └── reporting/               # Finding normalization and report generation
 ├── checks/                      # Atomic security checks per domain
 ├── playbooks/                   # Multi-step assessment methodologies
-├── schemas/                    # JSON schemas — findings, attack paths, checks, engagement, task, coverage
+├── schemas/                    # JSON schemas — findings, attack paths, checks, engagement, task, coverage, graph
 ├── controls/                    # CIS Azure, MITRE ATT&CK, NIST CSF 2.0, Defender mappings
 ├── knowledge/                   # Azure attack matrix, Entra/K8s/container/OAuth-SAML-JWT/CSPM methodology, scaling, datastore
 ├── tools/                       # az CLI runners (per domain), KQL, Resource Graph, PowerShell, HTML report generator
 │   ├── preflight/              # Environment doctor — verifies az, sign-in, resource-graph ext, Node
 │   ├── orchestration/          # Scale: task manifest, coverage matrix, preflight cost estimate
+│   ├── graph/                 # Graph engine (dependency-free): validate-graph, run-graph runner, self-improve loops
 │   ├── datastore/              # SQLite engagement datastore: ingest / query / export / promote
 │   ├── resource-graph/         # ARG queries + scope-brief generator
 │   ├── powershell/             # Inventory export + bounded per-resource fan-out
 │   ├── cluster/                # Gated cluster-active lane: allowlist builder, safe kube audit, scoped scanner
 │   └── report/                 # Findings-driven HTML report generator + sample
+├── integrations/
+│   └── langgraph/               # First-class LangGraph target — compiles the same graph.json into a Python StateGraph (same guard, isolated deps)
+├── memory/                      # Self-improvement store — methodology memory (FP suppressions, workflows, prompt revisions); runtime logs gitignored
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
     ├── _history/                # Cross-run lifecycle DBs (<engagement.id>.db, gitignored)

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node .cursor/hooks/redteam-guard.mjs",
+        "timeout": 15,
+        "failClosed": true
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "node .cursor/hooks/redteam-guard.mjs",
+        "timeout": 15,
+        "failClosed": true
+      }
+    ]
+  }
+}

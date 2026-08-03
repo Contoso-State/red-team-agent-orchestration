@@ -11,9 +11,12 @@ domain specialist — runs comprehensive, **read-only** penetration testing agai
 environment, then hands you a leadership-ready report, an interactive HTML report, and a
 slide deck.
 
-The team ships as native **GitHub Copilot CLI** primitives. Once this repo is checked out,
-Copilot automatically discovers the **Pentest Manager** (Orchestrator) and its fifteen
-domain specialists — no manual wiring required.
+The team ships as native **GitHub Copilot CLI** primitives — and the **same team runs
+natively on [Claude Code, OpenAI Codex CLI, and Cursor](runtimes.md)**, all backed by one
+shared read-only guard core so a given command reaches an identical decision on every
+platform. Once this repo is checked out, your AI runtime automatically discovers the
+**Pentest Manager** (Orchestrator) and its sixteen domain specialists — no manual wiring
+required.
 
 :::{important}
 This is a **read-only methodology template**. Every Azure interaction goes through a
@@ -29,10 +32,17 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 
 :::{warning}
 **AI Disclosure & Disclaimer:** This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct security assessments. **AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings.** Use at your own risk and validate all findings independently. This tool is a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for verifying findings, ensuring authorization, and assessing accuracy.** Always combine agentic assessments with manual review by experienced security professionals before acting on findings in production environments.
+
+**Not affiliated with Microsoft.** This is an independent demonstration project — not affiliated with, endorsed by, or sponsored by Microsoft. *"Contoso"* is a fictitious company name Microsoft uses in its own samples and documentation; it is used here only in that demonstration spirit. *"Microsoft"* and *"Azure"* are trademarks of Microsoft Corporation.
 :::
 
 ## What you get
 
+- **Graph-engineered orchestration** — [`graph/redteam.graph.json`](../graph/redteam.graph.json)
+  is the canonical engagement topology: scope validation, methodology memory, parallel
+  specialist fan-out, deterministic reduce, bounded evaluator-optimizer reflection, read-only
+  false-positive judging, gated active-lane interrupts, reporting, and autonomous Reflexion
+  debrief. See [Graph Engineering & Self-Improvement](graph-engineering.md).
 - **A dispatchable agent team** — one user-facing Orchestrator that coordinates fifteen
   read-only domain specialists (identity, network, compute, container/Kubernetes, data, web,
   AI, EASM, logging, governance, supply chain, email, authorization/attack-path, inventory,
@@ -58,19 +68,31 @@ discovered in your Azure subscription, and only after a signed authorization. Se
 Define scope, start the Pentest Manager, and run your first assessment in seven steps.
 :::
 
+:::{card} 🧠 AI Model Runtimes
+:link: runtimes.md
+Run the same read-only team on GitHub Copilot, Claude Code, OpenAI Codex, and Cursor — one
+guard core, four runtimes.
+:::
+
 :::{card} 🔐 Permissions & Least Privilege
 :link: permissions.md
 Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
 :::
 
+:::{card} 🕸️ Graph Engineering & Self-Improvement
+:link: graph-engineering.md
+The canonical graph, bounded reflection loops, memory firewall, and Node + LangGraph engines.
+:::
+
 :::{card} 🤖 The Agent Team
 :link: agent-team.md
-Meet the Orchestrator and its fifteen domain specialists, and see how they coordinate.
+Meet the Orchestrator and its sixteen domain specialists, and see how they coordinate.
 :::
 
 :::{card} 🧠 Skills
 :link: skills.md
-The auto-loaded Copilot skills that give each agent its Azure domain methodology.
+The auto-loaded skills that give each agent its Azure domain methodology — mirrored across
+every runtime.
 :::
 
 :::{card} 🧪 Methodology
@@ -105,6 +127,13 @@ How agents, skills, hooks, checks, and session output are organized.
 :::
 
 ::::
+
+## Primary architecture: graph engineering
+
+The engagement is defined as an explicit graph, not a static prompt pipeline. The same graph
+runs through the dependency-free Node runner in the four CLI runtimes and through the first-class
+LangGraph target, while self-improving loops can update only `memory/methodology/` — never the
+read-only guard. Start with [Graph Engineering & Self-Improvement](graph-engineering.md).
 
 ## How it works at a glance
 

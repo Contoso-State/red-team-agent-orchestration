@@ -92,3 +92,9 @@ plan.md
 # MyST / docs build output
 doc/_build/
 node_modules/
+
+# Self-improvement methodology memory — keep the namespace placeholder + README,
+# but ignore the append-only runtime logs, which can reference target specifics.
+memory/**/*.log.jsonl
+memory/**/*.store.json
+memory/**/*.store.jsonl

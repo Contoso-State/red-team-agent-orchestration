@@ -1,0 +1,46 @@
+{
+  "$comment": "GENERATED INTENT, hand-maintained. Registers the platform-neutral red team guard (.codex/hooks/redteam-guard.mjs) on Codex's Claude-compatible lifecycle hooks. PreToolUse + PermissionRequest use matcher \"*\" so EVERY tool (shell, MCP, file) is evaluated; the guard blocks anything not provably read-only via stderr + exit 2 (the only fail-closed signal Codex honours). SessionStart injects the read-only posture banner. Codex requires you to TRUST this hook on first run — run /hooks (or accept the onboarding prompt) once after cloning.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/redteam-guard.mjs",
+            "commandWindows": "node .codex/hooks/redteam-guard.mjs",
+            "timeout": 10,
+            "statusMessage": "redteam-guardrails: read-only posture"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/redteam-guard.mjs",
+            "commandWindows": "node .codex/hooks/redteam-guard.mjs",
+            "timeout": 10,
+            "statusMessage": "redteam-guardrails: verifying read-only"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/redteam-guard.mjs",
+            "commandWindows": "node .codex/hooks/redteam-guard.mjs",
+            "timeout": 10,
+            "statusMessage": "redteam-guardrails: verifying read-only"
+          }
+        ]
+      }
+    ]
+  }
+}

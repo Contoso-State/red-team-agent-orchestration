@@ -1,0 +1,37 @@
+name: ci
+
+# Run the dependency-free test suite and verify the per-runtime agent/skill/command
+# definitions are in sync with their canonical .github/ sources. This is what keeps the
+# Copilot / Claude / Codex / Cursor runtimes from silently drifting apart.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests + guardrail parity + drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24: the datastore uses the built-in node:sqlite (stable, unflagged) and the
+      # guard/adapter suites use the built-in node:test runner — no npm install needed.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run guardrail, guard, datastore, and adapter-parity tests
+        run: node --test
+
+      - name: Verify generated runtime definitions are in sync (anti-drift)
+        # Fails if any .claude / .cursor / .agents (Codex) file is stale vs its .github/
+        # source. Fix locally with: node tools/agents/build-agent-defs.mjs
+        run: node tools/agents/build-agent-defs.mjs --check

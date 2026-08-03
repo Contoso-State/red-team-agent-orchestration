@@ -48,6 +48,8 @@ Data is the prize. You assess storage accounts, Key Vaults, databases, and backu
 
 This domain is **predicate-backed**: don't pull raw resource JSON into context and hand-evaluate it. Follow the dispatch contract in `knowledge/token-optimization.md`.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Produce candidate rows.** Run the read-only runners / ARG queries referenced by each predicate's `query` (`tools/az-cli/storage.md`, `tools/az-cli/database.md`) to emit a `rows.json` keyed by `check_id` — server-side filtered, projecting only the fields the predicates and `evidence_fields` need. Never read the full inventory into context (it is a queryable index for tooling, not prompt input); page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the deterministic engine** (zero LLM tokens) over the predicate banks:
    ```

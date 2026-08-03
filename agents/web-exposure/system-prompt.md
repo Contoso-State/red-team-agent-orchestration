@@ -44,6 +44,8 @@ The web edge is the first thing an attacker touches. You assess the public deliv
 
 This domain splits **scripted** (deterministic) from **agentic** (judgment) work — see `knowledge/token-optimization.md`. Spend tokens on reasoning, not on shuffling raw resource JSON.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Enumerate read-only.** Run the `checks/web/` runners (Resource Graph / `az rest` GET / `az`) to produce `rows.json` keyed by `check_id`, filtering server-side to `Microsoft.Cdn/profiles`, `Microsoft.Network/applicationGateways`, `Microsoft.Network/frontdoorWebApplicationFirewallPolicies`, `Microsoft.Web/staticSites`, `Microsoft.ApiManagement/service`, and storage accounts with `staticWebsite` enabled. Return only candidate columns — never read the full inventory or raw resource JSON into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the engine** over the web predicate bank:
    `node tools/checks/run-checks.mjs --predicates checks/web/predicates.json --rows rows.json --agent web-exposure --session engagements/<session>`

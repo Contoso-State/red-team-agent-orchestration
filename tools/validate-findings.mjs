@@ -19,14 +19,16 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { argv } from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const SEVERITIES = new Set(['Critical', 'High', 'Medium', 'Low', 'Informational']);
 const CONFIDENCES = new Set(['High', 'Medium', 'Low']);
 const STATUSES = new Set(['open', 'confirmed', 'false_positive', 'remediated', 'accepted_risk']);
 const NODE_TYPES = new Set(['entry', 'pivot', 'target', 'step']);
-const AGENTS = new Set([
+export const AGENTS = new Set([
   'inventory-scope', 'identity-posture', 'authorization-attack-path', 'network-exposure',
-  'compute-platform', 'data-protection', 'web-exposure', 'ai-foundry', 'attack-surface',
+  'compute-platform', 'aks-container', 'data-protection', 'web-exposure', 'ai-foundry', 'attack-surface',
   'external-vuln', 'logging-coverage', 'email-security', 'governance-posture',
   'devops-supplychain', 'reporting',
 ]);
@@ -219,4 +221,5 @@ function main() {
   process.exit(0);
 }
 
-main();
+// Run only as a CLI; importing for tests must not execute main().
+if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main();

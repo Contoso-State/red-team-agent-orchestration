@@ -39,6 +39,8 @@ agent — do not re-derive cluster/registry config here.
 
 The mechanical half is **scripted, not agentic** — you do not read raw resource JSON per check. See `knowledge/token-optimization.md`.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 1. **Produce candidate rows.** Run your read-only ARG/`az` runner(s), filtering server-side to `Microsoft.Compute` and `Microsoft.Web`, to emit `rows.json` keyed by `check_id`. Return only candidate rows — never read the full inventory into context. Page any check that can exceed 1,000 rows with a deterministic `order by`.
 2. **Dispatch the engine.** `node tools/checks/run-checks.mjs --predicates checks/compute/predicates.json --rows rows.json --agent compute-platform --session engagements/<session>` → schema-valid candidates in `findings/raw/compute-platform.engine.jsonl` plus a compact `check-summary/v1`.
 3. **Reason over the summary only.** Read `findings/summary/compute-platform.json` (not raw rows): confirm / contextualize / suppress / set final severity.

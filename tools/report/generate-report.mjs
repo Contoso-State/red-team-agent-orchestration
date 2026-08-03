@@ -35,16 +35,18 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { argv } from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 // Agents permitted by schemas/finding.schema.json. Kept in sync with that enum.
 // Used only to surface authoring mistakes as visible Notes (the generator stays
 // lenient and still renders; tools/validate-findings.mjs is the strict gate).
-const KNOWN_AGENTS = new Set([
+export const KNOWN_AGENTS = new Set([
   'inventory-scope',
   'identity-posture',
   'authorization-attack-path',
   'network-exposure',
   'compute-platform',
+  'aks-container',
   'data-protection',
   'web-exposure',
   'ai-foundry',
@@ -2624,4 +2626,5 @@ function main() {
   }
 }
 
-main();
+// Run only as a CLI; importing for tests must not execute main().
+if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) main();

@@ -1,0 +1,192 @@
+{
+  "$schema": "../schemas/graph.schema.json",
+  "name": "redteam-azure",
+  "version": "2.0.0",
+  "description": "Canonical engagement graph for the Azure red-team agent framework. This declarative spec is the single source of truth for orchestration: it is executed by the dependency-free Node runner (tools/graph/run-graph.mjs) inside the 4 CLI runtimes, and compiled to a LangGraph StateGraph by the deployment target (integrations/langgraph/). Topology mirrors the Red Team Orchestrator dispatch protocol (.github/agents/redteam-orchestrator.agent.md) and adds explicit self-improving loops: an evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, human-in-the-loop authorization interrupts for the gated active lanes, and read/write methodology-memory nodes for fully-autonomous cross-run learning. Read-only by construction: no node mutates Azure, and the memory firewall forbids self-improvement from touching the guardrail namespaces.",
+  "params": {
+    "max_revisions": 2,
+    "quality_threshold": 0.85
+  },
+  "state": {
+    "channels": {
+      "scope": { "type": "object", "reducer": "last", "description": "Validated engagement scope: subscription(s), mode, domains, exclusions, read-only role attestation." },
+      "memory": { "type": "object", "reducer": "last", "description": "Methodology memory loaded from prior runs (FP-suppression rules, investigation workflows, evolved prompts). Read-in context for this run." },
+      "inventory_ref": { "type": "string", "reducer": "last", "description": "Path to engagements/<session>/inventory/resources.jsonl produced by preflight." },
+      "raw_findings": { "type": "array", "reducer": "append", "description": "Per-specialist raw finding files accumulated by fan-in (Send -> reducer)." },
+      "candidate_findings": { "type": "array", "reducer": "merge_findings", "description": "Deduped candidate findings after the deterministic reduce, before critique/judge." },
+      "critique": { "type": "object", "reducer": "last", "description": "Evaluator-optimizer critique: quality score + per-finding notes that drive the reflection loop." },
+      "revision": { "type": "number", "reducer": "last", "description": "Reflection-loop iteration counter, bounded by params.max_revisions." },
+      "confirmed_findings": { "type": "array", "reducer": "merge_findings", "description": "Findings that passed the read-only Agent-as-a-Judge verification gate (false positives suppressed)." },
+      "attack_paths": { "type": "array", "reducer": "append", "description": "Correlated cross-domain attack paths from the authorization node." },
+      "report_refs": { "type": "array", "reducer": "append", "description": "Rendered deliverable paths under engagements/<session>/reports/." },
+      "approved": { "type": ["boolean", "null"], "reducer": "last", "description": "Human decision captured at the authorization interrupt for gated active lanes. null until the interrupt resolves." }
+    }
+  },
+  "roster": [
+    { "domain": "identity", "agent": "Red Team Identity", "lane": "default" },
+    { "domain": "network", "agent": "Red Team Network", "lane": "default" },
+    { "domain": "compute", "agent": "Red Team Compute", "lane": "default" },
+    { "domain": "aks-container", "agent": "Red Team Azure Container & Kubernetes Agent", "lane": "default" },
+    { "domain": "data", "agent": "Red Team Data", "lane": "default" },
+    { "domain": "web", "agent": "Red Team Web & Static Sites", "lane": "default" },
+    { "domain": "ai", "agent": "Red Team AI & Foundry", "lane": "default" },
+    { "domain": "easm", "agent": "Red Team Attack Surface (EASM)", "lane": "default" },
+    { "domain": "logging", "agent": "Red Team Logging", "lane": "default" },
+    { "domain": "governance", "agent": "Red Team Governance & Posture", "lane": "default" },
+    { "domain": "supplychain", "agent": "Red Team DevOps & Supply Chain", "lane": "default" },
+    { "domain": "email", "agent": "Red Team Email Security", "lane": "default", "when": "m365_in_scope" }
+  ],
+  "nodes": [
+    {
+      "id": "validate_scope",
+      "kind": "validate",
+      "writes": "scope",
+      "description": "Load and validate engagement.yaml against schemas/engagement.schema.json. Confirm the target subscription and that the caller holds the read-only role (Reader / Security Reader / Directory Reader). Refuse if engagement.yaml is missing/invalid, the requested action exceeds `mode`, a target is excluded, or the caller lacks Reader. This node performs the subscription-selection + read-only permission confirmation before any access."
+    },
+    {
+      "id": "memory_load",
+      "kind": "memory_read",
+      "namespace": "methodology",
+      "mutable": false,
+      "writes": "memory",
+      "description": "Load the accumulated methodology memory (confirmed-finding signatures, false-positive suppression rules, investigation workflows, evolved specialist prompts) from prior engagements. Read-only context injection; makes each run smarter than the last."
+    },
+    {
+      "id": "preflight_inventory",
+      "kind": "dispatch",
+      "agent": "Red Team Inventory & Scope",
+      "lane": "default",
+      "writes": "inventory_ref",
+      "description": "Sequential preflight. Validate permissions and enumerate in-scope resources to engagements/<session>/inventory/resources.jsonl. The parallel fan-out does not start until this completes."
+    },
+    {
+      "id": "plan_specialists",
+      "kind": "fanout",
+      "over": "roster",
+      "into": "run_specialist",
+      "reduce_into": "raw_findings",
+      "description": "Map-reduce fan-out (LangGraph Send): dispatch one copy of run_specialist per in-scope roster domain, in parallel, each in its own context window. Backed by the durable task manifest (tools/orchestration/manifest.mjs add-plan) so the fan-out is resumable and idempotent."
+    },
+    {
+      "id": "run_specialist",
+      "kind": "dispatch",
+      "agent": "$roster.agent",
+      "lane": "default",
+      "writes": "raw_findings",
+      "self_refine": true,
+      "description": "Templated specialist dispatch, instantiated once per roster domain by plan_specialists. Each specialist runs its read-only checks, applies a bounded Self-Refine pass on its own draft findings, and writes engagements/<session>/findings/raw/<agent>.jsonl. `agent` is resolved from the roster entry at fan-out time."
+    },
+    {
+      "id": "collect_raw",
+      "kind": "reduce",
+      "reducer": "merge_findings",
+      "reads": "raw_findings",
+      "writes": "candidate_findings",
+      "description": "Deterministic fan-in (tools/orchestration/manifest.mjs reduce): merge every specialist's output file into one deduped candidate set keyed by dedupe_key."
+    },
+    {
+      "id": "evaluate",
+      "kind": "evaluator",
+      "evaluator": "run-checks",
+      "reads": "candidate_findings",
+      "writes": "critique",
+      "emits": ["critique", "revision"],
+      "description": "Evaluator-optimizer head. Runs the deterministic zero-LLM predicate engine (tools/checks/run-checks.mjs) plus a critic scoring pass over the candidate findings, producing a quality score and per-finding critique, and incrementing `revision`. This is the loop head."
+    },
+    {
+      "id": "judge",
+      "kind": "judge",
+      "reads": "candidate_findings",
+      "writes": "confirmed_findings",
+      "memory_write": { "namespace": "methodology", "mutable": true, "auto_apply": true },
+      "description": "Agent-as-a-Judge false-positive gate. Re-verifies each candidate by re-issuing 1-3 targeted READ-ONLY Azure queries (same read-only role as the specialists), scoring evidence quality and FP likelihood, and promoting only CONFIRMED / NEEDS_REVIEW findings. Auto-applies learned false-positive suppression rules into methodology memory with NO human gate."
+    },
+    {
+      "id": "authorize_active",
+      "kind": "interrupt",
+      "writes": "approved",
+      "prompt": "A gated ACTIVE-testing lane is requested by engagement mode. This sends real traffic to / reaches inside live targets on the Azure-only allowlist. Confirm you are authorized to proceed. Is this the permission posture you want to run as?",
+      "on_approve": "route_active",
+      "on_reject": "correlate",
+      "description": "Human-in-the-loop authorization gate (LangGraph interrupt). Pauses the graph for explicit human approval before any gated active lane runs. Pure pass-through when mode is read-only-assessment (no active lane requested), so read-only engagements never block."
+    },
+    {
+      "id": "eva_active",
+      "kind": "dispatch",
+      "agent": "Red Team External Vulnerability Agent (EVA)",
+      "lane": "external-active",
+      "gated": { "mode": "external-active-testing", "requires": ["external_testing.enabled", "external_testing.authorization.attestation_id"] },
+      "writes": "raw_findings",
+      "description": "GATED active external web/app testing of Azure-discovered URLs/IPs on the fail-closed egress allowlist. Off by default; runs only when mode=external-active-testing with a signed attestation AND the human approved at authorize_active."
+    },
+    {
+      "id": "cluster_active",
+      "kind": "dispatch",
+      "agent": "Red Team Azure Container & Kubernetes Agent",
+      "lane": "cluster-active",
+      "gated": { "mode": "cluster-active-testing", "requires": ["cluster_testing.enabled", "cluster_testing.authorization.attestation_id"] },
+      "writes": "raw_findings",
+      "description": "GATED active in-cluster/in-container testing (kube-bench/kubesec, offline image scan, benign read-only in-pod inventory) on the cluster allowlist. Off by default; runs only when mode=cluster-active-testing with a signed attestation AND the human approved at authorize_active. Mutating kubectl is denied fail-closed in every mode."
+    },
+    {
+      "id": "correlate",
+      "kind": "dispatch",
+      "agent": "Red Team Authorization",
+      "lane": "default",
+      "writes": "attack_paths",
+      "description": "Sequential RBAC + cross-domain attack-path correlation over the confirmed findings."
+    },
+    {
+      "id": "report",
+      "kind": "dispatch",
+      "agent": "Red Team Reporting",
+      "lane": "default",
+      "writes": "report_refs",
+      "description": "Normalize, prioritize, and render the deliverables (leadership summary, HTML report, delta) under engagements/<session>/reports/."
+    },
+    {
+      "id": "reflexion_debrief",
+      "kind": "memory_write",
+      "namespace": "methodology",
+      "mutable": true,
+      "auto_apply": true,
+      "reads": "confirmed_findings",
+      "description": "Fully-autonomous self-improvement (no PR, no human gate). Generates an engagement-level Reflexion debrief and auto-persists updates to methodology memory: new confirmed-finding signatures, refined false-positive patterns, induced investigation workflows, and self-rewritten specialist/critic prompts. Applied immediately and carried into the next run. FIREWALL: this node's namespace is `methodology` - it physically cannot target the guardrail namespaces (guardrails/allowlist/egress/readonly), which stay immutable at runtime."
+    }
+  ],
+  "edges": [
+    { "from": "START", "to": "validate_scope" },
+    { "from": "validate_scope", "to": "memory_load" },
+    { "from": "memory_load", "to": "preflight_inventory" },
+    { "from": "preflight_inventory", "to": "plan_specialists" },
+    { "from": "run_specialist", "to": "collect_raw" },
+    { "from": "collect_raw", "to": "evaluate" },
+    { "from": "judge", "to": "authorize_active" },
+    { "from": "eva_active", "to": "correlate" },
+    { "from": "cluster_active", "to": "correlate" },
+    { "from": "correlate", "to": "report" },
+    { "from": "report", "to": "reflexion_debrief" },
+    { "from": "reflexion_debrief", "to": "END" }
+  ],
+  "conditional_edges": [
+    {
+      "from": "evaluate",
+      "router": "route_after_evaluate",
+      "branches": {
+        "refine": "plan_specialists",
+        "proceed": "judge"
+      },
+      "description": "Reflection loop. If revision < params.max_revisions AND critique.quality < params.quality_threshold, route back to a targeted re-scan (refine); otherwise proceed to the judge gate. Bounded by max_revisions so the loop always terminates."
+    },
+    {
+      "from": "authorize_active",
+      "router": "route_active",
+      "branches": {
+        "external_active": "eva_active",
+        "cluster_active": "cluster_active",
+        "none": "correlate"
+      },
+      "description": "After the human authorization interrupt, route to the single active lane selected by engagement mode (mode is a single enum, so at most one active lane runs), or straight to correlation for read-only engagements / rejected authorization."
+    }
+  ]
+}

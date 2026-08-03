@@ -51,6 +51,8 @@ Read (Graph security endpoints or Exchange Online PowerShell `Get-*` when connec
   All 7 email checks are predicate-backed: the engine evaluates `checks/email/predicates.json`, writes candidates to `findings/raw/email-security.engine.jsonl`, and emits a compact `check-summary/v1` to `findings/summary/email-security.json`.
 - **Read only the summary** — never the raw rows: confirm/suppress, set final severity in context (e.g. SPF `?all` vs missing record), and aggregate per accepted domain. Redact domains/addresses per `data_handling`. Write any judgment-only observations directly to `findings/raw/email-security.jsonl`. Return a concise summary to the orchestrator; do not write the final report yourself. See `knowledge/token-optimization.md` for the scripted-vs-agentic contract.
 
+**Self-Refine before you emit.** You are a `run_specialist` node (`self_refine: true`) in the engagement graph — run one bounded self-critique pass over your draft findings before writing them. See `knowledge/self-refine.md`.
+
 ## Scale & aggregation
 
 This domain can span thousands of resources. Follow `knowledge/scaling.md`:

@@ -1,18 +1,21 @@
 ---
 title: The Agent Team
-description: The Orchestrator and its fifteen Azure domain specialists, and how they coordinate.
+description: The Orchestrator and its sixteen Azure domain specialists, and how they coordinate.
 ---
 
 # The Agent Team
 
-![Orchestrator dispatches fifteen domain specialists](assets/agent-team.svg)
+![Orchestrator dispatches sixteen domain specialists](assets/agent-team.svg)
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
-hands tasks to fifteen domain specialists via Copilot's `agent` (Task) tool — plus two
-**gated** active-testing lanes (the EVA agent and the Azure Container & Kubernetes agent's
-in-cluster lane) that are off by default. The orchestrator is
-**dispatch-only** — it has no shell access and never runs `az` itself; it assigns work to
-specialists and aggregates the findings they return.
+hands tasks to sixteen domain specialists via the runtime's agent-dispatch (Task) tool — two
+of which expose **gated** active-testing lanes (the EVA agent, and the Azure Container &
+Kubernetes agent's in-cluster lane) that are off by default. In the canonical
+[graph-engineered flow](graph-engineering.md), the read-only roster is the `plan_specialists`
+fan-out layer: each in-scope domain is sent to `run_specialist` in parallel, then reduced back
+into the shared finding state. The orchestrator is **dispatch-only** — it has no shell access
+and never runs `az` itself; it assigns work to specialists and aggregates the findings they
+return.
 
 | Agent | Domain | Key Focus |
 |---|---|---|
@@ -92,14 +95,26 @@ graph TD
     Reporter -->|Final report| User
 ```
 
+:::{note}
+This is the **simplified dispatch view**. The canonical execution model is the self-improving
+graph in [`graph/redteam.graph.json`](../graph/redteam.graph.json) — it adds a `memory_load`
+step, a **bounded evaluate → refine** reflection loop, an Agent-as-a-Judge false-positive gate,
+a human-in-the-loop `authorize_active` interrupt for the gated lanes, and a `reflexion_debrief`
+that writes learning back to methodology memory. Each specialist above also runs a bounded
+[Self-Refine](../knowledge/self-refine.md) pass on its own draft findings. See
+[Graph Engineering & Self-Improvement](graph-engineering.md) for the full topology.
+:::
+
 ## How the team is packaged
 
-The team uses three native Copilot CLI layers that map cleanly onto **who acts**, **what
-they know**, and **what they're allowed to do**.
+The team uses three native AI-runtime layers that map cleanly onto **who acts**, **what
+they know**, and **what they're allowed to do**. The canonical layout below is Copilot's
+(`.github/`); the [generator](runtimes.md) mirrors these same three layers into the Claude,
+Codex, and Cursor runtimes from this single source.
 
 ### 1. Custom agents — the dispatchable team (`.github/agents/`)
 
-The Orchestrator is the only **user-invocable** agent; the fifteen specialists set
+The Orchestrator is the only **user-invocable** agent; the sixteen specialists set
 `disable-model-invocation: true` so they run only when the Orchestrator dispatches them
 through the `agent` (Task) tool. The Orchestrator is **dispatch-only** — it has no
 `execute`/shell capability, so it never runs `az` itself.
@@ -118,3 +133,9 @@ Because it is session-wide, it covers **every** agent. See
 Each skill stays thin and delegates to the detailed methodology in
 `agents/<name>/system-prompt.md` and the atomic tests in `checks/<domain>/checks.yaml`,
 keeping a single source of truth.
+
+:::{tip}
+**Running on Claude Code, OpenAI Codex, or Cursor?** All three layers are generated for you
+from these `.github/` sources — agents, skills, and the read-only guard hook — so the team
+behaves identically on every runtime. See [AI Model Runtimes](runtimes.md).
+:::

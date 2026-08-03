@@ -1,0 +1,39 @@
+# .codex/config.toml — OpenAI Codex CLI posture for the Azure red team engagement.
+#
+# This file pins a defense-in-depth, READ-ONLY posture for running the red team agents
+# under Codex. It layers THREE independent controls so a single misconfiguration cannot
+# turn a read-only assessment into a mutating one:
+#
+#   1. The lifecycle hook (.codex/hooks.json -> .codex/hooks/redteam-guard.mjs) blocks any
+#      command that is not provably read-only (the same engine the Copilot/Claude/Cursor
+#      adapters use). This is the primary, platform-neutral control.
+#   2. approval_policy = "untrusted" makes Codex auto-run only known-safe read operations
+#      and route anything mutating to an explicit human approval — a native second layer.
+#   3. The sandbox keeps writes inside the workspace and protects .git/.codex/.agents.
+#
+# FIRST-RUN TRUST: Codex requires you to trust a newly discovered project hook before it
+# runs. After cloning, start Codex in this repo and run `/hooks` (or accept the onboarding
+# prompt) once to trust .codex/hooks/redteam-guard.mjs. Until trusted, the guard does not
+# execute — so verify it is trusted before beginning an assessment.
+
+# Read-only by default: Codex auto-approves only known read-only commands and asks for
+# explicit human approval on anything that could mutate state. Pair this with the hook,
+# which hard-blocks non-read-only Azure/cluster commands regardless of approval.
+approval_policy = "untrusted"
+
+# workspace-write (NOT read-only): a fully read-only sandbox blocks ALL network, which
+# would stop `az`/`Get-Az*` from reaching Azure to READ resources. workspace-write allows
+# those reads while confining filesystem writes to this workspace so evidence/reports can
+# be saved. The hook + approval_policy above are what keep Azure itself read-only.
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# Allow outbound network so the read-only Azure data-plane/control-plane queries (az, az
+# rest --method GET, Get-Az*, Microsoft Graph GET) work. Mutating calls are still blocked
+# by the guard hook and gated by approval_policy.
+network_access = true
+
+[features]
+# Codex lifecycle hooks are stable and enabled by default; set explicitly so the read-only
+# guard's requirement is self-documenting and survives any future default change.
+hooks = true

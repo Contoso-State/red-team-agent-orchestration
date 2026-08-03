@@ -1,17 +1,25 @@
 ---
 title: Skills
-description: Auto-loaded Copilot skills that give each agent its Azure domain methodology.
+description: Auto-loaded skills that give each agent its Azure domain methodology, mirrored across every runtime.
 ---
 
 # Skills
 
-Each agent's deep methodology is a Copilot **skill** under `.github/skills/azure-redteam-*`,
-loaded automatically by Copilot based on its `description`. Skills give every agent its
-methodology and read-only `az` runner without manual wiring.
+Each agent's deep methodology is an auto-loaded **skill** under `.github/skills/azure-redteam-*`,
+discovered automatically by its `description`. Skills give every agent its methodology and
+read-only `az` runner without manual wiring.
+
+:::{note}
+These `.github/skills/` definitions are the single source of truth. The
+[anti-drift generator](runtimes.md) mirrors them into `.claude/skills/` (Claude Code) and
+`.agents/skills/` (OpenAI Codex), and Cursor loads them directly — so the same methodology
+ships on every runtime. CI runs the generator with `--check` to fail the build if any mirror
+drifts out of sync.
+:::
 
 ## Skill map
 
-| Skill | When Copilot uses it |
+| Skill | When the runtime uses it |
 |---|---|
 | `azure-redteam-orchestrator` | **Pentest Manager.** "Run a red team assessment", "pentest my Azure environment" |
 | `azure-redteam-inventory` | Preflight recon — permission validation + resource enumeration |
