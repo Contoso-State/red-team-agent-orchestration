@@ -41,6 +41,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname, isAbsolute, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const SEVERITY_RANK = { critical: 0, high: 1, medium: 2, low: 3, info: 4, informational: 4 };
 
@@ -72,19 +73,19 @@ Commands:
   reduce     --run <dir> --out <findings.json>  (merge task outputs, dedupe by dedupe_key)`;
 }
 
-function canonical(obj) {
+export function canonical(obj) {
   if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
   if (Array.isArray(obj)) return '[' + obj.map(canonical).join(',') + ']';
   return '{' + Object.keys(obj).sort().map((k) => JSON.stringify(k) + ':' + canonical(obj[k])).join(',') + '}';
 }
 
-function scopeHash(agent, sub, check, scope) {
+export function scopeHash(agent, sub, check, scope) {
   const h = createHash('sha256');
   h.update(canonical({ agent, subscription_id: sub, check_id: check, scope: scope ?? null }));
   return h.digest('hex');
 }
 
-function makeTaskId(agent, sub, check, hash) {
+export function makeTaskId(agent, sub, check, hash) {
   return `${agent}:${sub}:${check}:${hash.slice(0, 8)}`;
 }
 
@@ -92,7 +93,7 @@ function manifestPath(runDir) {
   return join(runDir, 'tasks.jsonl');
 }
 
-function readRecords(runDir) {
+export function readRecords(runDir) {
   const p = manifestPath(runDir);
   if (!existsSync(p)) return [];
   return readFileSync(p, 'utf8')
@@ -103,13 +104,13 @@ function readRecords(runDir) {
 }
 
 /** Reduce the append-only log to the current state per task_id (last write wins). */
-function currentState(runDir) {
+export function currentState(runDir) {
   const state = new Map();
   for (const rec of readRecords(runDir)) state.set(rec.task_id, rec);
   return state;
 }
 
-function appendRecord(runDir, rec) {
+export function appendRecord(runDir, rec) {
   mkdirSync(runDir, { recursive: true });
   rec.updated_at = new Date().toISOString();
   appendFileSync(manifestPath(runDir), JSON.stringify(rec) + '\n');
@@ -128,7 +129,7 @@ function cmdInit(args) {
   console.log(`Initialized manifest: ${p}`);
 }
 
-function addOne(runDir, state, { agent, subscription_id, check_id, scope }) {
+export function addOne(runDir, state, { agent, subscription_id, check_id, scope }) {
   const hash = scopeHash(agent, subscription_id, check_id, scope);
   const task_id = makeTaskId(agent, subscription_id, check_id, hash);
   if (state.has(task_id)) return { task_id, added: false };
@@ -221,7 +222,7 @@ function cmdStats(args) {
   }, null, 2));
 }
 
-function asFindings(text) {
+export function asFindings(text) {
   const t = text.trim();
   if (!t) return [];
   if (t[0] === '[') return JSON.parse(t);
@@ -233,7 +234,7 @@ function asFindings(text) {
   return t.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => JSON.parse(l));
 }
 
-function mergeFinding(base, next) {
+export function mergeFinding(base, next) {
   const byId = new Map();
   for (const r of base.affected_resources || []) byId.set(r.resource_id, r);
   for (const r of next.affected_resources || []) if (!byId.has(r.resource_id)) byId.set(r.resource_id, r);
@@ -301,4 +302,7 @@ function main() {
   }
 }
 
-main();
+// Run as CLI only when invoked directly (not when imported by the graph runner or a test).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
