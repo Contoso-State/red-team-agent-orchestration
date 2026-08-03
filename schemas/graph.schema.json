@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Contoso-State/red-team-agent-orchestration/schemas/graph.schema.json",
+  "title": "Red-team engagement graph",
+  "description": "Formal contract for graph/redteam.graph.json - the canonical declarative orchestration graph. This spec is runtime-neutral: the dependency-free Node runner (tools/graph/run-graph.mjs) executes it directly inside the Copilot/Claude/Codex/Cursor CLIs, and the LangGraph deployment target (integrations/langgraph/) compiles it into a StateGraph. Structural + referential integrity beyond this schema (reachability, agent-card existence, memory firewall) is enforced by tools/graph/validate-graph.mjs. See knowledge/ and .github/agents/redteam-orchestrator.agent.md for the semantics each node maps to.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "params", "state", "roster", "nodes", "edges"],
+  "properties": {
+    "$schema": { "type": "string", "description": "Optional relative pointer to this schema for editor tooling." },
+    "name": { "type": "string", "description": "Graph identifier, e.g. redteam-azure." },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "description": "Semantic version of the graph topology." },
+    "description": { "type": "string" },
+    "params": {
+      "type": "object",
+      "description": "Tunable scalars the runner and self-improvement loop read. These are the ONLY values the evaluator-optimizer may auto-tune; it writes tuned copies to methodology memory and never edits guardrails.",
+      "additionalProperties": true,
+      "required": ["max_revisions", "quality_threshold"],
+      "properties": {
+        "max_revisions": { "type": "integer", "minimum": 0, "description": "Upper bound on the evaluate->refine reflection loop; guarantees termination." },
+        "quality_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Critique quality score at/above which the loop stops refining and proceeds to judge." }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channels"],
+      "description": "The shared state object threaded through the graph, LangGraph-style: each channel declares a reducer that defines how concurrent writes merge.",
+      "properties": {
+        "channels": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reducer"],
+            "properties": {
+              "type": {
+                "description": "JSON type(s) of the channel value.",
+                "anyOf": [
+                  { "type": "string", "enum": ["object", "array", "string", "number", "boolean", "null"] },
+                  { "type": "array", "items": { "type": "string", "enum": ["object", "array", "string", "number", "boolean", "null"] } }
+                ]
+              },
+              "reducer": {
+                "type": "string",
+                "enum": ["last", "append", "merge_findings"],
+                "description": "How writes combine. last=last-write-wins; append=concatenate arrays (Send fan-in); merge_findings=dedupe/merge finding objects by dedupe_key (see tools/orchestration/manifest.mjs mergeFinding)."
+              },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "roster": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The read-only specialist domains the fan-out maps over. Each entry binds a domain key to an agent card name.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "agent"],
+        "properties": {
+          "domain": { "type": "string", "description": "Stable domain key, e.g. identity, network." },
+          "agent": { "type": "string", "description": "Agent card name; must match a `name:` in a .github/agents/*.agent.md frontmatter (enforced by the validator)." },
+          "lane": { "type": "string", "enum": ["default", "external-active", "cluster-active"], "description": "Execution lane. Roster specialists are always `default` (read-only)." },
+          "when": { "type": "string", "description": "Optional inclusion predicate the runner evaluates against scope, e.g. m365_in_scope." }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/node" }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Unconditional transitions. `from`/`to` are node ids or the reserved pseudo-nodes START/END.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    },
+    "conditional_edges": {
+      "type": "array",
+      "description": "Router transitions. A named router function (implemented in the runner) maps a node's output to one branch label -> target node.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "router", "branches"],
+        "properties": {
+          "from": { "type": "string", "description": "Source node id." },
+          "router": { "type": "string", "description": "Router function name resolved by the runner, e.g. route_after_evaluate." },
+          "branches": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "type": "string" },
+            "description": "Map of branch label -> target node id (or END)."
+          },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "memoryWrite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "auto_apply"],
+      "description": "A self-improvement write target. `namespace` MUST be a non-guardrail namespace; the validator rejects any write to guardrails/allowlist/egress/readonly (the runtime memory firewall).",
+      "properties": {
+        "namespace": { "type": "string", "description": "Memory namespace, e.g. methodology." },
+        "mutable": { "type": "boolean" },
+        "auto_apply": { "type": "boolean", "description": "true = applied live at runtime with no PR/human gate (the approved self-improvement policy)." }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique node id." },
+        "kind": {
+          "type": "string",
+          "enum": ["validate", "memory_read", "dispatch", "fanout", "reduce", "evaluator", "judge", "interrupt", "memory_write"],
+          "description": "Node type. validate=scope/permission gate; memory_read=load methodology memory; dispatch=run one agent card; fanout=Send map over roster; reduce=deterministic fan-in; evaluator=evaluator-optimizer loop head; judge=Agent-as-a-Judge FP gate; interrupt=HITL authorization; memory_write=autonomous self-improvement persist."
+        },
+        "description": { "type": "string" },
+        "writes": { "type": "string", "description": "State channel this node writes." },
+        "reads": { "type": "string", "description": "State channel this node primarily reads." },
+        "agent": { "type": "string", "description": "dispatch nodes: agent card name (or the token $roster.agent for the templated fan-out specialist)." },
+        "lane": { "type": "string", "enum": ["default", "external-active", "cluster-active"], "description": "dispatch nodes: execution lane. Non-default lanes are gated and require a `gated` block." },
+        "gated": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "description": "Marks a gated active lane. Runs only when engagement mode matches AND the required attestation fields are set AND the human approved at the interrupt.",
+          "properties": {
+            "mode": { "type": "string", "enum": ["external-active-testing", "cluster-active-testing"] },
+            "requires": { "type": "array", "items": { "type": "string" }, "description": "Dot-paths in engagement.yaml that must be present/true (enabled + signed attestation id)." }
+          }
+        },
+        "self_refine": { "type": "boolean", "description": "dispatch nodes: whether the specialist applies a bounded per-run Self-Refine pass on its own draft findings." },
+        "over": { "type": "string", "description": "fanout nodes: collection to map over (roster)." },
+        "into": { "type": "string", "description": "fanout nodes: templated dispatch node id instantiated per item." },
+        "reduce_into": { "type": "string", "description": "fanout nodes: channel the mapped outputs fan in to." },
+        "reducer": { "type": "string", "enum": ["last", "append", "merge_findings"], "description": "reduce nodes: merge strategy." },
+        "evaluator": { "type": "string", "description": "evaluator nodes: evaluator implementation key, e.g. run-checks." },
+        "emits": { "type": "array", "items": { "type": "string" }, "description": "evaluator nodes: channels emitted (e.g. critique, revision)." },
+        "namespace": { "type": "string", "description": "memory_read/memory_write nodes: memory namespace." },
+        "mutable": { "type": "boolean", "description": "memory nodes: whether the namespace is written. memory_read is mutable:false." },
+        "auto_apply": { "type": "boolean", "description": "memory_write nodes: applied live with no gate." },
+        "memory_write": { "$ref": "#/definitions/memoryWrite" },
+        "prompt": { "type": "string", "description": "interrupt nodes: the human authorization prompt." },
+        "on_approve": { "type": "string", "description": "interrupt nodes: router/node to continue to on approval." },
+        "on_reject": { "type": "string", "description": "interrupt nodes: node to continue to on rejection." }
+      }
+    }
+  }
+}
