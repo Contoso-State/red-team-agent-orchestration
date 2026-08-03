@@ -95,6 +95,16 @@ graph TD
     Reporter -->|Final report| User
 ```
 
+:::{note}
+This is the **simplified dispatch view**. The canonical execution model is the self-improving
+graph in [`graph/redteam.graph.json`](../graph/redteam.graph.json) — it adds a `memory_load`
+step, a **bounded evaluate → refine** reflection loop, an Agent-as-a-Judge false-positive gate,
+a human-in-the-loop `authorize_active` interrupt for the gated lanes, and a `reflexion_debrief`
+that writes learning back to methodology memory. Each specialist above also runs a bounded
+[Self-Refine](../knowledge/self-refine.md) pass on its own draft findings. See
+[Graph Engineering & Self-Improvement](graph-engineering.md) for the full topology.
+:::
+
 ## How the team is packaged
 
 The team uses three native AI-runtime layers that map cleanly onto **who acts**, **what

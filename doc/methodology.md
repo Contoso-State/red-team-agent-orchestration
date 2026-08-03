@@ -18,6 +18,12 @@ read-only specialist roster, dedupes findings, evaluates quality, reflects throu
 optimizer loop, sends candidate findings through a read-only Agent-as-a-Judge false-positive
 filter, and writes a Reflexion debrief back to `memory/methodology/` for future runs.
 
+Inside the fan-out, **each specialist runs one bounded [Self-Refine](../knowledge/self-refine.md)
+pass** over its own draft findings — checking evidence, known false positives, severity, dedupe,
+and schema — before the deterministic reduce. The cross-specialist reflection loop is then bounded
+by `max_revisions: 2` and `quality_threshold: 0.85`, so it always terminates and never becomes an
+open-ended conversation.
+
 This does **not** weaken the safety model: self-improvement is confined by the memory firewall
 and cannot modify `guardrails/**`, the egress or cluster allowlists, or the read-only role
 boundary. See [Graph Engineering & Self-Improvement](graph-engineering.md) for the graph,
