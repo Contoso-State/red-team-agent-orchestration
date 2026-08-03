@@ -22,7 +22,6 @@
   ],
   "CHK-AI-AML-PUBLIC-WORKSPACE": [
     { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw1", "name": "mlw1", "type": "microsoft.machinelearningservices/workspaces", "subscriptionId": "sub-a", "location": "eastus", "publicNetworkAccess": "Enabled", "managedNetworkIsolationMode": "Disabled" },
-    { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw1/datastores/keyds", "name": "keyds", "subscriptionId": "sub-a", "datastoreName": "keyds", "datastoreCredentialType": "AccountKey" },
     { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw-safe", "name": "mlw-safe", "subscriptionId": "sub-a", "publicNetworkAccess": "Enabled", "managedNetworkIsolationMode": "AllowOnlyApprovedOutbound" },
     { "id": "/subscriptions/sub-a/resourceGroups/rg-ml/providers/Microsoft.MachineLearningServices/workspaces/mlw-priv", "name": "mlw-priv", "subscriptionId": "sub-a", "publicNetworkAccess": "Disabled", "managedNetworkIsolationMode": "Disabled" }
   ]

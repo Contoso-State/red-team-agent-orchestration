@@ -105,17 +105,17 @@
   required_permissions: ["Reader"]
 
 - check_id: CHK-AI-AML-PUBLIC-WORKSPACE
-  title: Azure ML workspace public with credential-based datastores
+  title: Azure ML workspace publicly accessible without managed network isolation
   domain: ai
   agent: ai-foundry
   mode: read-only
   severity_default: High
-  description: An Azure Machine Learning workspace is publicly accessible (no managed VNet/private endpoint) and/or uses account-key/SAS datastore credentials instead of identity-based access.
+  description: An Azure Machine Learning workspace is publicly accessible (publicNetworkAccess=Enabled) with no managed VNet isolation or private endpoint, exposing the workspace and its attached datastores to the internet.
   detection:
     method: resource-graph
-    tool: "Microsoft.MachineLearningServices/workspaces publicNetworkAccess + datastore credentials"
-    logic: publicNetworkAccess == 'Enabled' and no managed network; or datastore uses account key/SAS.
-  attack_vector: Workspace access -> datastore credential theft / training-data exposure
+    tool: "Microsoft.MachineLearningServices/workspaces publicNetworkAccess + managedNetwork.isolationMode"
+    logic: publicNetworkAccess == 'Enabled' and managedNetwork.isolationMode missing or 'Disabled'.
+  attack_vector: Public workspace endpoint -> datastore credential theft / training-data exposure
   recommendation: Enable managed VNet isolation and private endpoints; use identity-based datastore access.
   controls:
     mitre: ["T1552.001", "T1530"]

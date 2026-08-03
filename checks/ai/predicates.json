@@ -100,13 +100,13 @@
     {
       "check_id": "CHK-AI-AML-PUBLIC-WORKSPACE",
       "finding_class": "ai-ml-public-workspace",
-      "title": "Azure ML workspace public or using credential-based datastores",
+      "title": "Azure ML workspace publicly accessible without managed network isolation",
       "category": "AI",
       "severity_default": "High",
       "agent": "ai-foundry",
       "id_prefix": "AZ-AI",
-      "description": "An Azure Machine Learning workspace is publicly accessible with no managed VNet isolation, or a datastore uses account-key/SAS credentials instead of identity-based access.",
-      "attack_vector": "Workspace access -> datastore credential theft / training-data exposure",
+      "description": "An Azure Machine Learning workspace is publicly accessible (publicNetworkAccess=Enabled) with no managed VNet isolation, exposing the workspace and its attached datastores to the internet.",
+      "attack_vector": "Public workspace endpoint -> datastore credential theft / training-data exposure",
       "recommendation": "Enable managed VNet isolation and private endpoints; use identity-based datastore access.",
       "controls": { "mitre": ["T1552.001", "T1530"] },
       "query": {
@@ -115,22 +115,17 @@
         "kql": "Resources | where type =~ 'microsoft.machinelearningservices/workspaces' | project id, name, type, resourceGroup, subscriptionId, location, publicNetworkAccess=tostring(properties.publicNetworkAccess), managedNetworkIsolationMode=tostring(properties.managedNetwork.isolationMode)"
       },
       "evaluate": {
-        "any": [
+        "all": [
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
           {
-            "all": [
-              { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" },
-              {
-                "any": [
-                  { "field": "managedNetworkIsolationMode", "op": "missing" },
-                  { "field": "managedNetworkIsolationMode", "op": "eqi", "value": "Disabled" }
-                ]
-              }
+            "any": [
+              { "field": "managedNetworkIsolationMode", "op": "missing" },
+              { "field": "managedNetworkIsolationMode", "op": "eqi", "value": "Disabled" }
             ]
-          },
-          { "field": "datastoreCredentialType", "op": "ini", "value": ["AccountKey", "Sas"] }
+          }
         ]
       },
-      "evidence_fields": ["publicNetworkAccess", "managedNetworkIsolationMode", "datastoreName", "datastoreCredentialType"]
+      "evidence_fields": ["publicNetworkAccess", "managedNetworkIsolationMode"]
     }
   ]
 }

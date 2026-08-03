@@ -46,11 +46,16 @@ az role assignment list --assignee <principalId> --all \
 # Flag: Owner/Contributor at RG/subscription, or broad Key Vault Secrets access.
 ```
 
-## CHK-AI-AML-PUBLIC-WORKSPACE — Azure ML workspace public / credential datastores
+## CHK-AI-AML-PUBLIC-WORKSPACE — Azure ML workspace publicly accessible without managed network isolation
 ```bash
+# Automated ARG check (this predicate): public workspace with no managed VNet isolation.
 az ml workspace list \
   --query "[].{name:name,rg:resourceGroup,public:public_network_access,managedNet:managed_network.isolation_mode}" -o json
+# Flag: public=='Enabled' and managed_network.isolation_mode is missing or 'Disabled'.
+
+# Optional manual data-plane follow-up (NOT part of the automated check — requires per-workspace
+# data-plane access): review attached datastores for account-key/SAS credentials.
 az ml datastore list --workspace-name <ws> -g <rg> \
   --query "[].{name:name,type:type,credType:credentials.type}" -o json
-# Flag: public=='Enabled' with no managed network; or datastore credentials.type is AccountKey/Sas.
+# Advisory: prefer identity-based datastore access over AccountKey/Sas.
 ```

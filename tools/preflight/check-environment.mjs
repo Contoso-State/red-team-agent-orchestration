@@ -117,11 +117,25 @@ export function presentOptionalTools(present) {
 
 const IS_WIN = process.platform === "win32";
 
-// `az` is `az.cmd` on Windows, so it must be resolved through the shell there.
-// All arguments below are static literals (no caller/user input), so enabling the
-// shell introduces no injection surface.
+// `az` ships as `az.cmd` on Windows and can only be launched through a shell there. Passing an
+// args[] array together with `shell:true` is deprecated (Node DEP0190) because the arguments are
+// concatenated without escaping — an injection surface. We therefore fold the arguments into a
+// single, individually-quoted command string and spawn WITHOUT an args array (no DEP0190), and on
+// POSIX we run az directly with no shell at all. Every argument here is a static literal; the
+// quoting is defense-in-depth.
+function quoteShellArg(value) {
+  const s = String(value);
+  const safe = IS_WIN ? /^[A-Za-z0-9_.:@+=/\\-]+$/ : /^[A-Za-z0-9_.:@+=/-]+$/;
+  if (safe.test(s)) return s;
+  return IS_WIN ? `"${s.replace(/"/g, '""')}"` : `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
 async function az(args) {
-  return pexec("az", args, { shell: IS_WIN, windowsHide: true, timeout: 90_000 });
+  if (IS_WIN) {
+    const command = ["az", ...args].map(quoteShellArg).join(" ");
+    return pexec(command, { shell: true, windowsHide: true, timeout: 90_000 });
+  }
+  return pexec("az", args, { windowsHide: true, timeout: 90_000 });
 }
 
 async function checkNode() {
