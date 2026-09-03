@@ -55,6 +55,9 @@ jobs:
         # "Sample Report" nav link is served same-origin (no third-party host).
         run: cp tools/report/sample/report.sample.html doc/_build/html/report.sample.html
 
+      - name: Install the showcase landing page
+        run: node doc/build-landing.mjs doc/_build/html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

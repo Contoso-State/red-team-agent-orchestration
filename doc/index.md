@@ -1,153 +1,141 @@
 ---
 title: Azure Red Team Agent Orchestration
-description: An agentic red team for Azure cloud security.
+description: A graph-engineered, self-learning team of security agents for authorized Azure assessments.
 thumbnail: assets/social-card.png
 ---
 
-![Azure Red Team Agent Orchestration](assets/banner.svg)
+:::{raw} text
+<div class="rt-landing">
+  <section class="rt-hero" aria-labelledby="rt-hero-title">
+    <div class="rt-grid-glow" aria-hidden="true"></div>
+    <div class="rt-hero-copy">
+      <div class="rt-eyebrow"><span class="rt-pulse" aria-hidden="true"></span> Read-only by architecture</div>
+      <h1 id="rt-hero-title">Map the cloud.<br><span>Think in paths.</span><br>Get sharper every run.</h1>
+      <p class="rt-lede">A graph-engineered team of security agents turns Azure configuration into evidence, attack paths, and board-ready answers—while a hard memory firewall keeps learning separate from enforcement.</p>
+      <div class="rt-actions">
+        <a class="rt-button rt-button-primary" href="./graph-engineering">Explore the graph <span aria-hidden="true">→</span></a>
+        <a class="rt-button rt-button-secondary" href="./getting-started">Start an assessment</a>
+      </div>
+      <div class="rt-proof" role="group" aria-label="Platform facts">
+        <div><strong>17</strong><span>coordinated agents</span></div>
+        <div><strong>4</strong><span>native AI runtimes</span></div>
+        <div><strong>1</strong><span>canonical graph</span></div>
+      </div>
+    </div>
 
-**An agentic red team for Azure cloud security.** A coordinated team of AI agents — each a
-domain specialist — runs comprehensive, **read-only** penetration testing against your Azure
-environment, then hands you a leadership-ready report, an interactive HTML report, and a
-slide deck.
+    <div class="rt-hero-visual" role="img" aria-label="Live orchestration graph illustration">
+      <div class="rt-visual-topline"><span>REDTEAM.GRAPH</span><span class="rt-live"><i aria-hidden="true"></i> READY</span></div>
+      <div class="rt-orbit rt-orbit-one" aria-hidden="true"></div>
+      <div class="rt-orbit rt-orbit-two" aria-hidden="true"></div>
+      <div class="rt-core-node">
+        <span class="rt-node-kicker">ORCHESTRATOR</span>
+        <strong>Scope → Dispatch</strong>
+        <small>deterministic control plane</small>
+      </div>
+      <div class="rt-satellite rt-sat-identity"><span>ID</span>Identity</div>
+      <div class="rt-satellite rt-sat-network"><span>NW</span>Network</div>
+      <div class="rt-satellite rt-sat-compute"><span>CP</span>Compute</div>
+      <div class="rt-satellite rt-sat-data"><span>DT</span>Data</div>
+      <div class="rt-satellite rt-sat-ai"><span>AI</span>Foundry</div>
+      <div class="rt-satellite rt-sat-more"><span>+11</span>specialists</div>
+      <div class="rt-learning-loop"><span aria-hidden="true">↻</span><div><b>REFLEXION</b><small>method improves</small></div></div>
+      <div class="rt-firewall"><span aria-hidden="true">▰</span> GUARDRAIL IMMUTABLE</div>
+    </div>
+  </section>
 
-The team ships as native **GitHub Copilot CLI** primitives — and the **same team runs
-natively on [Claude Code, OpenAI Codex CLI, and Cursor](runtimes.md)**, all backed by one
-shared read-only guard core so a given command reaches an identical decision on every
-platform. Once this repo is checked out, your AI runtime automatically discovers the
-**Pentest Manager** (Orchestrator) and its sixteen domain specialists — no manual wiring
-required.
+  <div class="rt-trust-strip" role="group" aria-label="Core platform properties">
+    <span>EXPLICIT GRAPH</span><i></i><span>PARALLEL SPECIALISTS</span><i></i><span>BOUNDED REFLECTION</span><i></i><span>FAIL-CLOSED SAFETY</span>
+  </div>
 
-:::{important}
-This is a **read-only methodology template**. Every Azure interaction goes through a
-session-wide guardrail that **denies by default** — only recognized read/query operations
-on `az`/`azd`/Azure PowerShell are allowed. Nothing in this repo performs live scanning on
-its own; you run the agents against your own authorized, in-scope environment.
+  <section class="rt-section rt-graph-section" id="architecture" aria-labelledby="architecture-title">
+    <div class="rt-section-heading">
+      <div><p class="rt-overline">01 / GRAPH ENGINEERING</p><h2 id="architecture-title">Every decision has an edge.</h2></div>
+      <p>Not a loose prompt chain. The engagement is an explicit, inspectable state graph with typed channels, bounded loops, parallel fan-out, and deterministic reducers.</p>
+    </div>
 
-The one exception is the **gated External Vulnerability Agent (EVA)** — off by default —
-which performs active outside-in web testing against **only** the URLs/IPs already
-discovered in your Azure subscription, and only after a signed authorization. See
-[Safety & Authorization](safety.md#active-external-testing-eva).
+    <div class="rt-flow" role="img" aria-label="Assessment flow from scope validation through report and learning">
+      <article class="rt-flow-card rt-flow-wide"><span class="rt-step">01</span><div><small>ENTRY GATE</small><h3>Validate scope</h3><p>Subscription, modes, roles, and exclusions checked before Azure access.</p></div></article>
+      <div class="rt-flow-arrow" aria-hidden="true">↓</div>
+      <article class="rt-flow-card"><span class="rt-step">02</span><div><small>CONTEXT</small><h3>Load memory + inventory</h3><p>Reuse methodology. Query Azure configuration once.</p></div></article>
+      <div class="rt-flow-arrow" aria-hidden="true">↓</div>
+      <article class="rt-flow-card rt-flow-accent"><span class="rt-step">03</span><div><small>PARALLEL FAN-OUT</small><h3>Dispatch specialists</h3><p>Identity, network, compute, data, AI, governance, and more run in parallel.</p></div></article>
+      <div class="rt-flow-arrow" aria-hidden="true">↓</div>
+      <div class="rt-flow-split">
+        <article class="rt-flow-card"><span class="rt-step">04</span><div><small>QUALITY LOOP</small><h3>Evaluate + refine</h3><p>Critique below threshold routes only needed work back.</p></div></article>
+        <article class="rt-flow-card"><span class="rt-step">05</span><div><small>EVIDENCE GATE</small><h3>Judge findings</h3><p>Targeted read-only checks suppress false positives.</p></div></article>
+      </div>
+      <div class="rt-flow-arrow" aria-hidden="true">↓</div>
+      <article class="rt-flow-card rt-flow-wide rt-flow-final"><span class="rt-step">06</span><div><small>OUTCOME</small><h3>Correlate → report → remember</h3><p>Single findings become attack paths, deliverables, and bounded lessons for the next run.</p></div></article>
+    </div>
+    <a class="rt-text-link" href="./graph-engineering">Read the graph contract <span aria-hidden="true">→</span></a>
+  </section>
+
+  <section class="rt-section rt-learning" id="learning" aria-labelledby="learning-title">
+    <div class="rt-section-heading rt-heading-light">
+      <div><p class="rt-overline">02 / SAFE SELF-LEARNING</p><h2 id="learning-title">Learning lives inside the lines.</h2></div>
+      <p>Each run can improve how agents investigate. It cannot rewrite what they are allowed to do.</p>
+    </div>
+    <div class="rt-memory-grid">
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">01</div><h3>Observe</h3><p>Capture confirmed signatures, false-positive patterns, and useful investigation paths.</p></article>
+      <div class="rt-memory-join" aria-hidden="true">→</div>
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">02</div><h3>Reflect</h3><p>Evaluator, judge, and Reflexion debrief turn evidence into reusable methodology.</p></article>
+      <div class="rt-memory-join" aria-hidden="true">→</div>
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">03</div><h3>Improve</h3><p>Next engagement loads better prompts and workflows from methodology memory.</p></article>
+    </div>
+    <div class="rt-boundary">
+      <div><span class="rt-lock" aria-hidden="true">◆</span><strong>MEMORY FIREWALL</strong></div>
+      <p><b>Learning may write:</b> methodology memory</p>
+      <p><b>Learning can never write:</b> guardrails, allowlists, role boundaries, or active-lane authorization</p>
+    </div>
+  </section>
+
+  <section class="rt-section" id="agents" aria-labelledby="agents-title">
+    <div class="rt-section-heading">
+      <div><p class="rt-overline">03 / AGENT TEAM</p><h2 id="agents-title">One mission. Sixteen specialists.</h2></div>
+      <p>Pentest Manager reads the graph, validates scope, and sends focused work to agents with deep Azure domain methodology.</p>
+    </div>
+    <div class="rt-agent-grid">
+      <a href="./agent-team" class="rt-agent"><span>ID</span><div><b>Identity</b><small>Entra ID · auth</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>NW</span><div><b>Network</b><small>NSG · Firewall · DNS</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>CP</span><div><b>Compute</b><small>VM · App Service</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>AK</span><div><b>Containers</b><small>AKS · ACR · K8s</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>DT</span><div><b>Data</b><small>Storage · SQL · Vault</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>WB</span><div><b>Web edge</b><small>WAF · CDN · APIs</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>AI</span><div><b>AI + Foundry</b><small>Models · workspaces</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>EA</span><div><b>Attack surface</b><small>EASM · public assets</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>LG</span><div><b>Logging</b><small>Sentinel · diagnostics</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>GV</span><div><b>Governance</b><small>Policy · Defender</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>SC</span><div><b>Supply chain</b><small>CI/CD · OIDC · ACR</small></div></a>
+      <a href="./agent-team" class="rt-agent"><span>AP</span><div><b>Attack paths</b><small>RBAC · correlation</small></div></a>
+    </div>
+    <div class="rt-agent-footer"><span>+ Inventory · Email · Reporting · gated External Vulnerability agent</span><a href="./agent-team">Meet the full team →</a></div>
+  </section>
+
+  <section class="rt-section rt-safety" id="safety" aria-labelledby="safety-title">
+    <div class="rt-safety-copy">
+      <p class="rt-overline">04 / ENFORCEMENT</p><h2 id="safety-title">The model suggests.<br>The guard decides.</h2>
+      <p>Every runtime shares one deterministic, fail-closed guard core. Unknown or mutating Azure commands stop at the boundary. Active testing stays off until scope and human authorization unlock the exact lane.</p>
+      <a class="rt-text-link rt-text-link-light" href="./safety">Inspect safety architecture <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="rt-terminal" role="group" aria-label="Example guardrail decisions">
+      <div class="rt-terminal-bar"><span></span><span></span><span></span><b>guard.mjs</b></div>
+      <div class="rt-terminal-body">
+        <p><i>$</i> az resource list --subscription in-scope</p><p class="rt-allow"><strong>ALLOW</strong> recognized read operation</p>
+        <p><i>$</i> az vm delete --name production</p><p class="rt-deny"><strong>DENY</strong> mutating operation blocked</p>
+        <p><i>$</i> methodology memory write</p><p class="rt-allow"><strong>ALLOW</strong> namespace: memory/methodology/</p>
+        <p><i>$</i> guardrails/core write</p><p class="rt-deny"><strong>DENY</strong> immutable enforcement surface</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="rt-section rt-runtime" aria-labelledby="runtime-title">
+    <p class="rt-overline">ONE GRAPH / FOUR RUNTIMES</p><h2 id="runtime-title">Bring the team to the model you use.</h2>
+    <div class="rt-runtime-row" role="group" aria-label="Supported AI runtimes"><span>GitHub Copilot</span><span>Claude Code</span><span>OpenAI Codex</span><span>Cursor</span></div>
+    <div class="rt-actions rt-actions-center">
+      <a class="rt-button rt-button-primary" href="./getting-started">Run your first assessment <span aria-hidden="true">→</span></a>
+      <a class="rt-button rt-button-secondary" href="https://github.com/Contoso-State/red-team-agent-orchestration">View source on GitHub</a>
+    </div>
+    <p class="rt-disclaimer">Authorized assessment only. AI findings require independent human validation. Independent demonstration; not affiliated with or endorsed by Microsoft.</p>
+  </section>
+</div>
 :::
-
-:::{warning}
-**AI Disclosure & Disclaimer:** This project uses AI agents (powered by GitHub Copilot / Claude models) to conduct security assessments. **AI models can make errors, generate false positives, miss vulnerabilities, or misinterpret findings.** Use at your own risk and validate all findings independently. This tool is a **starting point** for security assessments, not a replacement for professional human review. **You assume full responsibility for verifying findings, ensuring authorization, and assessing accuracy.** Always combine agentic assessments with manual review by experienced security professionals before acting on findings in production environments.
-
-**Not affiliated with Microsoft.** This is an independent demonstration project — not affiliated with, endorsed by, or sponsored by Microsoft. *"Contoso"* is a fictitious company name Microsoft uses in its own samples and documentation; it is used here only in that demonstration spirit. *"Microsoft"* and *"Azure"* are trademarks of Microsoft Corporation.
-:::
-
-## What you get
-
-- **Graph-engineered orchestration** — [`graph/redteam.graph.json`](../graph/redteam.graph.json)
-  is the canonical engagement topology: scope validation, methodology memory, parallel
-  specialist fan-out, deterministic reduce, bounded evaluator-optimizer reflection, read-only
-  false-positive judging, gated active-lane interrupts, reporting, and autonomous Reflexion
-  debrief. See [Graph Engineering & Self-Improvement](graph-engineering.md).
-- **A dispatchable agent team** — one user-facing Orchestrator that coordinates fifteen
-  read-only domain specialists (identity, network, compute, container/Kubernetes, data, web,
-  AI, EASM, logging, governance, supply chain, email, authorization/attack-path, inventory,
-  reporting), plus **gated** active-testing lanes (the EVA agent and the Container &
-  Kubernetes in-cluster lane) that stay off until explicitly authorized.
-- **Atomic security checks** across 14 domains, each mapped to CIS Azure, MITRE
-  ATT&CK cloud techniques, and NIST CSF 2.0.
-- **Attack-path correlation** that chains single-domain findings into multi-step
-  compromise scenarios.
-- **An incremental SQLite datastore** that caches Azure config so agents stop re-querying,
-  joins findings across domains, and tracks what changed between runs (new / persisting /
-  resolved / regressed).
-- **Consulting-grade deliverables** — executive summary, technical report, an interactive
-  self-contained HTML report, and a slide deck, all rendered from a normalized
-  `findings.json`.
-
-## Start here
-
-::::{grid} 1 1 2 2
-
-:::{card} 🚀 Getting Started
-:link: getting-started.md
-Define scope, start the Pentest Manager, and run your first assessment in seven steps.
-:::
-
-:::{card} 🧠 AI Model Runtimes
-:link: runtimes.md
-Run the same read-only team on GitHub Copilot, Claude Code, OpenAI Codex, and Cursor — one
-guard core, four runtimes.
-:::
-
-:::{card} 🔐 Permissions & Least Privilege
-:link: permissions.md
-Recommended read-only roles for target subscription and Entra ID, plus extra safety controls.
-:::
-
-:::{card} 🕸️ Graph Engineering & Self-Improvement
-:link: graph-engineering.md
-The canonical graph, bounded reflection loops, memory firewall, and Node + LangGraph engines.
-:::
-
-:::{card} 🤖 The Agent Team
-:link: agent-team.md
-Meet the Orchestrator and its sixteen domain specialists, and see how they coordinate.
-:::
-
-:::{card} 🧠 Skills
-:link: skills.md
-The auto-loaded skills that give each agent its Azure domain methodology — mirrored across
-every runtime.
-:::
-
-:::{card} 🧪 Methodology
-:link: methodology.md
-Atomic checks, multi-step playbooks, control mappings, and the Azure attack knowledge base.
-:::
-
-:::{card} 🗄️ Engagement Datastore
-:link: datastore.md
-The SQLite cache that stops agents re-querying Azure, joins findings across domains, and
-tracks what changed between runs.
-:::
-
-:::{card} 📊 Reporting
-:link: reporting.md
-The interactive HTML report, deliverables, and the structured findings model.
-:::
-
-:::{card} 🛡️ Safety & Authorization
-:link: safety.md
-The read-only guardrail, operating modes, and engagement authorization.
-:::
-
-:::{card} 🎯 External Vulnerability Agent
-:link: external-vuln.md
-The gated, scope-locked active web-testing agent (EVA) — off by default.
-:::
-
-:::{card} 🗂️ Repository Layout
-:link: repository.md
-How agents, skills, hooks, checks, and session output are organized.
-:::
-
-::::
-
-## Primary architecture: graph engineering
-
-The engagement is defined as an explicit graph, not a static prompt pipeline. The same graph
-runs through the dependency-free Node runner in the four CLI runtimes and through the first-class
-LangGraph target, while self-improving loops can update only `memory/methodology/` — never the
-read-only guard. Start with [Graph Engineering & Self-Improvement](graph-engineering.md).
-
-## How it works at a glance
-
-```{mermaid}
-graph TD
-    User[Security Engineer] -->|/recon or /assess| Orchestrator
-    Orchestrator -->|1. Preflight| Preflight[Inventory & Scope Agent]
-    Preflight -->|Resource inventory| DB[(Engagement Datastore)]
-    DB -->|cached config| Orchestrator
-    Orchestrator -->|2. Dispatch| Agents[Domain Agents]
-    Agents -->|query cache / structured findings| DB
-    DB -->|joined facts + findings| Orchestrator
-    Orchestrator -->|3. Correlate| APA[Attack Path Analysis]
-    APA -->|Attack chains| Orchestrator
-    Orchestrator -->|4. Report + delta| Reporter[Reporting Agent]
-    Reporter -->|Final report| User
-```
