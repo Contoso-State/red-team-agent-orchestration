@@ -33,6 +33,7 @@ await copyFile(
 );
 
 run(process.execPath, [path.join(documentationDirectory, "build-landing.mjs"), outputDirectory]);
+run(process.execPath, [path.join(documentationDirectory, "validate-site.mjs"), outputDirectory]);
 
 const entries = await readdir(outputDirectory, { recursive: true, withFileTypes: true });
 for (const entry of entries) {

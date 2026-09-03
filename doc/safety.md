@@ -71,6 +71,7 @@ state-changing command to an explicit human-approval prompt — the guardrail pr
 never auto-allows.
 :::
 
+(active-external-testing-eva)=
 ## Active external testing (EVA)
 
 The **External Vulnerability Agent (EVA)** is the only agent that sends real traffic to live

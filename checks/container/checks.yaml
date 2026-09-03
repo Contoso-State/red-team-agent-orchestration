@@ -190,17 +190,17 @@
   required_permissions: ["Reader"]
 
 - check_id: CHK-COMP-ACR-PUBLIC-ANON
-  title: Container Registry public network access or anonymous pull
+  title: Container Registry public network access without IP rules, or anonymous pull
   domain: container
   agent: aks-container
   mode: read-only
   severity_default: Medium
-  description: An Azure Container Registry allows access from all networks and/or permits anonymous (unauthenticated) image pull, exposing images and their contents.
+  description: An Azure Container Registry permits public network connectivity without IP rules and/or anonymous image pull. Public reachability alone does not prove unauthenticated image access.
   detection:
     method: resource-graph
     tool: "Microsoft.ContainerRegistry/registries publicNetworkAccess + anonymousPullEnabled"
     logic: publicNetworkAccess == Enabled with no network rules, or anonymousPullEnabled == true.
-  attack_vector: Anonymous/public registry -> image and secret disclosure, supply-chain tampering
+  attack_vector: Public registry endpoint -> increased credential-attack surface; anonymous pull, when enabled, exposes images
   recommendation: Restrict public network access (private endpoint / network rules); disable anonymous pull.
   controls:
     mitre: ["T1525", "T1190"]

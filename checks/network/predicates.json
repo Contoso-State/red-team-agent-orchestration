@@ -135,7 +135,7 @@
       "query": {
         "method": "resource-graph",
         "ref": "tools/az-cli/network.md#CHK-NET-WAF-MISSING",
-        "kql": "Resources | where type in ('microsoft.network/applicationgateways','microsoft.network/frontdoors','microsoft.cdn/profiles') | extend publicExposed = true | project id, name, type, kind = type, resourceGroup, subscriptionId, location, publicExposed, wafEnabled = isnotnull(properties.firewallPolicy), wafMode = tostring(properties.policySettings.mode)"
+        "kql": "Resources | where type in ('microsoft.network/applicationgateways','microsoft.network/frontdoors','microsoft.cdn/profiles') | extend publicExposed = true | project id, name, type, resourceGroup, subscriptionId, location, publicExposed, wafEnabled = isnotnull(properties.firewallPolicy), wafMode = tostring(properties.policySettings.mode)"
       },
       "evaluate": {
         "all": [

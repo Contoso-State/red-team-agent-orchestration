@@ -168,7 +168,7 @@
       "query": {
         "method": "resource-graph",
         "ref": "tools/az-cli/container.md#CHK-COMP-CONTAINER-PRIVILEGED-INGRESS",
-        "kql": "Resources | where type in ('microsoft.app/containerapps','microsoft.containerinstance/containergroups') | project id, name, type, kind = type, resourceGroup, subscriptionId, location, ingressExternal = tobool(properties.configuration.ingress.external), ipRestrictionCount = array_length(properties.configuration.ingress.ipSecurityRestrictions), hasPublicIp = (tostring(properties.ipAddress.type) == 'Public')"
+        "kql": "Resources | where type in ('microsoft.app/containerapps','microsoft.containerinstance/containergroups') | project id, name, type, resourceGroup, subscriptionId, location, ingressExternal = tobool(properties.configuration.ingress.external), ipRestrictionCount = array_length(properties.configuration.ingress.ipSecurityRestrictions), hasPublicIp = (tostring(properties.ipAddress.type) == 'Public')"
       },
       "evaluate": {
         "any": [
@@ -211,13 +211,13 @@
     {
       "check_id": "CHK-COMP-ACR-PUBLIC-ANON",
       "finding_class": "acr-public-or-anon-pull",
-      "title": "Container Registry public network access or anonymous pull",
+      "title": "Container Registry public network access without IP rules, or anonymous pull",
       "category": "Container",
       "severity_default": "Medium",
       "agent": "aks-container",
       "id_prefix": "AZ-CNTR",
-      "description": "An Azure Container Registry allows access from all networks with no network rules, and/or permits anonymous (unauthenticated) image pull.",
-      "attack_vector": "Anonymous/public registry -> image and secret disclosure, supply-chain tampering",
+      "description": "An Azure Container Registry permits public network connectivity without IP rules and/or anonymous image pull. Public reachability alone does not prove unauthenticated image access.",
+      "attack_vector": "Public registry endpoint -> increased credential-attack surface; anonymous pull, when enabled, exposes images",
       "recommendation": "Restrict public network access (private endpoint / network rules); disable anonymous pull.",
       "controls": { "mitre": ["T1525", "T1190"] },
       "query": {

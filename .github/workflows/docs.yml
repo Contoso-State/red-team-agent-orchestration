@@ -8,11 +8,19 @@ on:
     branches: [main]
     paths:
       - "doc/**"
+      - "graph/**"
+      - "schemas/graph.schema.json"
+      - ".github/agents/**"
+      - "tools/graph/**"
       - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
     paths:
       - "doc/**"
+      - "graph/**"
+      - "schemas/graph.schema.json"
+      - ".github/agents/**"
+      - "tools/graph/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -42,6 +50,12 @@ jobs:
       - name: Install mystmd
         run: npm install -g mystmd@1.10.1
 
+      - name: Verify graph and evidence-gated learning
+        run: |
+          node tools/graph/validate-graph.mjs
+          node --test tools/graph/*.test.mjs
+          node tools/graph/verify-learning-loop.mjs
+
       - name: Build static HTML site
         working-directory: doc
         # BASE_URL scopes every absolute asset/link under the project-pages
@@ -57,6 +71,11 @@ jobs:
 
       - name: Install the showcase landing page
         run: node doc/build-landing.mjs doc/_build/html
+
+      - name: Validate generated routes and assets
+        env:
+          BASE_URL: /${{ github.event.repository.name }}
+        run: node doc/validate-site.mjs doc/_build/html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

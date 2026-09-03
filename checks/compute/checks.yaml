@@ -56,18 +56,18 @@
   required_permissions: ["Reader"]
 
 - check_id: CHK-COMP-VM-NO-DISK-ENCRYPTION
-  title: VM without disk encryption
+  title: VM lacks encryption-at-host and guest ADE hardening
   domain: compute
   agent: compute-platform
   mode: read-only
-  severity_default: Medium
-  description: A VM's disks are not encrypted with Azure Disk Encryption or encryption-at-host.
+  severity_default: Low
+  description: A VM does not use encryption-at-host or guest Azure Disk Encryption hardening. Managed disks still receive Azure Storage server-side encryption by default.
   detection:
     method: resource-graph
     tool: "virtualMachines + disks encryption settings"
     logic: No ADE and encryptionAtHost not enabled; or unmanaged disks.
-  attack_vector: Disk/snapshot theft -> offline data access
-  recommendation: Enable encryption-at-host or ADE; migrate to managed disks.
+  attack_vector: Host or guest compromise -> reduced defense in depth for disk data
+  recommendation: Evaluate and enable encryption-at-host for supported VM sizes; use ADE only when guest-managed encryption is required; retain managed disks.
   controls:
     cis_azure: ["7.2", "7.3"]
     mitre: ["T1005"]

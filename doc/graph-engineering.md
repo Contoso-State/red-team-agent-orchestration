@@ -178,7 +178,7 @@ The same [`graph/redteam.graph.json`](../graph/redteam.graph.json) drives two ex
 1. **Dependency-free Node runner** — `tools/graph/run-graph.mjs` executes the graph inside the
    GitHub Copilot CLI, Claude Code, OpenAI Codex CLI, and Cursor runtimes. The core stays
    zero-dependency and uses the durable JSONL checkpointer in `tools/orchestration/manifest.mjs`.
-2. **First-class LangGraph target** — [`integrations/langgraph/`](../integrations/langgraph/)
+2. **First-class LangGraph target** — [`integrations/langgraph/`](https://github.com/Contoso-State/red-team-agent-orchestration/tree/main/integrations/langgraph)
    compiles the same JSON graph into a Python `StateGraph`, using LangGraph concepts such as
    `Send`, reducers, checkpointers, interrupts, and Store-style memory while reusing the same
    read-only guard through a subprocess bridge. Its dependencies are isolated from the Node core.
