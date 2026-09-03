@@ -39,7 +39,7 @@ thumbnail: assets/social-card.png
       <div class="rt-satellite rt-sat-ai"><span>AI</span>Foundry</div>
       <div class="rt-satellite rt-sat-more"><span>+11</span>specialists</div>
       <div class="rt-learning-loop"><span aria-hidden="true">↻</span><div><b>REFLEXION</b><small>method improves</small></div></div>
-      <div class="rt-firewall"><span aria-hidden="true">▰</span> GUARDRAIL IMMUTABLE</div>
+      <div class="rt-firewall"><span aria-hidden="true"></span>Guardrail immutable</div>
     </div>
   </section>
 
