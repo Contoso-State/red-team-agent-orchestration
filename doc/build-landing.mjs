@@ -13,4 +13,5 @@ if (!match) {
 const rendered = shell.replace("<!-- RT_LANDING_BODY -->", match[1]);
 await writeFile(path.join(outputDirectory, "index.html"), rendered, "utf8");
 await copyFile(new URL("./assets/custom.css", import.meta.url), path.join(outputDirectory, "landing.css"));
+await copyFile(new URL("./assets/ninja-logo.svg", import.meta.url), path.join(outputDirectory, "ninja-logo.svg"));
 await copyFile(new URL("./assets/social-card.png", import.meta.url), path.join(outputDirectory, "social-card.png"));

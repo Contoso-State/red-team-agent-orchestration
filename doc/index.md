@@ -28,6 +28,7 @@ thumbnail: assets/social-card.png
       <div class="rt-orbit rt-orbit-one" aria-hidden="true"></div>
       <div class="rt-orbit rt-orbit-two" aria-hidden="true"></div>
       <div class="rt-core-node">
+        <img class="rt-core-logo" src="./ninja-logo.svg" alt="" width="52" height="52">
         <span class="rt-node-kicker">ORCHESTRATOR</span>
         <strong>Scope → Dispatch</strong>
         <small>deterministic control plane</small>
