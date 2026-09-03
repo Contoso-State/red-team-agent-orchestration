@@ -7,7 +7,6 @@ thumbnail: assets/social-card.png
 :::{raw} text
 <div class="rt-landing">
   <section class="rt-hero" aria-labelledby="rt-hero-title">
-    <div class="rt-grid-glow" aria-hidden="true"></div>
     <div class="rt-hero-copy">
       <div class="rt-eyebrow"><span class="rt-pulse" aria-hidden="true"></span> Read-only by architecture</div>
       <h1 id="rt-hero-title">Map the cloud.<br><span>Think in paths.</span><br>Get sharper every run.</h1>
