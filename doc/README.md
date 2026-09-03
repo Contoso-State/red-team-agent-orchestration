@@ -21,6 +21,18 @@ myst build --html
 
 The static build is written to `doc/_build/html` (gitignored).
 
+For a site hosted at the domain root, use the root-hosting build command:
+
+```bash
+node doc/build-sites.mjs
+```
+
+This intentionally leaves `BASE_URL` unset. Do not use `BASE_URL=/`: MyST
+interprets that value as a prefix and emits broken protocol-relative asset URLs.
+Package `doc/_build/html` as the static asset directory and use
+`doc/sites-worker.js` as the worker entry point; the worker resolves both
+extensionless and trailing-slash page routes.
+
 ## Structure
 
 - `myst.yml` — project config, theme, and the table of contents (`toc`).
