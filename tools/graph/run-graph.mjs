@@ -213,8 +213,8 @@ export function defaultHandlers({ store } = {}) {
       return { writes: { confirmed_findings: confirmed } };
     },
     memory_write(node, ctx) {
-      // Fully-autonomous self-improvement persist (auto-applied, no gate). Firewalled
-      // to the node's non-guardrail namespace.
+      // Persist inert run metadata. Promotion policy lives in self-improve.mjs; this generic
+      // runner remains firewalled to the node's non-guardrail namespace.
       memory.write(node.namespace || 'methodology', {
         node: node.id,
         confirmed: (ctx.state.confirmed_findings || []).length,

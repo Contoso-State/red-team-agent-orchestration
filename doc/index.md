@@ -73,20 +73,20 @@ thumbnail: assets/social-card.png
 
   <section class="rt-section rt-learning" id="learning" aria-labelledby="learning-title">
     <div class="rt-section-heading rt-heading-light">
-      <div><p class="rt-overline">02 / SAFE SELF-LEARNING</p><h2 id="learning-title">Learning lives inside the lines.</h2></div>
-      <p>Each run can improve how agents investigate. It cannot rewrite what they are allowed to do.</p>
+      <div><p class="rt-overline">02 / AEF-COMPATIBLE LEARNING</p><h2 id="learning-title">Learning lives inside the lines.</h2></div>
+      <p>Each run adds evidence. Only independently repeated lessons improve the agent team.</p>
     </div>
     <div class="rt-memory-grid">
-      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">01</div><h3>Observe</h3><p>Capture confirmed signatures, false-positive patterns, and useful investigation paths.</p></article>
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">01</div><h3>Observe</h3><p>Capture each run as an attributed episode—not as trusted knowledge.</p></article>
       <div class="rt-memory-join" aria-hidden="true">→</div>
-      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">02</div><h3>Reflect</h3><p>Evaluator, judge, and Reflexion debrief turn evidence into reusable methodology.</p></article>
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">02</div><h3>Corroborate</h3><p>Require matching evidence from two distinct runs for the same specialist.</p></article>
       <div class="rt-memory-join" aria-hidden="true">→</div>
-      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">03</div><h3>Improve</h3><p>Next engagement loads better prompts and workflows from methodology memory.</p></article>
+      <article class="rt-memory-card"><div class="rt-memory-icon" aria-hidden="true">03</div><h3>Promote</h3><p>Load only bounded parameters and inert methodology that passed the evidence gate.</p></article>
     </div>
     <div class="rt-boundary">
       <div><span class="rt-lock" aria-hidden="true">◆</span><strong>MEMORY FIREWALL</strong></div>
-      <p><b>Learning may write:</b> methodology memory</p>
-      <p><b>Learning can never write:</b> guardrails, allowlists, role boundaries, or active-lane authorization</p>
+      <p><b>Learning may write:</b> inert, versioned methodology memory</p>
+      <p><b>Learning can never write:</b> code, prompts, tools, guardrails, permissions, or active-lane authorization</p>
     </div>
   </section>
 

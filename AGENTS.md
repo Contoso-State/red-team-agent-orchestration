@@ -17,7 +17,7 @@ The system's primary orchestration standard is an **explicit declarative graph**
 
 The graph is executed by the dependency-free Node runner (`tools/graph/run-graph.mjs`) inside the Copilot, Claude, Codex, and Cursor runtimes, and also by the first-class LangGraph deployment target in `integrations/langgraph/`, which compiles the same JSON spec into a `StateGraph` and reuses the same read-only guard through a subprocess bridge.
 
-Self-improvement is autonomous and auto-applied at runtime only inside `memory/methodology/`: the judge writes false-positive suppressions, and `reflexion_debrief` persists learned signatures, investigation workflows, and prompt revisions for later runs. The memory firewall is the immutable boundary: self-improvement must never touch `guardrails/**`, the egress or cluster allowlists, or the read-only role boundary.
+Learning is autonomous but evidence-gated, and may write only inside `memory/methodology/`: each run records inert candidates and experiences, while parameter updates or reusable knowledge require corroboration from at least two distinct runs for the same agent. The loop never rewrites prompts, code, tools, or policy. The memory firewall is the immutable boundary: learning must never touch `guardrails/**`, the egress or cluster allowlists, or the read-only role boundary.
 
 Engagement flow:
 

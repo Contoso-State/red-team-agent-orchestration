@@ -267,7 +267,7 @@ export function scoreUtilization(graph, { main, reflection, hitl, firewallOk }) 
   const keys = candidates.map((f) => f.dedupe_key || f.finding_id || f.id || JSON.stringify(f));
   const dedupeOk = new Set(keys).size === keys.length;
 
-  const paramTunings = storeKinds(main.store, 'param_tuning');
+  const learningCandidates = storeKinds(main.store, 'learning_candidate');
   const reflexionEntries = storeKinds(main.store, 'reflexion_debrief');
   const judgeEvt = auditEvent(main.audit, 'judge.gate');
 
@@ -307,9 +307,9 @@ export function scoreUtilization(graph, { main, reflection, hitl, firewallOk }) 
   // 6. Candidate findings are deduped correctly (4)
   add('dedupe', 'merge_findings dedupe is correct', dedupeOk, 0, 4, `${keys.length} candidates, ${new Set(keys).size} unique`);
 
-  // 7. Evaluator-optimizer scored and tuned params (10)
-  add('evaluator-optimizer', 'Evaluator-optimizer scored + tuned', hasAudit(main.audit, 'evaluate.score') && paramTunings.length >= 1, 0, 10,
-    `${paramTunings.length} param_tuning entr(ies)`);
+  // 7. Evaluator-optimizer scored and staged a bounded, inert candidate (10)
+  add('evaluator-optimizer', 'Evaluator-optimizer staged a learning candidate', hasAudit(main.audit, 'evaluate.score') && learningCandidates.length >= 1, 0, 10,
+    `${learningCandidates.length} learning_candidate entr(ies)`);
 
   // 8. Bounded reflection loop iterated and terminated within max_revisions (12)
   const reflectionOk = reflection.res.status === 'completed' && revision > 1 && revision <= maxRev;

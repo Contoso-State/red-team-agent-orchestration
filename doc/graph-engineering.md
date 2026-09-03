@@ -63,8 +63,8 @@ graph TD
     EVA --> CO
     CA --> CO
     CO --> RP[report<br/>deliverables]
-    RP --> RD[reflexion_debrief<br/>autonomous memory update]
-    RD -->|learned signatures, FP patterns,<br/>workflows, prompt revisions| MW
+    RP --> RD[reflexion_debrief<br/>run-scoped experience]
+    RD -->|corroborated agent knowledge<br/>after 2+ distinct runs| MW
     RD --> END([END])
 
     classDef memory fill:#f8f4ff,stroke:#6f42c1,color:#3b245f;
@@ -96,8 +96,8 @@ The topology is:
    active lanes. Read-only or rejected runs route straight to correlation.
 10. **`correlate -> report`** — confirmed findings are correlated into RBAC and attack paths,
     then rendered into deliverables.
-11. **`reflexion_debrief -> END`** — the run writes learned methodology back to
-    `memory/methodology/` for the next engagement.
+11. **`reflexion_debrief -> END`** — the run records an inert episode. Stable lessons are
+    promoted only after matching evidence from at least two distinct runs for the same agent.
 
 ## State channels and reducers
 
@@ -126,25 +126,34 @@ runtime self-modification:
 - **Self-Refine** — each specialist performs a bounded refinement pass on its own draft findings
   before writing raw output.
 - **Evaluator-optimizer** — `evaluate` combines deterministic `run-checks` output with a critic
-  score; `route_after_evaluate` routes back to targeted specialist planning only while the loop
-  is under `max_revisions` and below `quality_threshold`.
+  score and stages a bounded, inert parameter candidate; `route_after_evaluate` routes back to
+  targeted specialist planning only while the loop is under `max_revisions` and below
+  `quality_threshold`.
 - **Agent-as-a-Judge** — `judge` re-verifies candidate findings with 1-3 targeted read-only Azure
   queries, promotes confirmed / needs-review findings, and writes false-positive suppressions to
   methodology memory.
-- **Reflexion / ExpeL-style debrief** — `reflexion_debrief` persists confirmed signatures,
-  false-positive patterns, induced investigation workflows, and self-rewritten prompts into
-  `memory/methodology/`.
+- **Reflexion / ExpeL-style debrief** — `reflexion_debrief` records run-attributed experiences.
+  Stateless consolidation promotes only stable signatures reproduced in at least two distinct
+  runs, and never pools evidence between agents.
 
 :::{important}
-**Self-improvement is fully autonomous and auto-applied at runtime.** It does not open a PR and
-it does not wait for human approval. Each run can make the next run better by updating only the
-methodology memory namespace. The tunable loop parameters are `max_revisions` (`2`) and
-`quality_threshold` (`0.85`).
+**Learning is autonomous but evidence-gated.** A single run is an episode, not knowledge.
+Candidates remain inert until corroborated by at least two distinct attributed runs. Promoted
+outputs are limited to bounded parameters and non-executable methodology; code, prompts, tools,
+permissions, and policy are outside the learning surface.
 :::
+
+### AEF-compatible learning contract
+
+The loop adapts the safe reflection-and-memory architecture from the read-only `aef-core`
+snapshot at commit `48ee1ef7cd9f2cc91762f4b4c08150d954d443ec`. The source checkout is not a
+runtime dependency and was not modified. AEF's disabled runtime code-evolution path is deliberately
+excluded. The imported contract contributes four controls: inert candidates, independent run
+attribution, per-agent consolidation, and auditable promotion or rollback.
 
 ## Memory firewall: the immutable boundary
 
-The one immutable boundary is the read-only enforcement system. Self-improvement may write only
+The one immutable boundary is the read-only enforcement system. Learning may write only
 `memory/methodology/`; it may not modify the guard core, egress allowlist, cluster allowlist,
 read-only role requirements, or anything under `guardrails/**`. The graph schema describes this
 as a memory-write target, and `tools/graph/validate-graph.mjs` enforces structural and

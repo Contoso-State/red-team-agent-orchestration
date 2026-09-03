@@ -69,8 +69,8 @@ The primary architecture is the canonical declarative graph in
 [`graph/redteam.graph.json`](graph/redteam.graph.json): scope validation and read-only permission
 checks run first, prior methodology memory is loaded, specialists fan out in parallel, findings
 fan back in through deterministic reducers, the evaluator-optimizer loop reflects only while
-bounded by `max_revisions: 2` and `quality_threshold: 0.85`, and the judge/debrief nodes
-self-improve `memory/methodology/` for later runs.
+bounded by `max_revisions: 2` and `quality_threshold: 0.85`, and the judge/debrief nodes record
+evidence-gated methodology memory for later runs.
 
 ```mermaid
 graph TD
@@ -97,8 +97,8 @@ graph TD
     EVA --> CO
     CA --> CO
     CO --> RP[report<br/>deliverables]
-    RP --> RD[reflexion_debrief<br/>autonomous memory update]
-    RD -->|learned signatures, FP patterns,<br/>workflows, prompt revisions| MW
+    RP --> RD[reflexion_debrief<br/>run-scoped experience]
+    RD -->|corroborated agent knowledge<br/>after 2+ distinct runs| MW
     RD --> END([END])
 
     classDef memory fill:#f8f4ff,stroke:#6f42c1,color:#3b245f;
@@ -111,10 +111,12 @@ graph TD
 
 One graph has two engines: the dependency-free Node runner (`tools/graph/run-graph.mjs`) for the
 four CLI runtimes, and the first-class LangGraph target in
-[`integrations/langgraph/`](integrations/langgraph/) for Python deployment. Self-improvement is
-auto-applied at runtime with no PR or human gate, but the memory firewall keeps the read-only
-guard immutable: it can never modify `guardrails/**`, egress/cluster allowlists, or role
-requirements. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
+[`integrations/langgraph/`](integrations/langgraph/) for Python deployment. The learning contract
+is adapted from AEF's safe reflection-and-memory loop: one run is an episode; matching evidence
+from at least two distinct runs for the same agent is required before bounded parameters or inert
+knowledge can be promoted. Runtime code evolution is excluded. The memory firewall keeps the
+read-only guard immutable: it can never modify `guardrails/**`, egress/cluster allowlists, role
+requirements, code, prompts, or tools. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
 
 ## 🤖 Agent Team
 
@@ -571,7 +573,7 @@ See the [EVA documentation](https://contoso-state.github.io/red-team-agent-orche
 │   └── report/                 # Findings-driven HTML report generator + sample
 ├── integrations/
 │   └── langgraph/               # First-class LangGraph target — compiles the same graph.json into a Python StateGraph (same guard, isolated deps)
-├── memory/                      # Self-improvement store — methodology memory (FP suppressions, workflows, prompt revisions); runtime logs gitignored
+├── memory/                      # Evidence-gated methodology memory (FP suppressions, candidates, experiences, promoted knowledge)
 ├── reports/templates/           # Report templates (tracked)
 └── engagements/                 # Per-session output — one folder per run (gitignored)
     ├── _history/                # Cross-run lifecycle DBs (<engagement.id>.db, gitignored)

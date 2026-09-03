@@ -2,7 +2,7 @@
   "$schema": "../schemas/graph.schema.json",
   "name": "redteam-azure",
   "version": "2.0.0",
-  "description": "Canonical engagement graph for the Azure red-team agent framework. This declarative spec is the single source of truth for orchestration: it is executed by the dependency-free Node runner (tools/graph/run-graph.mjs) inside the 4 CLI runtimes, and compiled to a LangGraph StateGraph by the deployment target (integrations/langgraph/). Topology mirrors the Red Team Orchestrator dispatch protocol (.github/agents/redteam-orchestrator.agent.md) and adds explicit self-improving loops: an evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, human-in-the-loop authorization interrupts for the gated active lanes, and read/write methodology-memory nodes for fully-autonomous cross-run learning. Read-only by construction: no node mutates Azure, and the memory firewall forbids self-improvement from touching the guardrail namespaces.",
+  "description": "Canonical engagement graph for the Azure red-team agent framework. This declarative spec is the single source of truth for orchestration: it is executed by the dependency-free Node runner (tools/graph/run-graph.mjs) inside the 4 CLI runtimes, and compiled to a LangGraph StateGraph by the deployment target (integrations/langgraph/). Topology mirrors the Red Team Orchestrator dispatch protocol (.github/agents/redteam-orchestrator.agent.md) and adds explicit self-improving loops: an evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, human-in-the-loop authorization interrupts for the gated active lanes, and read/write methodology-memory nodes for evidence-gated cross-run learning. Read-only by construction: no node mutates Azure, and the memory firewall forbids self-improvement from touching the guardrail namespaces.",
   "params": {
     "max_revisions": 2,
     "quality_threshold": 0.85
@@ -49,7 +49,7 @@
       "namespace": "methodology",
       "mutable": false,
       "writes": "memory",
-      "description": "Load the accumulated methodology memory (confirmed-finding signatures, false-positive suppression rules, investigation workflows, evolved specialist prompts) from prior engagements. Read-only context injection; makes each run smarter than the last."
+      "description": "Load promoted, agent-isolated methodology knowledge and exact false-positive suppression rules from prior engagements. Read-only context injection; provisional single-run experiences remain inert."
     },
     {
       "id": "preflight_inventory",
@@ -151,7 +151,7 @@
       "mutable": true,
       "auto_apply": true,
       "reads": "confirmed_findings",
-      "description": "Fully-autonomous self-improvement (no PR, no human gate). Generates an engagement-level Reflexion debrief and auto-persists updates to methodology memory: new confirmed-finding signatures, refined false-positive patterns, induced investigation workflows, and self-rewritten specialist/critic prompts. Applied immediately and carried into the next run. FIREWALL: this node's namespace is `methodology` - it physically cannot target the guardrail namespaces (guardrails/allowlist/egress/readonly), which stay immutable at runtime."
+      "description": "Evidence-gated methodology learning adapted from AEF's safe reflection-and-memory contract. Generates a run-scoped Reflexion debrief and inert experiences; reusable knowledge and bounded parameter changes require matching evidence from at least two distinct runs for the same agent. It never rewrites code, prompts, tools, or policy. FIREWALL: this node's namespace is `methodology` - it physically cannot target the guardrail namespaces (guardrails/allowlist/egress/readonly), which stay immutable at runtime."
     }
   ],
   "edges": [
