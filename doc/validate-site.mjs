@@ -35,6 +35,9 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
 
   for (const htmlFile of htmlFiles) {
     const html = await readFile(htmlFile, "utf8");
+    if (html.includes('class="myst-top-nav') && !html.includes("data-static-nav")) {
+      errors.push(`${path.relative(root, htmlFile)}: missing static top-navigation guard`);
+    }
     const references = [...html.matchAll(/\b(?:href|src|poster)=["']([^"']+)["']/gi)].map((match) => match[1]);
 
     for (const rawReference of references) {
