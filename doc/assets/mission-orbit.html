@@ -37,12 +37,15 @@
 
     .topline {
       align-items: center;
+      backdrop-filter: blur(14px);
+      background: rgba(7, 17, 29, 0.78);
       border-bottom: 1px solid var(--line);
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      gap: 18px;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       left: 0;
-      padding: 15px 18px;
-      pointer-events: none;
+      min-height: 72px;
+      padding: 12px 18px;
       position: absolute;
       right: 0;
       top: 0;
@@ -67,20 +70,19 @@
     }
 
     .readout {
-      background: rgba(7, 17, 29, 0.72);
-      border: 1px solid rgba(112, 173, 219, 0.26);
-      border-radius: 8px;
-      left: 16px;
-      max-width: 185px;
-      padding: 11px 13px;
+      align-items: baseline;
+      border-left: 1px solid rgba(112, 173, 219, 0.22);
+      border-right: 1px solid rgba(112, 173, 219, 0.22);
+      display: grid;
+      gap: 4px 10px;
+      grid-template-columns: auto auto minmax(0, 1fr);
+      min-width: 0;
+      padding: 2px 18px;
       pointer-events: none;
-      position: absolute;
-      top: 64px;
-      z-index: 2;
     }
-    .readout small { color: var(--cyan); display: block; font-size: 0.62rem; font-weight: 780; letter-spacing: 0.12em; margin-bottom: 5px; text-transform: uppercase; }
-    .readout strong { display: block; font-size: 0.86rem; line-height: 1.2; }
-    .readout span { color: var(--muted); display: block; font-size: 0.69rem; line-height: 1.35; margin-top: 4px; }
+    .readout small { color: var(--cyan); font-size: 0.6rem; font-weight: 780; letter-spacing: 0.12em; text-transform: uppercase; }
+    .readout strong { font-size: 0.8rem; line-height: 1.2; white-space: nowrap; }
+    .readout span { color: var(--muted); font-size: 0.65rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .rail {
       align-items: center;
@@ -144,8 +146,24 @@
       width: 1px;
     }
 
-    @media (max-width: 430px) {
-      .readout { max-width: 160px; padding: 9px 11px; top: 58px; }
+    @media (max-width: 560px) {
+      .topline {
+        gap: 8px 12px;
+        grid-template-columns: 1fr auto;
+        min-height: 90px;
+        padding: 10px 13px 9px;
+      }
+      .readout {
+        border-left: 0;
+        border-right: 0;
+        border-top: 1px solid rgba(112, 173, 219, 0.18);
+        display: flex;
+        gap: 8px;
+        grid-column: 1 / -1;
+        padding: 8px 0 0;
+      }
+      .readout small { font-size: 0.57rem; }
+      .readout strong { font-size: 0.74rem; }
       .readout span { display: none; }
       .rail { min-height: 50px; }
       .rail span { font-size: 0.58rem; gap: 5px; min-height: 50px; }
@@ -162,13 +180,13 @@
     <canvas id="orbit" role="img" aria-label="Interactive three-dimensional Azure security mission orbit. Scope enters the orchestrator, specialist domains return evidence, findings are verified, and bounded learning improves the next run."></canvas>
     <header class="topline">
       <span class="system-name">MISSION.ORBIT</span>
+      <aside class="readout" aria-live="polite">
+        <small id="readout-kind">Control plane</small>
+        <strong id="readout-title">Orchestrator</strong>
+        <span id="readout-copy">Scope-locked dispatch across every security domain.</span>
+      </aside>
       <span class="system-state"><i aria-hidden="true"></i> GRAPH LIVE</span>
     </header>
-    <aside class="readout" aria-live="polite">
-      <small id="readout-kind">Control plane</small>
-      <strong id="readout-title">Orchestrator</strong>
-      <span id="readout-copy">Scope-locked dispatch across every security domain.</span>
-    </aside>
     <button id="motion" type="button" aria-pressed="false">Pause orbit</button>
     <div class="rail" aria-label="Continuous assessment cycle">
       <span class="active">Scope</span><span>Dispatch</span><span>Verify</span><span>Learn</span>
@@ -274,9 +292,22 @@
         const z2 = node.y * sinX + z1 * cosX;
         const camera = 760;
         const scale = camera / (camera + z2);
-        const horizontalPadding = width < 430 ? 70 : 12;
-        const fit = Math.min((width - horizontalPadding) / 560, Math.max(0.5, (height - 110) / 510));
-        return { x: width / 2 + x1 * scale * fit, y: height / 2 + y2 * scale * fit - 5, z: z2, scale };
+        const compact = width <= 560;
+        const top = compact ? 102 : 86;
+        const bottom = compact ? 64 : 74;
+        const horizontalPadding = compact ? 20 : 34;
+        const xCompression = compact ? 0.84 : 1;
+        const graphHeight = Math.max(240, height - top - bottom);
+        const fit = Math.min(
+          (width - horizontalPadding) / (610 * xCompression),
+          graphHeight / 500
+        );
+        return {
+          x: width / 2 + x1 * scale * fit * xCompression,
+          y: top + graphHeight / 2 + y2 * scale * fit,
+          z: z2,
+          scale
+        };
       }
 
       function drawStars(time) {

@@ -383,11 +383,11 @@ article:has(.rt-landing) .myst-frontmatter {
   border-bottom: 1px solid var(--rt-line);
   display: grid;
   align-items: center;
-  gap: clamp(52px, 5vw, 78px);
-  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
+  gap: clamp(44px, 4vw, 64px);
+  grid-template-columns: minmax(0, 0.92fr) minmax(560px, 1.08fr);
   margin: 0 auto;
-  min-height: 700px;
-  padding: 76px max(48px, calc((100vw - 1280px) / 2));
+  min-height: 780px;
+  padding: 76px max(48px, calc((100vw - 1440px) / 2));
   position: relative;
 }
 
@@ -478,13 +478,13 @@ article:has(.rt-landing) .myst-frontmatter {
 .rt-proof span { color: var(--rt-muted); display: block; font-size: 0.72rem; letter-spacing: 0.08em; margin-top: 7px; text-transform: uppercase; }
 
 .rt-hero-visual {
-  aspect-ratio: 1;
+  aspect-ratio: 1.04;
   background: rgba(8, 21, 35, 0.86);
   border: 1px solid var(--rt-line);
   border-radius: 18px;
   box-shadow: inset 0 0 80px rgba(91, 182, 255, 0.05), 0 24px 80px rgba(0, 0, 0, 0.3);
   justify-self: end;
-  max-width: 500px;
+  max-width: 640px;
   overflow: hidden;
   position: relative;
   width: 100%;
@@ -494,6 +494,8 @@ article:has(.rt-landing) .myst-frontmatter {
   border: 0;
   display: block;
   height: 100%;
+  inset: 0;
+  position: absolute;
   width: 100%;
 }
 
@@ -717,7 +719,7 @@ article:has(.rt-landing) .myst-frontmatter {
 
 @media (max-width: 1120px) {
   .rt-hero { gap: 48px; grid-template-columns: 1fr; }
-  .rt-hero-visual { justify-self: center; max-width: 500px; }
+  .rt-hero-visual { justify-self: center; max-width: 640px; }
   .rt-section-heading { align-items: start; grid-template-columns: 1fr; }
   .rt-agent-grid { grid-template-columns: repeat(3, 1fr); }
   .rt-safety { grid-template-columns: 1fr; }
@@ -743,7 +745,7 @@ article:has(.rt-landing) .myst-frontmatter {
 }
 
 @media (max-width: 480px) {
-  .rt-hero-visual { aspect-ratio: auto; border-radius: 12px; min-height: 430px; }
+  .rt-hero-visual { aspect-ratio: auto; border-radius: 12px; min-height: 560px; }
   .rt-satellite { font-size: 0; }
   .rt-satellite span { font-size: 0.56rem; height: 36px; width: 36px; }
   .rt-core-node { height: 94px; width: 132px; }
