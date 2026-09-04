@@ -67,9 +67,9 @@ graph TD
     RD -->|corroborated agent knowledge<br/>after 2+ distinct runs| MW
     RD --> END([END])
 
-    classDef memory fill:#f8f4ff,stroke:#6f42c1,color:#3b245f;
-    classDef gate fill:#fff4e6,stroke:#d97706,color:#7c2d12;
-    classDef active fill:#fff1f2,stroke:#e11d48,color:#881337;
+    classDef memory fill:#102b47,stroke:#70addb,color:#e7eef4;
+    classDef gate fill:#0f2133,stroke:#71e6b5,color:#e7eef4;
+    classDef active fill:#0a2842,stroke:#1d82d1,color:#e7eef4;
     class ML,MW,RD memory;
     class VS,AA,J gate;
     class EVA,CA active;

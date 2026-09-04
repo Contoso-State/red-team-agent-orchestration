@@ -36,10 +36,18 @@ site:
   title: Azure Red Team Agent Orchestration
   options:
     logo: assets/ninja-logo.svg
-    logo_text: Azure Red Team
+    logo_text: Azure Red Team Agent Orchestration
     favicon: favicon.ico
     hide_outline: false
     style: assets/custom.css
   nav:
+    - title: Graph
+      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/graph-engineering/
+    - title: Agents
+      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/agent-team/
+    - title: Safety
+      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/safety/
+    - title: Get started
+      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/getting-started/
     - title: GitHub
       url: https://github.com/Contoso-State/red-team-agent-orchestration
