@@ -42,12 +42,12 @@ site:
     style: assets/custom.css
   nav:
     - title: Graph
-      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/graph-engineering/
+      url: /graph-engineering
     - title: Agents
-      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/agent-team/
+      url: /agent-team
     - title: Safety
-      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/safety/
+      url: /safety
     - title: Get started
-      url: https://azure-red-team-agent-orchestration.drewgoodson5427.chatgpt.site/getting-started/
+      url: /getting-started
     - title: GitHub
       url: https://github.com/Contoso-State/red-team-agent-orchestration

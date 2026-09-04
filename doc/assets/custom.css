@@ -73,7 +73,8 @@ article.article {
   text-decoration: none;
 }
 .myst-top-nav .myst-top-nav-item a:hover { color: var(--rt-cyan) !important; }
-.myst-top-nav .myst-top-nav-item a.rt-doc-nav-active {
+.myst-top-nav .myst-top-nav-item a.rt-doc-nav-active,
+.myst-top-nav .myst-top-nav-item a[aria-current="page"] {
   box-shadow: inset 0 -2px var(--rt-cyan);
   color: var(--rt-cyan) !important;
 }
