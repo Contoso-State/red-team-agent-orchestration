@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Azure Red Team mission orbit</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #07111d;
+      --text: #dce6ed;
+      --muted: #91a6b6;
+      --cyan: #70addb;
+      --azure: #1d82d1;
+      --lime: #71e6b5;
+      --danger: #ff5968;
+      --line: rgba(122, 184, 232, 0.24);
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--ink); color: var(--text); font-family: var(--font); overflow: hidden; }
+
+    .mission {
+      background:
+        radial-gradient(circle at 50% 48%, rgba(29, 130, 209, 0.16), transparent 31%),
+        radial-gradient(circle at 88% 12%, rgba(113, 230, 181, 0.07), transparent 29%),
+        linear-gradient(155deg, #091827 0%, #07111d 58%, #050b13 100%);
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas { display: block; height: 100%; touch-action: none; width: 100%; }
+
+    .topline {
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      left: 0;
+      padding: 15px 18px;
+      pointer-events: none;
+      position: absolute;
+      right: 0;
+      top: 0;
+      z-index: 2;
+    }
+
+    .system-name,
+    .system-state {
+      font-size: 0.72rem;
+      font-weight: 760;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    .system-name { color: #8399aa; }
+    .system-state { align-items: center; color: var(--lime); display: flex; gap: 8px; }
+    .system-state i {
+      background: var(--lime);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(113, 230, 181, 0.75);
+      height: 6px;
+      width: 6px;
+    }
+
+    .readout {
+      background: rgba(7, 17, 29, 0.72);
+      border: 1px solid rgba(112, 173, 219, 0.26);
+      border-radius: 8px;
+      left: 16px;
+      max-width: 185px;
+      padding: 11px 13px;
+      pointer-events: none;
+      position: absolute;
+      top: 64px;
+      z-index: 2;
+    }
+    .readout small { color: var(--cyan); display: block; font-size: 0.62rem; font-weight: 780; letter-spacing: 0.12em; margin-bottom: 5px; text-transform: uppercase; }
+    .readout strong { display: block; font-size: 0.86rem; line-height: 1.2; }
+    .readout span { color: var(--muted); display: block; font-size: 0.69rem; line-height: 1.35; margin-top: 4px; }
+
+    .rail {
+      align-items: center;
+      backdrop-filter: blur(12px);
+      background: rgba(7, 17, 29, 0.72);
+      border-top: 1px solid var(--line);
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      left: 0;
+      min-height: 56px;
+      position: absolute;
+      right: 0;
+      z-index: 3;
+    }
+    .rail span {
+      align-items: center;
+      color: #7e94a5;
+      display: flex;
+      font-size: 0.66rem;
+      font-weight: 720;
+      gap: 7px;
+      justify-content: center;
+      letter-spacing: 0.08em;
+      min-height: 56px;
+      text-transform: uppercase;
+      transition: color 180ms ease, background 180ms ease;
+    }
+    .rail span + span { border-left: 1px solid rgba(122, 184, 232, 0.12); }
+    .rail span::before { border: 1px solid currentColor; border-radius: 50%; content: ""; height: 7px; width: 7px; }
+    .rail span.active { background: rgba(29, 130, 209, 0.08); color: var(--cyan); }
+    .rail span.active::before { background: currentColor; box-shadow: 0 0 10px currentColor; }
+    .rail span:last-child.active { color: var(--lime); }
+
+    button {
+      align-items: center;
+      background: rgba(7, 17, 29, 0.76);
+      border: 1px solid rgba(122, 184, 232, 0.26);
+      border-radius: 999px;
+      bottom: 70px;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      font: 720 0.68rem/1 var(--font);
+      min-height: 34px;
+      padding: 0 13px;
+      position: absolute;
+      right: 14px;
+      z-index: 4;
+    }
+    button:hover { border-color: var(--cyan); color: var(--cyan); }
+    button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+
+    .sr-only {
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
+    }
+
+    @media (max-width: 430px) {
+      .readout { max-width: 160px; padding: 9px 11px; top: 58px; }
+      .readout span { display: none; }
+      .rail { min-height: 50px; }
+      .rail span { font-size: 0.58rem; gap: 5px; min-height: 50px; }
+      button { bottom: 61px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .system-state::after { color: var(--muted); content: " · STILL"; }
+    }
+  </style>
+</head>
+<body>
+  <main class="mission">
+    <canvas id="orbit" role="img" aria-label="Interactive three-dimensional Azure security mission orbit. Scope enters the orchestrator, specialist domains return evidence, findings are verified, and bounded learning improves the next run."></canvas>
+    <header class="topline">
+      <span class="system-name">MISSION.ORBIT</span>
+      <span class="system-state"><i aria-hidden="true"></i> GRAPH LIVE</span>
+    </header>
+    <aside class="readout" aria-live="polite">
+      <small id="readout-kind">Control plane</small>
+      <strong id="readout-title">Orchestrator</strong>
+      <span id="readout-copy">Scope-locked dispatch across every security domain.</span>
+    </aside>
+    <button id="motion" type="button" aria-pressed="false">Pause orbit</button>
+    <div class="rail" aria-label="Continuous assessment cycle">
+      <span class="active">Scope</span><span>Dispatch</span><span>Verify</span><span>Learn</span>
+    </div>
+    <ol class="sr-only" aria-label="Mission orbit nodes">
+      <li>Scope gate: validates subscriptions, modes, permissions, and exclusions.</li>
+      <li>Orchestrator: dispatch-only control plane.</li>
+      <li>Identity security specialist cluster.</li>
+      <li>Network exposure specialist cluster.</li>
+      <li>Compute and Kubernetes specialist cluster.</li>
+      <li>Data protection specialist cluster.</li>
+      <li>AI and Foundry specialist cluster.</li>
+      <li>Governance and supply chain specialist cluster.</li>
+      <li>Verified findings: evidence-backed cross-domain attack paths.</li>
+      <li>Methodology memory: evidence-gated learning for future runs.</li>
+    </ol>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.querySelector("#orbit");
+      const context = canvas.getContext("2d", { alpha: true });
+      const motionButton = document.querySelector("#motion");
+      const phaseNodes = [...document.querySelectorAll(".rail span")];
+      const readoutKind = document.querySelector("#readout-kind");
+      const readoutTitle = document.querySelector("#readout-title");
+      const readoutCopy = document.querySelector("#readout-copy");
+      const TAU = Math.PI * 2;
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const nodes = [
+        { id: "core", label: "ORCHESTRATOR", short: "ORCH", kind: "Control plane", copy: "Scope-locked dispatch across every security domain.", type: "core", x: 0, y: 0, z: 0 },
+        { id: "scope", label: "SCOPE GATE", short: "SCOPE", kind: "Entry gate", copy: "Authorization, modes, exclusions, and target boundaries validated first.", type: "gate", x: -260, y: -90, z: 20 },
+        { id: "identity", label: "IDENTITY", short: "ID", kind: "Specialist cluster", copy: "Entra ID, RBAC, credentials, and Conditional Access.", type: "agent", x: -142, y: -126, z: -130 },
+        { id: "network", label: "NETWORK", short: "NW", kind: "Specialist cluster", copy: "Reachability, firewalls, peering, DNS, and private links.", type: "agent", x: 130, y: -142, z: -85 },
+        { id: "compute", label: "COMPUTE", short: "CP", kind: "Specialist cluster", copy: "VMs, web workloads, containers, and Kubernetes posture.", type: "agent", x: 195, y: 28, z: 82 },
+        { id: "data", label: "DATA", short: "DT", kind: "Specialist cluster", copy: "Storage, Key Vault, SQL, encryption, and access boundaries.", type: "agent", x: 82, y: 146, z: -115 },
+        { id: "ai", label: "AI / FOUNDRY", short: "AI", kind: "Specialist cluster", copy: "Azure AI, model endpoints, workspaces, and data exposure.", type: "agent", x: -112, y: 145, z: 92 },
+        { id: "governance", label: "GOVERNANCE", short: "GV", kind: "Specialist cluster", copy: "Policy, logging, supply chain, and posture coverage.", type: "agent", x: -202, y: 30, z: -58 },
+        { id: "findings", label: "VERIFIED", short: "OK", kind: "Evidence gate", copy: "Corroborated findings become attack paths and board-ready answers.", type: "finding", x: 264, y: -72, z: -5 },
+        { id: "memory", label: "LEARNING", short: "↻", kind: "Bounded memory", copy: "Repeated lessons improve methodology without changing guardrails.", type: "learning", x: 8, y: 214, z: 24 }
+      ];
+
+      const nodeById = new Map(nodes.map((node) => [node.id, node]));
+      const edges = [
+        ["scope", "core", "gate"],
+        ["core", "identity", "agent"], ["core", "network", "agent"],
+        ["core", "compute", "agent"], ["core", "data", "agent"],
+        ["core", "ai", "agent"], ["core", "governance", "agent"],
+        ["identity", "findings", "evidence"], ["network", "findings", "evidence"],
+        ["compute", "findings", "evidence"], ["data", "findings", "evidence"],
+        ["ai", "findings", "evidence"], ["governance", "findings", "evidence"],
+        ["findings", "memory", "learning"], ["memory", "core", "learning"]
+      ];
+
+      let width = 0;
+      let height = 0;
+      let ratio = 1;
+      let rotationX = -0.13;
+      let rotationY = 0.18;
+      let targetRotationX = rotationX;
+      let targetRotationY = rotationY;
+      let paused = reduceMotion;
+      let dragging = false;
+      let moved = false;
+      let dragX = 0;
+      let dragY = 0;
+      let hovered = null;
+      let lastPhase = -1;
+      let stars = [];
+
+      function seeded(index) {
+        const value = Math.sin(index * 9283.31 + 17.13) * 43758.5453;
+        return value - Math.floor(value);
+      }
+
+      function resize() {
+        const bounds = canvas.getBoundingClientRect();
+        ratio = Math.min(devicePixelRatio || 1, 2);
+        width = bounds.width;
+        height = bounds.height;
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        stars = Array.from({ length: Math.max(70, Math.floor(width * height / 3100)) }, (_, index) => ({
+          x: seeded(index) * width,
+          y: seeded(index + 111) * height,
+          size: 0.35 + seeded(index + 223) * 1.15,
+          phase: seeded(index + 337) * TAU
+        }));
+      }
+
+      function project(node) {
+        const cosY = Math.cos(rotationY);
+        const sinY = Math.sin(rotationY);
+        const x1 = node.x * cosY - node.z * sinY;
+        const z1 = node.x * sinY + node.z * cosY;
+        const cosX = Math.cos(rotationX);
+        const sinX = Math.sin(rotationX);
+        const y2 = node.y * cosX - z1 * sinX;
+        const z2 = node.y * sinX + z1 * cosX;
+        const camera = 760;
+        const scale = camera / (camera + z2);
+        const horizontalPadding = width < 430 ? 70 : 12;
+        const fit = Math.min((width - horizontalPadding) / 560, Math.max(0.5, (height - 110) / 510));
+        return { x: width / 2 + x1 * scale * fit, y: height / 2 + y2 * scale * fit - 5, z: z2, scale };
+      }
+
+      function drawStars(time) {
+        for (const star of stars) {
+          const shimmer = paused ? 0.64 : 0.42 + Math.sin(time * 0.0009 + star.phase) * 0.23;
+          context.fillStyle = `rgba(151, 198, 232, ${shimmer})`;
+          context.fillRect(star.x, star.y, star.size, star.size);
+        }
+      }
+
+      function drawOrbit(radiusX, radiusY, tilt, color) {
+        context.beginPath();
+        for (let index = 0; index <= 80; index += 1) {
+          const angle = index / 80 * TAU;
+          const point = project({ x: Math.cos(angle) * radiusX, y: Math.sin(angle) * radiusY, z: Math.sin(angle) * tilt });
+          if (index === 0) context.moveTo(point.x, point.y);
+          else context.lineTo(point.x, point.y);
+        }
+        context.strokeStyle = color;
+        context.lineWidth = 0.75;
+        context.stroke();
+      }
+
+      function color(type) {
+        if (type === "learning") return "#71e6b5";
+        if (type === "gate") return "#ff5968";
+        if (type === "finding") return "#dce6ed";
+        if (type === "core") return "#70addb";
+        return "#4b9bd8";
+      }
+
+      function drawEdge(edge, projected, time, index) {
+        const from = projected.get(edge[0]);
+        const to = projected.get(edge[1]);
+        const edgeType = edge[2];
+        const edgeColor = color(edgeType);
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.strokeStyle = edgeType === "learning" ? "rgba(113,230,181,.34)" : edgeType === "gate" ? "rgba(255,89,104,.3)" : "rgba(112,173,219,.22)";
+        context.lineWidth = edgeType === "learning" ? 1.25 : 0.72;
+        context.stroke();
+
+        const phase = paused ? 0.52 : (time * (edgeType === "learning" ? 0.000105 : 0.000075) + index * 0.091) % 1;
+        const pulseX = from.x + (to.x - from.x) * phase;
+        const pulseY = from.y + (to.y - from.y) * phase;
+        context.beginPath();
+        context.fillStyle = edgeColor;
+        context.shadowBlur = 10;
+        context.shadowColor = edgeColor;
+        context.arc(pulseX, pulseY, edgeType === "learning" ? 2.4 : 1.7, 0, TAU);
+        context.fill();
+        context.shadowBlur = 0;
+      }
+
+      function drawNode(node, point, time) {
+        const active = node === hovered;
+        const core = node.type === "core";
+        const radius = (core ? 17 : node.type === "learning" ? 10 : 7.5) * Math.max(0.72, point.scale);
+        const nodeColor = color(node.type);
+        const breathe = paused ? 0 : Math.sin(time * 0.0018 + node.x) * 1.1;
+
+        context.beginPath();
+        context.arc(point.x, point.y, radius + 5 + breathe, 0, TAU);
+        context.strokeStyle = active ? nodeColor : `${nodeColor}7a`;
+        context.lineWidth = active ? 1.8 : 0.9;
+        context.stroke();
+
+        const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius * 3.2);
+        glow.addColorStop(0, `${nodeColor}d8`);
+        glow.addColorStop(0.28, `${nodeColor}55`);
+        glow.addColorStop(1, `${nodeColor}00`);
+        context.fillStyle = glow;
+        context.beginPath();
+        context.arc(point.x, point.y, radius * 3.2, 0, TAU);
+        context.fill();
+
+        context.beginPath();
+        context.arc(point.x, point.y, radius, 0, TAU);
+        context.fillStyle = core ? "#0b2236" : nodeColor;
+        context.fill();
+        context.strokeStyle = nodeColor;
+        context.lineWidth = core ? 2 : 1;
+        context.stroke();
+
+        context.fillStyle = core ? "#dce6ed" : "#07111d";
+        context.font = `800 ${core ? 8.5 : 7.5}px Inter, system-ui, sans-serif`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText(node.short, point.x, point.y + 0.5);
+
+        if (active || core || point.scale > 0.92) {
+          context.fillStyle = active || core ? "#dce6ed" : "#9fb3c3";
+          context.font = `${active || core ? 720 : 620} ${core ? 10.5 : 8.5}px Inter, system-ui, sans-serif`;
+          context.textBaseline = "top";
+          context.shadowBlur = 5;
+          context.shadowColor = "#07111d";
+          context.fillText(node.label, point.x, point.y + radius + 8);
+          context.shadowBlur = 0;
+        }
+      }
+
+      function updateReadout(node) {
+        const selected = node || nodeById.get("core");
+        readoutKind.textContent = selected.kind;
+        readoutTitle.textContent = selected.label === "ORCHESTRATOR" ? "Orchestrator" : selected.label;
+        readoutCopy.textContent = selected.copy;
+      }
+
+      function closestNode(event) {
+        if (!canvas._projected) return null;
+        const bounds = canvas.getBoundingClientRect();
+        let result = null;
+        let distance = 26;
+        for (const node of nodes) {
+          const point = canvas._projected.get(node.id);
+          const current = Math.hypot(event.clientX - bounds.left - point.x, event.clientY - bounds.top - point.y);
+          if (current < distance) { distance = current; result = node; }
+        }
+        return result;
+      }
+
+      function draw(time) {
+        if (!paused && !dragging) targetRotationY += 0.00022;
+        rotationX += (targetRotationX - rotationX) * 0.065;
+        rotationY += (targetRotationY - rotationY) * 0.065;
+        context.clearRect(0, 0, width, height);
+        drawStars(time);
+        drawOrbit(225, 150, 78, "rgba(112,173,219,.17)");
+        drawOrbit(166, 112, -105, "rgba(29,130,209,.2)");
+        drawOrbit(116, 192, 50, "rgba(113,230,181,.11)");
+
+        const projected = new Map(nodes.map((node) => [node.id, project(node)]));
+        edges.forEach((edge, index) => drawEdge(edge, projected, time, index));
+        [...nodes]
+          .sort((a, b) => projected.get(b.id).z - projected.get(a.id).z)
+          .forEach((node) => drawNode(node, projected.get(node.id), time));
+        canvas._projected = projected;
+
+        const phase = paused ? 0 : Math.floor(time / 2100) % phaseNodes.length;
+        if (phase !== lastPhase) {
+          phaseNodes.forEach((node, index) => node.classList.toggle("active", index === phase));
+          lastPhase = phase;
+        }
+        requestAnimationFrame(draw);
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        dragging = true;
+        moved = false;
+        dragX = event.clientX;
+        dragY = event.clientY;
+        canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener("pointermove", (event) => {
+        if (dragging) {
+          const dx = event.clientX - dragX;
+          const dy = event.clientY - dragY;
+          if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+          targetRotationY += dx * 0.006;
+          targetRotationX = Math.max(-0.62, Math.min(0.62, targetRotationX + dy * 0.004));
+          dragX = event.clientX;
+          dragY = event.clientY;
+          canvas.style.cursor = "grabbing";
+        } else {
+          hovered = closestNode(event);
+          canvas.style.cursor = hovered ? "pointer" : "grab";
+          updateReadout(hovered);
+        }
+      });
+      canvas.addEventListener("pointerup", () => {
+        dragging = false;
+        canvas.style.cursor = hovered ? "pointer" : "grab";
+      });
+      canvas.addEventListener("pointerleave", () => {
+        if (!dragging) { hovered = null; updateReadout(null); }
+      });
+
+      motionButton.addEventListener("click", () => {
+        paused = !paused;
+        motionButton.textContent = paused ? "Resume orbit" : "Pause orbit";
+        motionButton.setAttribute("aria-pressed", String(paused));
+      });
+
+      new ResizeObserver(resize).observe(canvas);
+      motionButton.textContent = paused ? "Resume orbit" : "Pause orbit";
+      motionButton.setAttribute("aria-pressed", String(paused));
+      resize();
+      requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>

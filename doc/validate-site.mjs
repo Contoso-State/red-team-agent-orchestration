@@ -36,6 +36,9 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
   if (!(await isFile(path.join(root, "agent-constellation.html")))) {
     errors.push("agent-constellation.html: missing interactive graph asset");
   }
+  if (!(await isFile(path.join(root, "mission-orbit.html")))) {
+    errors.push("mission-orbit.html: missing interactive homepage asset");
+  }
 
   for (const htmlFile of htmlFiles) {
     const html = await readFile(htmlFile, "utf8");
@@ -62,6 +65,14 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
       }
       if (html.includes("&lt;iframe") || !html.includes("data-agent-constellation")) {
         errors.push(`${relativeHtml}: agent constellation hydration guard is missing or escaped`);
+      }
+    }
+    if (relativeHtml === "index.html") {
+      if (!html.includes("./mission-orbit.html")) {
+        errors.push(`${relativeHtml}: missing interactive mission orbit embed`);
+      }
+      if (!html.includes('class="rt-mission-frame"')) {
+        errors.push(`${relativeHtml}: mission orbit frame class is missing`);
       }
     }
     const references = [...html.matchAll(/\b(?:href|src|poster)=["']([^"']+)["']/gi)].map((match) => match[1]);

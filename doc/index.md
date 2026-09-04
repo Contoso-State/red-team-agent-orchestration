@@ -22,24 +22,13 @@ thumbnail: assets/social-card.png
       </div>
     </div>
 
-    <div class="rt-hero-visual" role="img" aria-label="Live orchestration graph illustration">
-      <div class="rt-visual-topline"><span>REDTEAM.GRAPH</span><span class="rt-live"><i aria-hidden="true"></i> SPEC VALID</span></div>
-      <div class="rt-orbit rt-orbit-one" aria-hidden="true"></div>
-      <div class="rt-orbit rt-orbit-two" aria-hidden="true"></div>
-      <div class="rt-core-node">
-        <img class="rt-core-logo" src="./ninja-logo.svg" alt="" width="52" height="52">
-        <span class="rt-node-kicker">ORCHESTRATOR</span>
-        <strong>Scope → Dispatch</strong>
-        <small>deterministic control plane</small>
-      </div>
-      <div class="rt-satellite rt-sat-identity"><span>ID</span>Identity</div>
-      <div class="rt-satellite rt-sat-network"><span>NW</span>Network</div>
-      <div class="rt-satellite rt-sat-compute"><span>CP</span>Compute</div>
-      <div class="rt-satellite rt-sat-data"><span>DT</span>Data</div>
-      <div class="rt-satellite rt-sat-ai"><span>AI</span>Foundry</div>
-      <div class="rt-satellite rt-sat-more"><span>+11</span>specialists</div>
-      <div class="rt-learning-loop"><span aria-hidden="true">↻</span><div><b>REFLEXION</b><small>method improves</small></div></div>
-      <div class="rt-firewall"><span aria-hidden="true"></span>Guardrail immutable</div>
+    <div class="rt-hero-visual">
+      <iframe
+        class="rt-mission-frame"
+        src="./mission-orbit.html"
+        title="Interactive 3D mission orbit showing governed agent dispatch, evidence flow, and continuous learning"
+        loading="eager"
+      ></iframe>
     </div>
   </section>
 

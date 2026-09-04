@@ -490,6 +490,13 @@ article:has(.rt-landing) .myst-frontmatter {
   width: 100%;
 }
 
+.rt-mission-frame {
+  border: 0;
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
 .rt-visual-topline {
   border-bottom: 1px solid var(--rt-line);
   color: #71899b;
@@ -736,7 +743,7 @@ article:has(.rt-landing) .myst-frontmatter {
 }
 
 @media (max-width: 480px) {
-  .rt-hero-visual { border-radius: 12px; }
+  .rt-hero-visual { aspect-ratio: auto; border-radius: 12px; min-height: 430px; }
   .rt-satellite { font-size: 0; }
   .rt-satellite span { font-size: 0.56rem; height: 36px; width: 36px; }
   .rt-core-node { height: 94px; width: 132px; }

@@ -59,6 +59,7 @@ await copyFile(new URL("./assets/custom.css", import.meta.url), path.join(output
 await copyFile(new URL("./assets/ninja-logo.svg", import.meta.url), path.join(outputDirectory, "ninja-logo.svg"));
 await copyFile(new URL("./assets/social-card.png", import.meta.url), path.join(outputDirectory, "social-card.png"));
 await copyFile(new URL("./assets/agent-constellation.html", import.meta.url), path.join(outputDirectory, "agent-constellation.html"));
+await copyFile(new URL("./assets/mission-orbit.html", import.meta.url), path.join(outputDirectory, "mission-orbit.html"));
 
 // The hosted asset layer serves each page as a static document. Force the top
 // navigation, sidebars, article links, and footer to use document requests so
