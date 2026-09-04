@@ -5,7 +5,12 @@ description: The Orchestrator and its sixteen Azure domain specialists, and how 
 
 # The Agent Team
 
-![Orchestrator dispatches sixteen domain specialists](assets/agent-team.svg)
+RT_AGENT_CONSTELLATION_EMBED
+
+The live constellation maps all **17 agents**, their strongest cross-domain relationships,
+and the evidence-gated **evaluate → judge → Reflexion → methodology memory** learning path.
+Azure-blue pulses show evidence moving between agents; green pulses show verified learning
+returning to the next run. Drag to orbit, scroll to zoom, or select a node for its role.
 
 A single user-invocable **Orchestrator** (Pentest Manager) coordinates the engagement and
 hands tasks to sixteen domain specialists via the runtime's agent-dispatch (Task) tool — two

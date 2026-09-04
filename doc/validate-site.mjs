@@ -33,17 +33,43 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
   const errors = [];
   let referencesChecked = 0;
 
+  if (!(await isFile(path.join(root, "agent-constellation.html")))) {
+    errors.push("agent-constellation.html: missing interactive graph asset");
+  }
+
   for (const htmlFile of htmlFiles) {
     const html = await readFile(htmlFile, "utf8");
+    const relativeHtml = path.relative(root, htmlFile);
     if (html.includes('class="myst-top-nav') && !html.includes("data-static-nav")) {
-      errors.push(`${path.relative(root, htmlFile)}: missing static top-navigation guard`);
+      errors.push(`${relativeHtml}: missing site-wide static-navigation guard`);
+    }
+    if (html.includes('class="myst-top-nav')) {
+      const article = html.match(/<article\b[^>]*class=["'][^"']*\barticle\b[^"']*["'][^>]*>([\s\S]*?)<\/article>/i);
+      const readableText = article?.[1]
+        .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&[a-z0-9#]+;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!article || !/<h1\b/i.test(article[1]) || readableText.length < 180) {
+        errors.push(`${relativeHtml}: documentation route has no meaningful article content`);
+      }
+    }
+    if (relativeHtml === path.join("agent-team", "index.html")) {
+      if (!html.includes("../agent-constellation.html")) {
+        errors.push(`${relativeHtml}: missing interactive agent constellation embed`);
+      }
+      if (html.includes("&lt;iframe") || !html.includes("data-agent-constellation")) {
+        errors.push(`${relativeHtml}: agent constellation hydration guard is missing or escaped`);
+      }
     }
     const references = [...html.matchAll(/\b(?:href|src|poster)=["']([^"']+)["']/gi)].map((match) => match[1]);
 
     for (const rawReference of references) {
       if (!rawReference || rawReference.startsWith("#") || SKIP_SCHEMES.test(rawReference)) continue;
       if (rawReference.startsWith("//")) {
-        errors.push(`${path.relative(root, htmlFile)}: protocol-relative URL ${rawReference}`);
+        errors.push(`${relativeHtml}: protocol-relative URL ${rawReference}`);
         continue;
       }
 
@@ -51,7 +77,7 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
       try {
         clean = decodeURIComponent(rawReference.split(/[?#]/, 1)[0]);
       } catch {
-        errors.push(`${path.relative(root, htmlFile)}: malformed URL encoding ${rawReference}`);
+        errors.push(`${relativeHtml}: malformed URL encoding ${rawReference}`);
         continue;
       }
       if (!clean) continue;
@@ -61,7 +87,7 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
         ? path.resolve(root, relativeTarget)
         : path.resolve(path.dirname(htmlFile), relativeTarget);
       if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
-        errors.push(`${path.relative(root, htmlFile)}: path escapes build root ${rawReference}`);
+        errors.push(`${relativeHtml}: path escapes build root ${rawReference}`);
         continue;
       }
 
@@ -71,7 +97,7 @@ export async function validateStaticSite(outputDirectory, { baseUrl = process.en
       }
       referencesChecked += 1;
       if (!(await Promise.all(candidates.map(isFile))).some(Boolean)) {
-        errors.push(`${path.relative(root, htmlFile)}: missing local target ${rawReference}`);
+        errors.push(`${relativeHtml}: missing local target ${rawReference}`);
       }
     }
   }

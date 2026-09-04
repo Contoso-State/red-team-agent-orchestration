@@ -30,7 +30,6 @@ body {
 /* Keep every documentation route in the same visual system as the landing page. */
 body,
 .myst-top-nav,
-.myst-primary-sidebar,
 main.article-grid,
 article.article {
   background-color: var(--rt-ink) !important;
@@ -88,8 +87,12 @@ article.article {
 .myst-top-nav-menu-button { color: var(--rt-text) !important; }
 
 .myst-primary-sidebar {
-  border-right: 1px solid var(--rt-line);
+  background: transparent !important;
   top: 72px !important;
+}
+.myst-primary-sidebar-pointer {
+  background: var(--rt-ink);
+  border-right: 1px solid var(--rt-line);
 }
 .myst-primary-sidebar-nav { padding-top: 28px !important; }
 .myst-primary-sidebar .myst-toc { color: var(--rt-muted) !important; }
@@ -238,6 +241,23 @@ article.article .myst-admonition-header-text { color: var(--rt-text) !important;
 article.article .myst-admonition p { color: var(--rt-muted) !important; }
 article.article .mermaid { background: rgba(8, 21, 35, 0.72); border: 1px solid var(--rt-line); border-radius: 12px; padding: 22px; }
 
+.rt-constellation-shell {
+  background: #07111d;
+  border: 1px solid var(--rt-line);
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+  margin: 0 0 30px;
+  overflow: hidden;
+}
+.rt-constellation-frame {
+  background: #07111d;
+  border: 0;
+  display: block;
+  height: min(720px, 76vh);
+  min-height: 620px;
+  width: 100%;
+}
+
 .myst-outline {
   background: rgba(15, 33, 51, 0.94) !important;
   border: 1px solid var(--rt-line);
@@ -272,6 +292,7 @@ article.article .mermaid { background: rgba(8, 21, 35, 0.72); border: 1px solid 
   .myst-fm-block { padding-top: 46px !important; }
   .myst-fm-block-title { font-size: clamp(2.3rem, 12vw, 3.5rem) !important; }
   .myst-footer-links { flex-direction: column; gap: 12px; }
+  .rt-constellation-frame { height: 620px; min-height: 620px; }
 }
 
 .rt-skip {
