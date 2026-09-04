@@ -1,15 +1,19 @@
 async function fetchStaticAsset(request, env) {
-  const response = await env.ASSETS.fetch(request);
-  if (response.status !== 404 || !["GET", "HEAD"].includes(request.method)) {
-    return response;
-  }
-
   const url = new URL(request.url);
   const finalSegment = url.pathname.split("/").pop();
-  if (finalSegment?.includes(".")) return response;
+  const isDocumentRequest = ["GET", "HEAD"].includes(request.method) && !finalSegment?.includes(".");
 
-  url.pathname = `${url.pathname.replace(/\/$/, "")}/index.html`;
-  return env.ASSETS.fetch(new Request(url, request));
+  // Ask for the route's concrete document first. Some asset services answer a
+  // clean URL with the root SPA shell instead of returning 404. That mismatches
+  // MyST's route data during hydration and can leave the article pane blank.
+  if (isDocumentRequest) {
+    const documentUrl = new URL(url);
+    documentUrl.pathname = `${url.pathname.replace(/\/$/, "")}/index.html`;
+    const documentResponse = await env.ASSETS.fetch(new Request(documentUrl, request));
+    if (documentResponse.status !== 404) return documentResponse;
+  }
+
+  return env.ASSETS.fetch(request);
 }
 
 export default {
