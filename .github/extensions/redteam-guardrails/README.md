@@ -1,9 +1,15 @@
-# redteam-guardrails (Copilot CLI extension)
+# redteam-guardrails
 
-Runtime **hook** that enforces the read-only safety model of the Azure red team. It registers a
-session-wide `preToolUse` hook that **denies any Azure command that is not a recognized read/query
-operation** — so an engagement can never change the target environment by accident, no matter which
-agent issues the command.
+The platform-neutral guard enforces the Azure red team's read-only safety model. Claude, Codex, and
+Cursor register native tool-call hooks over `guardrails/guard.mjs` that deny commands which are not
+recognized read/query operations.
+
+**Copilot App compatibility limitation:** Copilot App 1.0.84-5 rejects project `onPreToolUse` hooks
+before their callbacks execute, including a minimal synchronous allow callback. The Copilot App
+adapter therefore registers only `onSessionStart`, which supplies the read-only banner and directs
+agents to classify commands by piping JSON to `node guardrails/guard.mjs` before execution. This
+restores command execution for the demo, but Copilot App does not have automatic tool-boundary
+enforcement until its project hook is compatible.
 
 ## Behavior
 
@@ -35,12 +41,12 @@ agent issues the command.
 - **`mode: controlled-validation`** does **not** silently allow mutations — it downgrades them to an
   explicit **human-approval prompt** (`permissionDecision: "ask"`). Read-only modes
   (`read-only-assessment`, `attack-path-analysis`, or a missing `engagement.yaml`) hard-deny.
-- On a block/ask the user sees a clear reason and the offending command; a warning is logged.
+- Native enforcement adapters surface a clear reason and the offending command on block/ask.
 
 ## External Vulnerability Agent (EVA) scope lock
 
-The same hook enforces the **egress scope lock** for the only agent that sends real traffic to live
-endpoints. Active-probe tools — `curl`, `wget`, `httpx`, `nuclei`, `zap*`, `sqlmap`, `nikto`,
+The shared guard enforces the **egress scope lock** for the only agent that sends real traffic to
+live endpoints. Active-probe tools — `curl`, `wget`, `httpx`, `nuclei`, `zap*`, `sqlmap`, `nikto`,
 `whatweb`, `testssl`, `nmap`, `Invoke-WebRequest`/`iwr`, `Invoke-RestMethod`/`irm`, `openssl s_client`,
 and friends — are recognized and gated:
 
@@ -63,14 +69,17 @@ and friends — are recognized and gated:
 ```
 .github/agents/      → WHO acts (orchestrator dispatches the sub-agents; it has no shell access)
 .github/skills/      → WHAT they know (domain knowledge auto-loaded by Copilot)
-.github/extensions/  → THIS: enforces what they MAY do (read-only + EVA scope lock) at the tool-call boundary
+.github/extensions/  → Copilot App session posture (compatibility adapter; no tool hook in 1.0.84-5)
+guardrails/           → shared classifier used by every runtime enforcement adapter
 ```
 
 ## Files
 
-- `extension.mjs` — session wiring (`joinSession`, `onSessionStart`, `onPreToolUse`); calls the
-  read-only `evaluate()`, the egress `evaluateEgress()`, and the cluster `evaluateCluster()` inside a
-  fail-closed try/catch. This file is the Copilot-SDK wire adapter only.
+- `extension.mjs` — Copilot App session wiring (`joinSession`, `onSessionStart`). It intentionally
+  does not register `onPreToolUse` while Copilot App 1.0.84-5 rejects project callbacks before
+  invocation.
+- `guardrails/guard.mjs` — platform-neutral CLI/in-process entry point. For offline classification:
+  `echo '{"command":"az vm delete ...","cwd":".","toolName":"shell"}' | node guardrails/guard.mjs`.
 - The decision logic lives in the platform-neutral shared core at **`guardrails/core/`** (single source
   of truth, also used by the Claude/Codex/Cursor adapters):
   - `guardrails/core/guardrails-core.mjs` — pure read-only decision logic (`evaluate`, `violation`,
