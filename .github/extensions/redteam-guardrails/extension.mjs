@@ -13,10 +13,7 @@
 // Cursor have their own thin adapters over the same core.
 
 import { joinSession } from "@github/copilot-sdk/extension";
-import { evaluate, engagementMode } from "../../../guardrails/core/guardrails-core.mjs";
-import { evaluateEgress } from "../../../guardrails/core/egress-core.mjs";
-import { evaluateCluster } from "../../../guardrails/core/cluster-core.mjs";
-import { READONLY_BANNER } from "../../../guardrails/guard.mjs";
+import { decideSafe, READONLY_BANNER } from "../../../guardrails/guard.mjs";
 
 const session = await joinSession({
   hooks: {
@@ -25,140 +22,18 @@ const session = await joinSession({
     }),
 
     onPreToolUse: async (input) => {
-      // Fail CLOSED: if evaluation throws for any reason (pathological command, parser
-      // bug, unexpected input shape), we cannot prove the command is read-only, so we
-      // must deny rather than risk letting a mutating Azure command through. A security
-      // control that fails open is no control at all.
-      let decision;
-      try {
-        decision = evaluate(input.toolArgs, input.workingDirectory, input.toolName);
-      } catch (err) {
-        await session.log(
-          `redteam-guardrails evaluation error — failing closed (deny): ${err?.stack || err}`,
-          { level: "error" }
-        );
-        return {
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            "Red team guardrail could not evaluate this command, so it was blocked to " +
-            "preserve the read-only guarantee (fail-closed). Re-run a clearly read-only " +
-            "Azure command (list/show/get/query/Get-Az*), or report this guardrail error.",
-        };
-      }
-
-      // Scope-lock for the External Vulnerability Agent (EVA). EVA is the only agent that
-      // sends real traffic to live endpoints, and it may ONLY ever touch a host that maps
-      // back to an in-scope Azure resource. This check also fails closed: any active-probe
-      // tool (curl/nuclei/zap/sqlmap/...) reaching a public host is DENIED unless the
-      // engagement is in external-active-testing mode, external_testing is enabled +
-      // authorized, and every target is on the Azure-derived allowlist. Evaluated even when
-      // the read-only matcher allowed the command (curl/nuclei aren't az commands).
-      let egress;
-      try {
-        egress = evaluateEgress(input.toolArgs, input.workingDirectory, input.toolName);
-      } catch (err) {
-        await session.log(
-          `redteam-guardrails egress evaluation error — failing closed (deny): ${err?.stack || err}`,
-          { level: "error" }
-        );
-        return {
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            "Red team egress guardrail could not evaluate this command, so it was blocked " +
-            "(fail-closed) to preserve the External Vulnerability Agent scope lock. Active " +
-            "external probing is only permitted against the Azure-derived allowlist under an " +
-            "authorized external-active-testing engagement.",
-        };
-      }
-      if (egress && egress.deny) {
-        const mode = engagementMode(input.workingDirectory);
-        await session.log(
-          `Blocked out-of-scope external probe (mode: ${mode}, tool: ${egress.tool}): ${egress.segment}`,
-          { level: "warning" }
-        );
-        return {
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            `External Vulnerability Agent scope lock: ${egress.reason}. ` +
-            `Blocked: \`${egress.segment}\`. EVA may only probe hosts on the Azure-derived ` +
-            `allowlist (engagements/<session>/scope/external-targets.json) under an authorized ` +
-            `external-active-testing engagement.`,
-        };
-      }
-
-      // Cluster-active scope-lock for the Azure Container & Kubernetes Agent. This is the
-      // ONLY lane that reaches into a live cluster/container. It fails closed twice over:
-      // (1) mutating kubectl/helm/runtime commands are DENIED in every mode (the posture is
-      // read-only and never alters a workload); (2) cluster-active tools (kubectl exec/debug/
-      // cp/attach/port-forward/run, kube-bench/kubesec/trivy/grype/crictl, docker|nerdctl|
-      // podman run|exec) are DENIED unless the engagement is in cluster-active-testing mode,
-      // cluster_testing is enabled + authorized, and a non-empty Azure-derived cluster
-      // allowlist exists. Read-only kubectl (get/describe/logs/auth can-i/...) is allowed.
-      let cluster;
-      try {
-        cluster = evaluateCluster(input.toolArgs, input.workingDirectory, input.toolName);
-      } catch (err) {
-        await session.log(
-          `redteam-guardrails cluster evaluation error — failing closed (deny): ${err?.stack || err}`,
-          { level: "error" }
-        );
-        return {
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            "Red team cluster guardrail could not evaluate this command, so it was blocked " +
-            "(fail-closed) to preserve the read-only Kubernetes posture and the cluster-active " +
-            "scope lock. Use read-only kubectl (get/describe/logs/auth can-i), or run cluster-active " +
-            "tools only under an authorized cluster-active-testing engagement.",
-        };
-      }
-      if (cluster && cluster.deny) {
-        const mode = engagementMode(input.workingDirectory);
-        await session.log(
-          `Blocked cluster-active/mutating command (mode: ${mode}, tool: ${cluster.tool}): ${cluster.segment}`,
-          { level: "warning" }
-        );
-        return {
-          permissionDecision: "deny",
-          permissionDecisionReason:
-            `Azure Container & Kubernetes Agent cluster lock: ${cluster.reason}. ` +
-            `Blocked: \`${cluster.segment}\`. Mutating kubectl/helm/runtime commands are denied in ` +
-            `every mode; reaching into a live cluster/container is only permitted against the ` +
-            `Azure-derived cluster allowlist (engagements/<session>/scope/cluster-targets.json) ` +
-            `under an authorized cluster-active-testing engagement.`,
-        };
-      }
-
-      if (!decision || (!decision.deny && !decision.ask)) return undefined;
-
-      const mode = engagementMode(input.workingDirectory);
-
-      if (decision.ask) {
-        await session.log(
-          `Mutating Azure command requires approval (mode: ${mode}): ${decision.segment}`,
-          { level: "warning" }
-        );
-        return {
-          permissionDecision: "ask",
-          permissionDecisionReason:
-            `controlled-validation mode: this is a state-changing Azure operation ` +
-            `(${decision.reason}). Approve only if explicitly authorized in the engagement scope. ` +
-            `Command: \`${decision.segment}\``,
-        };
-      }
-
-      await session.log(
-        `Blocked non-read-only Azure command (mode: ${mode}): ${decision.segment}`,
-        { level: "warning" }
-      );
+      // Keep hook execution pure: nested session RPCs from inside a permission hook can
+      // deadlock or fail on some hosts. The shared adapter handles all three evaluators,
+      // catches malformed input, and fails closed.
+      const result = decideSafe({
+        command: input?.toolArgs,
+        cwd: input?.workingDirectory,
+        toolName: input?.toolName,
+      });
       return {
-        permissionDecision: "deny",
-        permissionDecisionReason:
-          `Red team engagement is in '${mode}' mode (read-only). ${decision.reason}. ` +
-          `Blocked: \`${decision.segment}\`. Use a read-only equivalent (list/show/get/query/Get-Az*), ` +
-          `or set mode: controlled-validation in engagement.yaml if this action is explicitly authorized.`,
+        permissionDecision: result.decision,
+        ...(result.reason ? { permissionDecisionReason: result.reason } : {}),
       };
     },
   },
 });
-
-await session.log("redteam-guardrails loaded — read-only Azure enforcement active");
