@@ -25,6 +25,20 @@ const fixture = JSON.parse(
   readFileSync(join(ROOT, 'guardrails', 'fixtures', 'decisions.json'), 'utf8'),
 );
 
+test('Claude repo hooks use a cross-runtime relative command', () => {
+  const settings = JSON.parse(readFileSync(join(ROOT, '.claude', 'settings.json'), 'utf8'));
+  for (const event of ['SessionStart', 'PreToolUse']) {
+    const hooks = settings.hooks?.[event] || [];
+    assert.ok(hooks.length > 0, `${event} hook must be configured`);
+    for (const group of hooks) {
+      for (const hook of group.hooks || []) {
+        assert.equal(hook.command, 'node .claude/hooks/redteam-guard.mjs');
+        assert.equal(hook.args, undefined, 'repo hook must not depend on CLAUDE_PROJECT_DIR');
+      }
+    }
+  }
+});
+
 function run(scriptRelPath, payload) {
   const res = spawnSync(process.execPath, [join(ROOT, scriptRelPath)], {
     input: JSON.stringify(payload),
