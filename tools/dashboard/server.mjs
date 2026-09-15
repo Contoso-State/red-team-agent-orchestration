@@ -46,7 +46,7 @@ export function projectEvent(raw) {
   event.evidence_refs = Array.isArray(raw.evidence_refs) ? raw.evidence_refs.slice(0, 20).map(safeReference).filter(Boolean) : [];
   event.metrics = {};
   for (const [key, value] of Object.entries(raw.metrics || {})) if (METRICS.has(key) && typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 1e12) event.metrics[key] = value;
-  if (raw.type === 'message.sent' && ['model-request', 'model-response', 'memory-request', 'memory-response', 'code-candidate'].includes(raw.transfer?.kind)) {
+  if (raw.type === 'message.sent' && ['model-request', 'model-response', 'memory-request', 'memory-response', 'code-candidate', 'findings-data', 'evidence-data'].includes(raw.transfer?.kind)) {
     const { kind, bytes, outcome } = raw.transfer;
     if (Number.isSafeInteger(bytes) && bytes >= 0 && bytes <= 1e12 && ['sent', 'received', 'failed'].includes(outcome)) event.transfer = { kind, bytes, outcome };
   }

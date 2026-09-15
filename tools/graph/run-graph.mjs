@@ -553,6 +553,23 @@ export async function runGraphAsync(graph, options = {}) {
       : await runHandler(node);
     applyResults(state, graph, result);
     checkpoint('done');
+    // A memory read is an observable step of the run, so report what was actually
+    // retrieved — including an empty store. "Memory was consulted and held nothing"
+    // is a different, more useful fact than a panel that simply never updates.
+    if (node.kind === 'memory_read') {
+      const entries = result?.writes?.[node.writes || 'memory']?.entries || [];
+      const kindCount = (want) => entries.filter(e => e && e.kind === want).length;
+      emit('memory.retrieved', {
+        node_id: node.id,
+        status: 'retrieved',
+        metrics: {
+          retrieved: entries.length,
+          knowledge_count: kindCount('knowledge'),
+          experience_count: kindCount('experience'),
+          suppression_count: kindCount('suppression'),
+        },
+      });
+    }
     emit('node.completed', { node_id: node.id, status: 'completed' });
     current = condFrom.has(current) ? conditionalNext(current) : linearNext(current);
     if (current === undefined) throw new Error(`node "${node.id}" has no outgoing transition`);

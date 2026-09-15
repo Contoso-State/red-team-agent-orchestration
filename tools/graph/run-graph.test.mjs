@@ -120,6 +120,45 @@ test('async fan-out starts specialist handlers concurrently and reduces determin
     assert.ok(events.some(event => event.type === 'agent.completed' && event.agent_id === 'Red Team Identity'));
     assert.ok(events.some(event => event.type === 'node.completed' && event.node_id === 'report'));
   });
+
+  test('a memory read reports what it retrieved, including an empty store', async () => {
+    const events = [];
+    await runGraphAsync(graph, {
+      scope: { mode: 'read-only-assessment', m365_in_scope: false },
+      emitEvent: (type, metadata) => events.push({ type, ...metadata }),
+    });
+    const retrieved = events.filter(event => event.type === 'memory.retrieved');
+    assert.equal(retrieved.length, 1, 'every memory_read node must be observable');
+    assert.equal(retrieved[0].node_id, 'memory_load');
+    assert.equal(typeof retrieved[0].metrics.retrieved, 'number');
+    assert.equal(retrieved[0].metrics.retrieved, 0, 'an empty store reports zero rather than staying silent');
+  });
+
+  test('a memory read reports real counts when the store holds entries', async () => {
+    const events = [];
+    await runGraphAsync(graph, {
+      scope: { mode: 'read-only-assessment', m365_in_scope: false },
+      emitEvent: (type, metadata) => events.push({ type, ...metadata }),
+      handlers: {
+        memory_read: () => ({
+          writes: {
+            memory: {
+              entries: [
+                { kind: 'knowledge', id: 'k1' },
+                { kind: 'knowledge', id: 'k2' },
+                { kind: 'suppression', id: 's1' },
+              ],
+            },
+          },
+        }),
+      },
+    });
+    const [event] = events.filter(e => e.type === 'memory.retrieved');
+    assert.equal(event.metrics.retrieved, 3);
+    assert.equal(event.metrics.knowledge_count, 2);
+    assert.equal(event.metrics.suppression_count, 1);
+    assert.equal(event.metrics.experience_count, 0);
+  });
   assert.ok(maxActive > 1);
   assert.equal(res.state.raw_findings.length, 11);
   assert.deepEqual(

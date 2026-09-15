@@ -17,6 +17,9 @@ const TYPES = new Set([
 const METADATA_FIELDS = new Set([
   'agent_id', 'node_id', 'task_id', 'status', 'parent_agent_id', 'parent_task_id',
   'tool_name', 'decision', 'duration_ms', 'evidence_refs', 'metrics', 'attempt',
+  // Handoff attribution. Without these the writer silently strips the only fields
+  // the graph view uses to draw an edge, so real data movement is invisible.
+  'from_agent', 'to_agent', 'exchange_id', 'transfer',
 ]);
 
 function contained(root, target) {
