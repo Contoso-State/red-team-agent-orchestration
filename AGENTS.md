@@ -47,6 +47,8 @@ Engagement flow:
 | `controls/*.yaml` | Compliance control mappings (CIS, MITRE, Defender) |
 | `knowledge/*.md` | Reference material for Azure attack techniques (see `knowledge/datastore.md` for the engagement datastore) |
 | `tools/az-cli/*.md` | Per-domain read-only `az` CLI runners, keyed to check IDs |
+| `tools/az/run-az.mjs` | Canonical shell-free, guard-gated `az` runner. **Never `spawnSync('az', …)` from Node** — on Windows `az` is a `.cmd` wrapper that fails ENOENT/EINVAL, which silently turns unrun checks into "0 findings" |
+| `tools/dashboard/events.mjs` | Append-only Agent Observatory event writer (metadata only). Direct-dispatch hosts must emit lifecycle events here or the dashboard stays empty |
 | `tools/datastore/*.mjs` | SQLite engagement datastore — `ingest` (files→DB, sole writer), `query` (read-only cache API), `export` (DB→artifacts), `promote` (cross-run lifecycle). Built on `node:sqlite`, no dependencies |
 | `tools/` | KQL queries, Resource Graph queries, PowerShell scripts |
 
@@ -105,6 +107,7 @@ Rules for keeping this consistent:
 5. **Structured findings only** — all findings must conform to `schemas/finding.schema.json`
 6. **Preflight before assessment** — always run inventory/scope validation before domain agents
 7. **Evidence provenance** — every finding must include the Azure API or tool that produced the evidence
+8. **Never spawn `az` directly from Node** — use `node tools/az/run-az.mjs` (or the shell). On Windows `az` is `az.cmd`, which `spawnSync` cannot execute (`ENOENT`/`EINVAL`), and a crashed collector that records zero findings looks identical to a clean result. A check that could not run is a coverage gap, never a pass.
 
 ## Agent Dispatch Rules
 
