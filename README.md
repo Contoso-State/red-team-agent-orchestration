@@ -341,6 +341,72 @@ plans and runs engagements as the *same* self-improving graph (executed by the d
 > [AI Model Runtimes](https://contoso-state.github.io/red-team-agent-orchestration/runtimes)
 > guide.
 
+## 🔭 Agent Observatory
+
+A local, loopback-only view of one assessment session, projected from that session's
+append-only event log (`runs/live-events.jsonl`). It binds `127.0.0.1` only, serves
+bounded metadata, and makes no Azure and no model calls of its own.
+
+```bash
+node tools/dashboard/server.mjs --session engagements/<session> --port 4318
+# then open http://127.0.0.1:4318
+```
+
+Six panels, reachable from the labelled left rail:
+
+| Panel | Shows |
+| --- | --- |
+| **Topology** | 3D coordination map; each animated packet is a recorded exchange with source, destination, direction and byte count |
+| **Timeline** | Append-only event history, filterable by agents, handoffs, tools, memory, runs, evolution and evaluation |
+| **Memory** | Retrieved / candidate / promoted counts, each row expandable to its source record and evidence hash |
+| **Review** | Evaluator rounds with rubric, input hash, critique and the routing decision |
+| **Findings** | The session's findings, with severity drill-down and the rendered report |
+| **Evolution** | Propose → test → accept-or-reject decisions for the bounded optimizer |
+
+### Findings, drill-down and the report
+
+The Findings panel reads the session's `reports/findings.json` and mirrors the generated
+report: summary tiles, a severity breakdown, then one card per finding with its evidence,
+recommendation and affected resource.
+
+- **The tiles and severity chips are filters.** Clicking *Medium* shows exactly those
+  findings; clicking the active control again clears it. They are ordinary buttons, so they
+  are keyboard reachable and expose `aria-pressed`. A severity with no findings is not
+  selectable.
+- **Open HTML report** opens the full report in a new tab, with *Download PDF* and
+  *Download HTML* buttons inside that view.
+- Downloads are named `<subscription>-<assessment date>.pdf` / `.html`, so reports from
+  different subscriptions or dates never collide in a Downloads folder.
+
+Finding text is model-authored and is therefore treated as untrusted data: it reaches the
+DOM only as text, never as markup. The served report runs under a document-scoped policy
+that permits its own inline styling and scripting but allows no network access at all.
+
+### Rendering the report to PDF
+
+The report's HTML is the source of truth; the PDF is rendered from it with headless Chrome
+so the print stylesheet and backgrounds are honoured:
+
+```bash
+node tools/report/html-to-pdf.mjs \
+  --in  engagements/<session>/reports/report.html \
+  --out engagements/<session>/reports/report.pdf \
+  --margin 0 --flow
+```
+
+`--flow` relaxes page-break rules at render time only, so long sections are not shunted to a
+fresh page leaving the previous one blank. It changes nothing in the report generator or the
+report HTML on disk.
+
+### What it will not do
+
+Live stream, historical replay and fixture data are always labelled distinctly, so a replay
+is never presented as live activity. If an exchange was not recorded, nothing is drawn — the
+view never synthesises agent traffic, and unobserved nodes render as having no recorded
+execution rather than as idle-but-healthy. Severity is the assessor's rating of a recorded
+observation, not a demonstrated exploit, and a severity with no findings is not evidence that
+the environment lacks that risk.
+
 ## 🚀 Quick Start
 
 > **First time?** See [Prerequisites](#-prerequisites) (Azure CLI + `resource-graph`
