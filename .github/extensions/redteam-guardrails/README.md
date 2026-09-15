@@ -1,5 +1,24 @@
 # redteam-guardrails (Copilot CLI extension)
 
+## Copilot App compatibility limitation
+
+Copilot App (observed on 1.0.84-5) rejects project `onPreToolUse` hooks **before the**
+**callback executes** — a minimal synchronous allow callback fails identically. Because a
+security hook must fail closed, that rejection denied *every* tool call in the session,
+including commands unrelated to Azure such as `git status` and `git fetch`.
+
+The Copilot adapter therefore registers only `onSessionStart`. It supplies the read-only
+banner plus a notice directing command classification through the platform-neutral CLI:
+
+```bash
+echo '{"command":"az vm delete ...","cwd":".","toolName":"shell"}' | node guardrails/guard.mjs
+```
+
+> **Copilot App has no automatic tool-boundary enforcement while this limitation stands.**
+> Claude, Codex and Cursor keep their native enforcement adapters over the same shared
+> guard. Restore `onPreToolUse` here once Copilot App honours project hooks.
+
+
 Runtime **hook** that enforces the read-only safety model of the Azure red team. It registers a
 session-wide `preToolUse` hook that **denies any Azure command that is not a recognized read/query
 operation** — so an engagement can never change the target environment by accident, no matter which
