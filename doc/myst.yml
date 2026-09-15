@@ -20,7 +20,7 @@ project:
     - file: permissions.md
       title: Permissions Best Practices
     - file: graph-engineering.md
-      title: Graph Engineering & Self-Improvement
+      title: Graph Engineering & Evidence-Gated Learning
     - file: agent-team.md
     - file: skills.md
     - file: methodology.md

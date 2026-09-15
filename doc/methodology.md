@@ -26,7 +26,7 @@ open-ended conversation.
 
 This does **not** weaken the safety model: self-improvement is confined by the memory firewall
 and cannot modify `guardrails/**`, the egress or cluster allowlists, or the read-only role
-boundary. See [Graph Engineering & Self-Improvement](graph-engineering.md) for the graph,
+boundary. See [Graph Engineering & Evidence-Gated Learning](graph-engineering.md) for the graph,
 reducers, routers, and self-improvement policy.
 
 ## Atomic checks (`checks/`)
