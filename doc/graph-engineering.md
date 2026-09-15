@@ -151,6 +151,53 @@ runtime dependency and was not modified. AEF's disabled runtime code-evolution p
 excluded. The imported contract contributes four controls: inert candidates, independent run
 attribution, per-agent consolidation, and auditable promotion or rollback.
 
+## Observability: the Agent Observatory
+
+Graph execution is only trustworthy if it is inspectable. Every node transition, handoff,
+guarded tool call and memory transition is appended to a per-session event log
+(`runs/live-events.jsonl`), and the Observatory is a read-only projection of exactly that log:
+
+```bash
+node tools/dashboard/server.mjs --session engagements/<session> --port 4318
+```
+
+| Panel | Shows |
+| --- | --- |
+| Topology | 3D coordination map; each animated packet is a recorded exchange with source, destination, direction and byte count |
+| Timeline | Append-only event history, filterable by agents, handoffs, tools, memory, runs, evolution and evaluation |
+| Memory | Retrieved / candidate / promoted counts, each row expandable to its source record and evidence hash |
+| Review | Evaluator rounds with rubric, input hash, critique and the routing decision |
+| Findings | The session's findings with severity drill-down, plus the rendered report |
+| Evolution | Propose → test → accept-or-reject decisions for the bounded optimizer |
+
+The Findings panel reads the session's `reports/findings.json` and mirrors the generated
+report. Its summary tiles and severity chips are filters, so a reader can move from a count
+straight to the findings behind it; *Open HTML report* opens the full report in a new tab
+with PDF and HTML downloads inside it, named `<subscription>-<assessment date>` so reports
+from different subscriptions or dates are never confused for one another.
+
+Three properties keep it presentable to an audience without overclaiming:
+
+- **Loopback only.** It binds `127.0.0.1`, serves bounded metadata, and makes no Azure or
+  model calls of its own.
+- **Truthful labelling.** Live stream, historical replay and fixture data are always
+  labelled distinctly, so a recorded replay is never shown as live activity.
+- **No synthesised traffic.** If an exchange was not recorded, nothing is drawn. Unobserved
+  nodes render as having no recorded execution rather than as idle-but-healthy, and a
+  severity with no findings is never presented as evidence that the risk is absent.
+
+Findings text is model-authored, so the panel treats it as untrusted data: it reaches the DOM
+as text only, never as markup. The report is served under a document-scoped policy that
+permits its own inline assets but allows no network access at all — a tighter sandbox than
+opening the same file from disk.
+
+:::{note}
+The PDF is rendered from the report's own HTML with headless Chrome
+(`tools/report/html-to-pdf.mjs`) so the print stylesheet and backgrounds are honoured. The
+optional `--flow` flag relaxes page-break rules **at render time only**; the report generator
+and the report HTML on disk are unchanged by it.
+:::
+
 ## Memory firewall: the immutable boundary
 
 The one immutable boundary is the read-only enforcement system. Learning may write only
