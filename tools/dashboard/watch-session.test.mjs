@@ -45,6 +45,17 @@ test('evidence is attributed by its directory, which names the producer', () => 
   assert.equal(nodeFor('evidence/raw/easm/dns.json', 'evidence'), 'easm');
 });
 
+test('layout directories are never mistaken for the producing agent', () => {
+  assert.equal(nodeFor('findings/raw/identity.jsonl', 'findings/raw'), 'identity');
+  assert.equal(nodeFor('evidence/raw/network/nsg.json', 'evidence'), 'network');
+  assert.equal(nodeFor('reports/report.html', 'reports'), 'report');
+});
+
+test('normalized outputs are watched and attributed to the node that produces them', () => {
+  assert.equal(nodeFor('findings/normalized/findings.json', 'findings/normalized'), 'report');
+  assert.equal(nodeFor('findings/normalized/attack-paths.json', 'findings/normalized'), 'correlate');
+});
+
 test('an unattributable artifact is not guessed at', () => {
   assert.equal(nodeFor('mystery-output.jsonl', 'findings/raw'), 'run_specialist');
 });

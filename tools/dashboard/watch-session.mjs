@@ -17,7 +17,7 @@ import { basename, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createEventWriter } from './events.mjs';
 
-const WATCHED = ['findings/raw', 'evidence', 'inventory', 'reports'];
+const WATCHED = ['findings/raw', 'findings/normalized', 'evidence', 'inventory', 'reports'];
 
 /**
  * Graph node each artifact belongs to. The roster nodes are keyed by domain, so a
@@ -40,6 +40,7 @@ const FILE_ALIASES = new Map([
   ['containers', 'aks-container'],
   ['container', 'aks-container'],
   ['reporting', 'report'],
+  ['findings', 'report'],
   ['inventory', 'preflight_inventory'],
   ['resources', 'preflight_inventory'],
   ['account', 'preflight_inventory'],
@@ -57,6 +58,9 @@ function listFiles(dir, out = []) {
   return out;
 }
 
+/** Layout directories that describe where an artifact lives, not who produced it. */
+const STRUCTURAL_DIRS = new Set(['findings', 'raw', 'normalized', 'evidence', 'inventory', 'reports']);
+
 /**
  * Resolve an artifact to the graph node that produced it. Attribution comes from the
  * path first, because evidence is written under evidence/raw/<domain>/ where the
@@ -67,6 +71,7 @@ export function nodeFor(relPath, area) {
   const dirs = segments.slice(0, -1);
   for (const segment of dirs) {
     const dir = segment.toLowerCase();
+    if (STRUCTURAL_DIRS.has(dir)) continue;
     if (DOMAINS.has(dir)) return dir;
     if (FILE_ALIASES.has(dir)) return FILE_ALIASES.get(dir);
   }

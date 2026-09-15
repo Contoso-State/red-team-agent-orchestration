@@ -82,6 +82,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = parseArgs(process.argv);
   if (!args.session || !args.type) {
     console.error('Usage: node tools/dashboard/events.mjs --session engagements/<session> --type <event> [--agent <id>] [--node <id>] [--status <status>] [--task <id>]');
+    console.error('Handoffs: --type message.sent --from <agent> --to <agent> --kind <model-request|model-response|findings-data|evidence-data> --bytes <n> [--outcome sent|received|failed]');
     process.exit(2);
   }
   try {
@@ -91,6 +92,18 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (args.node) metadata.node_id = args.node;
     if (args.status) metadata.status = args.status;
     if (args.task) metadata.task_id = args.task;
+    if (args.from) metadata.from_agent = args.from;
+    if (args.to) metadata.to_agent = args.to;
+    // A handoff is only drawable with a measured payload, so require real bytes
+    // rather than defaulting to a number nobody observed.
+    if (args.kind && args.bytes !== undefined) {
+      const bytes = Number(args.bytes);
+      if (!Number.isSafeInteger(bytes) || bytes < 0) {
+        console.error('--bytes must be a non-negative integer measured from the real payload');
+        process.exit(2);
+      }
+      metadata.transfer = { kind: args.kind, bytes, outcome: args.outcome || 'sent' };
+    }
     write(args.type, metadata);
   } catch (error) {
     console.error(`Event writer: ${error.message}`);
