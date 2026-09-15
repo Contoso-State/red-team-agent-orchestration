@@ -40,6 +40,13 @@ Skill (domain knowledge): `.claude/skills/azure-redteam-orchestrator/SKILL.md`.
 
 ## Dispatch Protocol
 
+0. **Start the Agent Observatory.** Before any dispatch, have the run's observability up so the
+   user can watch the team work. `node tools/graph/run-graph.mjs --session engagements/<session>`
+   starts it automatically; when you dispatch sub-agents directly, start
+   `node tools/dashboard/server.mjs --session engagements/<session>` and append lifecycle
+   metadata with `node tools/dashboard/events.mjs --session engagements/<session> --type <event>`
+   as each specialist starts, completes, or fails. Give the user the loopback URL. A dashboard
+   failure is reported and never blocks the assessment.
 1. **Validate scope.** Load `engagement.yaml`; validate against `schemas/engagement.schema.json`.
    If missing, tell the user to run `/setup` (or copy `engagement.example.yaml`) and stop. Echo a one-line scope
    summary and the `mode` (default `read-only-assessment`). **Confirm the assessment focus:** if
@@ -50,9 +57,15 @@ Skill (domain knowledge): `.claude/skills/azure-redteam-orchestrator/SKILL.md`.
 2. **Preflight (sequential).** Dispatch `redteam-inventory` first. Do not proceed until
    `engagements/<session>/inventory/resources.jsonl` exists and permissions are validated.
 3. **Domain assessment (parallel).** Dispatch the order-2 agents. Pass each: the engagement scope,
-   the inventory path, and its target resource types. Each writes `engagements/<session>/findings/raw/<agent>.jsonl`.
+   the inventory path, its target resource types, and the hard specialist deadline from
+   `graph.params.specialist_timeout_seconds` (default 900 seconds). Require each specialist to stop
+   new Azure queries at 80% of its deadline, reserve the remainder for artifact finalization, and
+   return partial coverage rather than waiting indefinitely. Each writes
+   `engagements/<session>/findings/raw/<agent>.jsonl`.
 4. **Correlation (sequential).** Dispatch `redteam-authorization` to chain findings into attack paths.
-5. **Reporting (sequential).** Dispatch `redteam-reporting` to dedupe, prioritize, and render
+5. **Reporting (sequential).** Track reporting separately and dispatch it immediately when correlation
+   completes or returns partial. Apply `graph.params.dispatch_timeout_seconds` (default 600 seconds)
+   to both sequential phases. Dispatch `redteam-reporting` to dedupe, prioritize, and render
    `engagements/<session>/reports/`.
 6. **Brief the user** with finding counts by severity and the top attack path.
 

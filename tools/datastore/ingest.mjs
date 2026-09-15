@@ -184,6 +184,15 @@ function clearFindings(db) {
   return row?.n ?? 0;
 }
 
+function isFindingRecord(f) {
+  if (!f || typeof f !== 'object' || Array.isArray(f)) return false;
+  const required = [
+    'id', 'title', 'severity', 'confidence', 'agent', 'category', 'resource_id',
+    'subscription_id', 'description', 'attack_vector', 'recommendation', 'status', 'first_seen',
+  ];
+  return required.every((key) => f[key] != null && f[key] !== '') && Array.isArray(f.evidence);
+}
+
 function insertFindingRow(db, f) {
   db.prepare(
     `INSERT INTO findings (finding_id,dedupe_key,finding_class,title,severity,confidence,agent,category,check_id,
@@ -199,6 +208,7 @@ function insertFindingRow(db, f) {
 }
 
 function insertAffected(db, findingId, list) {
+  if (!Array.isArray(list)) return;
   const ins = db.prepare(
     `INSERT INTO affected_resources (finding_id,resource_id,subscription_id,resource_group,type,region,name,evidence_ref)
      VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(finding_id,resource_id) DO NOTHING`
@@ -211,6 +221,7 @@ function insertAffected(db, findingId, list) {
 }
 
 function insertEvidence(db, findingId, list) {
+  if (!Array.isArray(list)) return;
   const ins = db.prepare('INSERT INTO evidence (finding_id,source,summary,raw_ref) VALUES (?,?,?,?)');
   for (const e of list || []) ins.run(findingId, e.source ?? null, e.summary ?? null, e.raw_ref ?? null);
 }
@@ -227,7 +238,10 @@ function insertControls(db, findingId, controls) {
 
 /** Upsert one finding with reduce-style merge (union affected; first-wins scalars). */
 function upsertFinding(db, f) {
-  if (!f || !f.id) return { merged: false };
+  if (!isFindingRecord(f)) {
+    warnOnce('finding record', f?.id || f?.schema || typeof f);
+    return { merged: false, skipped: true };
+  }
   const targetId = findTargetId(db, f);
   if (!targetId) {
     insertFindingRow(db, f);

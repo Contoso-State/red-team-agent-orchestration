@@ -4,6 +4,23 @@ Agent: `azure-redteam-authorization` · Checks: `checks/rbac/checks.yaml`
 
 All commands read-only. Analyze role assignments, custom roles, and escalation primitives.
 
+## Bounded caller preflight
+
+Resolve the caller to an object ID once, then query only the target subscription. Avoid
+`--assignee <UPN> --all` during preflight: it can trigger Microsoft Graph name resolution and
+scan every accessible subscription.
+
+```bash
+principalId="$(az ad signed-in-user show --query id -o tsv)"
+az role assignment list \
+  --assignee-object-id "$principalId" \
+  --scope "/subscriptions/<subId>" \
+  --include-inherited -o json
+```
+
+Use tenant-wide `--all` only for an explicitly scoped authorization assessment after inventory,
+not for the initial permission gate.
+
 ## CHK-RBAC-CUSTOM-ROLE-ASSIGN-WRITE — Custom role can write role assignments (self-escalation)
 ```bash
 az role definition list --custom-role-only true -o json

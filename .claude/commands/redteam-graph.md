@@ -6,7 +6,7 @@ description: Canonical graph-engineering orchestration standard for Azure red-te
 
 # Azure Red Team — Graph Orchestration Standard
 
-Every engagement in this framework runs as ONE explicit, declarative graph. The single source of truth is `graph/redteam.graph.json` (`redteam-azure` v2.0.0): 14 nodes over a 12-specialist read-only roster, validated by `tools/graph/validate-graph.mjs`.
+Every engagement in this framework runs as ONE explicit, declarative graph. The single source of truth is `graph/redteam.graph.json` (`redteam-azure` v2.0.1): 14 nodes over a 12-specialist read-only roster, validated by `tools/graph/validate-graph.mjs`.
 
 ## Two engines, one graph
 

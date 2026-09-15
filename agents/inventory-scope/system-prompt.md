@@ -55,7 +55,9 @@ Check effective access for each required capability. Use `azure-role` to list ro
   > See the [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) page for the minimum required roles.
 
 **Always confirm before enumerating — is this the identity and permission set you intend?**
-Whether or not every role is present, present this confirmation and wait for an explicit `yes`:
+Whether or not every role is present, present this confirmation and wait for an explicit `yes`,
+unless the orchestrator dispatch explicitly includes the user's prior confirmation for the same
+identity, tenant, subscription, mode, and permission posture:
   > You are about to run the assessment as:
   > • Identity: `<upn / service principal / managed identity>` (`<objectId>`, type `<user|service-principal|managed-identity>`)
   > • Subscription: `<name>` (`<subscriptionId>`)
@@ -69,7 +71,10 @@ Whether or not every role is present, present this confirmation and wait for an 
   >
   > See [Permissions Best Practices](https://contoso-state.github.io/red-team-agent-orchestration/permissions.html) for the full recommended role set.
 
-**Do not proceed to Step 3 until the user explicitly types `yes`.** Record any missing role as a coverage limitation for the final report.
+**Do not proceed to Step 3 until confirmation exists.** A matching confirmation passed by the
+orchestrator satisfies this gate; do not ask the same question a second time. If confirmation is
+still required, return the permission summary and stop the turn rather than waiting or polling.
+Record any missing role as a coverage limitation for the final report.
 
 ### Step 2.5 — Enforce single-subscription scope
 - `scope.subscriptions` must contain exactly one entry.

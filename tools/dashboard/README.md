@@ -2,6 +2,21 @@
 
 A local, dependency-free event dashboard for the actual orchestration run. It makes no Azure or model calls. It cannot start tasks, modify an engagement, or change learning policy.
 
+An assessment started through the graph runner brings the Observatory up by itself, so a long
+run is observable from its own first node instead of from whenever someone remembers to launch
+a viewer:
+
+```sh
+node tools/graph/run-graph.mjs --engagement engagement.yaml --session engagements/<session>
+```
+
+The run prints the bound URL before the first node executes. Observability is best-effort and
+never gates the engagement: if the port is taken or the dashboard faults, the run warns and
+continues. Use `--dashboard-port <n>` for a second concurrent run, `--no-dashboard` to stay
+headless, and `--dashboard-linger` to keep serving the finished run until Ctrl+C.
+
+To attach a viewer to a session that is already running, or to re-open a completed one:
+
 ```sh
 node tools/dashboard/server.mjs --session engagements/<session> --port 4318
 ```
@@ -29,6 +44,16 @@ limit can make the graph proceed below its quality threshold. Neither proceeding
 nor an increased judgment score establishes a security pass or a learning gain.
 
 Free-form summaries, message bodies, model reasoning, commands, outputs, environment variables, and unknown fields are never forwarded. The UI generates neutral event summaries. Numeric metrics use a fixed allowlist. Producers must emit metadata only; this viewer is not a sanitizer for arbitrary customer data.
+
+The dashboard is a reader, not an activity detector. Graph runs started with
+`tools/graph/run-graph.mjs --session ...` emit events automatically. Hosts that dispatch agents
+directly must append lifecycle metadata through `tools/dashboard/events.mjs`; otherwise the
+dashboard truthfully remains empty.
+
+```sh
+node tools/dashboard/events.mjs --session engagements/<session> \
+  --type agent.started --agent "Red Team Reporting" --node report --status running
+```
 
 Evidence links return only the exact recorded reference and event provenance. They never read the referenced file, confirm its existence, or serve artifact contents. Inspect local artifacts through the normal authorized workspace workflow.
 

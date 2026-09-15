@@ -38,8 +38,15 @@ try {
 } catch {
     throw "Not authenticated. Run 'az login' first."
 }
+$principalIdRaw = if ($account.user.type -eq "user") {
+    az ad signed-in-user show --query id -o tsv --only-show-errors 2>$null
+} else {
+    az ad sp show --id $account.user.name --query id -o tsv --only-show-errors 2>$null
+}
+$principalId = ("" + $principalIdRaw).Trim()
 Write-Host "Signed in as : $($account.user.name)"
 Write-Host "Identity type: $($account.user.type)"
+Write-Host "Object ID    : $(if ($principalId) { $principalId } else { '(directory lookup unavailable)' })"
 Write-Host "Tenant       : $($account.tenantId)"
 Write-Host "Subscription : $($account.name) ($($account.id))"
 
@@ -61,9 +68,26 @@ $requiredRoles = @{
     "Key Vault Reader"     = "Key Vault metadata (Data Protection)"
 }
 
-$assignments = az role assignment list --assignee $account.user.name --all --only-show-errors |
-    ConvertFrom-Json
+$subscriptionScope = "/subscriptions/$($account.id)"
+$assignee = if ($principalId) { $principalId } else { $account.user.name }
+$assignments = az role assignment list `
+        --assignee $assignee `
+        --scope $subscriptionScope `
+        --include-groups `
+        --include-inherited `
+        --only-show-errors |
+        ConvertFrom-Json
 $heldRoles = $assignments | Select-Object -ExpandProperty roleDefinitionName -Unique
+
+$readerEquivalentRoles = @("Reader", "Contributor", "Owner")
+$hasReaderEquivalent = @($heldRoles | Where-Object { $readerEquivalentRoles -contains $_ }).Count -gt 0
+if (-not $hasReaderEquivalent) {
+    az group list --subscription $account.id --query "length(@)" -o tsv --only-show-errors | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Assessment cannot continue: '$assignee' has no proven read access at '$subscriptionScope'."
+    }
+    Write-Host "[ OK ] Effective subscription read access confirmed by functional probe (custom/group role)." -ForegroundColor Green
+}
 
 $limitations = @()
 foreach ($role in $requiredRoles.Keys) {

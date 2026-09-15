@@ -16,6 +16,12 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
 
 ## Steps
 
+0. **Stand up the Agent Observatory before dispatching anything.** A run started with
+   `node tools/graph/run-graph.mjs --engagement engagement.yaml --session engagements/<session>`
+   launches it automatically and prints the loopback URL. If you dispatch specialists directly,
+   start it yourself (`node tools/dashboard/server.mjs --session engagements/<session>`) and emit
+   lifecycle metadata via `node tools/dashboard/events.mjs --session engagements/<session> --type …`
+   as each specialist starts, completes, or fails. Never let a dashboard problem stop the assessment.
 1. **Confirm inventory** is present and current. If missing, run reconnaissance first. Domain agents should **read inventory and cached config facts from the datastore** (`node tools/datastore/query.mjs resources|facts|neighbors --db engagements/<session>/engagement.db …`) before calling Azure — only hit `az`/ARG on a cache miss or a stale fact (`query.mjs fresh … --ttl <seconds>`).
 2. **Dispatch domain agents** based on resource types in the inventory. Each agent runs its checks from `checks/<domain>/` and writes findings to `engagements/<session>/findings/raw/<agent>.jsonl`:
 
@@ -33,6 +39,15 @@ You are acting as the **Orchestrator Agent** (`agents/orchestrator/system-prompt
    | Federated credentials (OIDC) / ACR / Automation / Logic Apps / CI/CD SPs | DevOps & Supply Chain | `agents/devops-supplychain/system-prompt.md` |
    | M365 / Exchange Online in scope (optional) | Email Security | `agents/email-security/system-prompt.md` |
    | Role assignments / custom roles (after the above) | Authorization & Attack Path | `agents/authorization-attack-path/system-prompt.md` |
+
+   **Mandatory completion contract for every dispatch:**
+   - Pass a hard wall-clock deadline (default `graph.params.specialist_timeout_seconds`, 900 seconds).
+   - Stop scheduling new Azure queries when 80% of the deadline is consumed.
+   - Reserve the final 20% for validating/writing findings and the coverage record.
+   - On timeout or a blocked/slow query, preserve completed evidence, mark unfinished checks `partial`,
+     append the timeout to the graph `coverage_gaps` channel, return immediately, and continue the
+     other specialists. Never wait indefinitely for full coverage.
+   - Bound each individual Azure command to at most 120 seconds.
 
 3. **Enforce scope and mode** for every agent. Skip excluded resources. Never exceed the engagement `mode`.
 4. **Validate findings** against `schemas/finding.schema.json` as they are produced.

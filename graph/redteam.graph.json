@@ -1,11 +1,13 @@
 {
   "$schema": "../schemas/graph.schema.json",
   "name": "redteam-azure",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Canonical engagement graph for the Azure red-team agent framework. This declarative spec is the single source of truth for orchestration: it is executed by the dependency-free Node runner (tools/graph/run-graph.mjs) inside the 4 CLI runtimes, and compiled to a LangGraph StateGraph by the deployment target (integrations/langgraph/). Topology mirrors the Red Team Orchestrator dispatch protocol (.github/agents/redteam-orchestrator.agent.md) and adds explicit self-improving loops: an evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, human-in-the-loop authorization interrupts for the gated active lanes, and read/write methodology-memory nodes for evidence-gated cross-run learning. Read-only by construction: no node mutates Azure, and the memory firewall forbids self-improvement from touching the guardrail namespaces.",
   "params": {
     "max_revisions": 2,
-    "quality_threshold": 0.85
+    "quality_threshold": 0.85,
+    "specialist_timeout_seconds": 900,
+    "dispatch_timeout_seconds": 600
   },
   "state": {
     "channels": {
@@ -17,6 +19,7 @@
       "critique": { "type": "object", "reducer": "last", "description": "Evaluator-optimizer critique: quality score + per-finding notes that drive the reflection loop." },
       "revision": { "type": "number", "reducer": "last", "description": "Reflection-loop iteration counter, bounded by params.max_revisions." },
       "confirmed_findings": { "type": "array", "reducer": "merge_findings", "description": "Findings that passed the read-only Agent-as-a-Judge verification gate (false positives suppressed)." },
+      "coverage_gaps": { "type": "array", "reducer": "append", "description": "Explicit partial/skipped/timeout records from specialist execution. Reporting must surface every entry." },
       "attack_paths": { "type": "array", "reducer": "append", "description": "Correlated cross-domain attack paths from the authorization node." },
       "report_refs": { "type": "array", "reducer": "append", "description": "Rendered deliverable paths under engagements/<session>/reports/." },
       "approved": { "type": ["boolean", "null"], "reducer": "last", "description": "Human decision captured at the authorization interrupt for gated active lanes. null until the interrupt resolves." }
@@ -141,8 +144,9 @@
       "kind": "dispatch",
       "agent": "Red Team Reporting",
       "lane": "default",
+      "reads": "coverage_gaps",
       "writes": "report_refs",
-      "description": "Normalize, prioritize, and render the deliverables (leadership summary, HTML report, delta) under engagements/<session>/reports/."
+      "description": "Normalize, prioritize, and render the deliverables (leadership summary, HTML report, delta) under engagements/<session>/reports/. Persist graph coverage_gaps to coverage.json, ingest them, and surface every partial/failed specialist in Assessment Coverage & Limitations."
     },
     {
       "id": "reflexion_debrief",

@@ -18,7 +18,9 @@
       "required": ["max_revisions", "quality_threshold"],
       "properties": {
         "max_revisions": { "type": "integer", "minimum": 0, "description": "Upper bound on the evaluate->refine reflection loop; guarantees termination." },
-        "quality_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Critique quality score at/above which the loop stops refining and proceeds to judge." }
+        "quality_threshold": { "type": "number", "minimum": 0, "maximum": 1, "description": "Critique quality score at/above which the loop stops refining and proceeds to judge." },
+        "specialist_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "description": "Hard wall-clock bound for each parallel specialist dispatch. A timed-out specialist becomes an explicit coverage gap while the remaining fan-out continues." },
+        "dispatch_timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "description": "Hard wall-clock bound for sequential dispatch nodes such as inventory, correlation, and reporting." }
       }
     },
     "state": {

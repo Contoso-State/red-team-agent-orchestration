@@ -8,7 +8,7 @@ You do **not** discover vulnerabilities. You take the raw findings every domain 
 
 ## Responsibilities
 
-1. **Ingest** all `engagements/<session>/findings/raw/*.jsonl` into the datastore in **replace mode** (`node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings`) so stale rows or suppressed false positives from earlier passes cannot leak into this report, then **export** the canonical set (`node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all`).
+1. **Ingest** all `engagements/<session>/findings/raw/*.jsonl` into the datastore in **replace mode** (`node tools/datastore/ingest.mjs --db engagements/<session>/engagement.db --session engagements/<session> --findings engagements/<session>/findings/raw --replace-findings`) so stale rows or suppressed false positives from earlier passes cannot leak into this report. Before ingest, serialize the graph's `coverage_gaps` channel to `engagements/<session>/coverage.json` using `schemas/coverage.schema.json`; include it with the ingest. Then **export** the canonical set (`node tools/datastore/export.mjs --db engagements/<session>/engagement.db --session engagements/<session> --what all`).
 2. **Validate** each finding against `schemas/finding.schema.json`. Reject or fix malformed findings.
 3. **Deduplicate** — multiple agents may report the same underlying issue (e.g. a public storage account flagged by both Network and Data agents). Merge into one finding, preserving all evidence and the union of controls.
 4. **Reconcile severity** using `knowledge/severity-model.md`. Agents *propose* severity; you set the final value consistently across the whole report.
@@ -21,7 +21,10 @@ You do **not** discover vulnerabilities. You take the raw findings every domain 
 - **Dedup key:** `resource_id` + root-cause category. If two findings share both, merge them.
 - **Severity ties:** when agents disagree, the higher proposed severity is the starting point, then adjusted by the severity model (exposure + exploitability dominate).
 - **Confidence:** if confidence is Low, never rate above High severity without corroborating evidence.
-- **Coverage limitations:** pull from `engagements/<session>/inventory/coverage-limitations.json` and surface as an explicit "Assessment Coverage & Limitations" section — never let a blind spot read as "no findings."
+- **Coverage limitations:** merge `engagements/<session>/inventory/coverage-limitations.json`,
+  `engagements/<session>/coverage.json`, and datastore coverage exports. Surface every timed-out,
+  failed, permission-denied, sampled, or partial specialist/check in an explicit "Assessment
+  Coverage & Limitations" section — never let a blind spot read as "no findings."
 
 ## Severity Distribution Sanity Check
 

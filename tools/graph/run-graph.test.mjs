@@ -5,6 +5,7 @@ import {
   ROOT,
   loadGraph,
   runGraph,
+  runGraphAsync,
   initialState,
   applyWrite,
   REDUCERS,
@@ -86,6 +87,124 @@ test('fan-out Send runs every in-scope specialist and the reduce dedupes into ca
   assert.equal(res.state.confirmed_findings.length, 11);
 });
 
+test('async fan-out starts specialist handlers concurrently and reduces deterministically', async () => {
+  let active = 0;
+  let maxActive = 0;
+  const res = await runGraphAsync(graph, {
+    scope: { mode: 'read-only-assessment', m365_in_scope: false },
+    handlers: {
+      run_specialist: async (_node, ctx) => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        active--;
+        return {
+          writes: {
+            raw_findings: [{ dedupe_key: `f-${ctx.item.domain}`, affected_resources: [] }],
+          },
+        };
+      },
+    },
+  });
+
+  test('async graph emits node and specialist lifecycle events', async () => {
+    const events = [];
+    const res = await runGraphAsync(graph, {
+      scope: { mode: 'read-only-assessment', m365_in_scope: false },
+      emitEvent: (type, metadata) => events.push({ type, ...metadata }),
+    });
+    assert.equal(res.status, 'completed');
+    assert.ok(events.some(event => event.type === 'node.started' && event.node_id === 'validate_scope'));
+    assert.ok(events.some(event => event.type === 'task.dispatched' && event.task_id === 'identity'));
+    assert.ok(events.some(event => event.type === 'agent.started' && event.agent_id === 'Red Team Identity'));
+    assert.ok(events.some(event => event.type === 'agent.completed' && event.agent_id === 'Red Team Identity'));
+    assert.ok(events.some(event => event.type === 'node.completed' && event.node_id === 'report'));
+  });
+  assert.ok(maxActive > 1);
+  assert.equal(res.state.raw_findings.length, 11);
+  assert.deepEqual(
+    res.state.raw_findings.map((finding) => finding.dedupe_key),
+    inScopeRoster(graph, { scope: { m365_in_scope: false } }).map((item) => `f-${item.domain}`),
+  );
+});
+
+test('async fan-out times out one stalled specialist without blocking the others', async () => {
+  const timedOut = [];
+  const res = await runGraphAsync(graph, {
+    scope: { mode: 'read-only-assessment', m365_in_scope: false },
+    params: { specialist_timeout_seconds: 0.01 },
+    onSpecialistTimeout: (event) => timedOut.push(event),
+    handlers: {
+      run_specialist: async (_node, ctx) => {
+        if (ctx.item.domain === 'compute') {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return {
+          writes: {
+            raw_findings: [{ dedupe_key: `f-${ctx.item.domain}`, affected_resources: [] }],
+          },
+        };
+      },
+    },
+  });
+  assert.equal(timedOut.length, 1);
+  assert.equal(timedOut[0].item.domain, 'compute');
+  assert.equal(res.state.raw_findings.length, 10);
+  assert.deepEqual(res.state.coverage_gaps, [
+    {
+      domain: 'compute',
+      check_id: '__specialist__',
+      subscription_id: 'unknown',
+      type: '*',
+      status: 'partial',
+      count: 1,
+      reason: 'specialist deadline exceeded (0.01s)',
+    },
+  ]);
+  assert.equal(res.status, 'completed');
+});
+
+test('async fan-out records a failed specialist and preserves other results', async () => {
+  const res = await runGraphAsync(graph, {
+    scope: { mode: 'read-only-assessment', m365_in_scope: false, subscription_id: 'sub-1' },
+    handlers: {
+      run_specialist: async (_node, ctx) => {
+        if (ctx.item.domain === 'network') throw new Error('query failed');
+        return {
+          writes: {
+            raw_findings: [{ dedupe_key: `f-${ctx.item.domain}`, affected_resources: [] }],
+          },
+        };
+      },
+    },
+  });
+
+  test('async runner bounds sequential dispatch nodes', async () => {
+    await assert.rejects(
+      runGraphAsync(graph, {
+        scope: { mode: 'read-only-assessment', m365_in_scope: false },
+        params: { dispatch_timeout_seconds: 0.01 },
+        handlers: {
+          preflight_inventory: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            return {};
+          },
+        },
+      }),
+      /preflight_inventory.*deadline exceeded/,
+    );
+  });
+  assert.equal(res.state.raw_findings.length, 10);
+  assert.deepEqual(res.state.coverage_gaps, [{
+    domain: 'network',
+    check_id: '__specialist__',
+    subscription_id: 'sub-1',
+    type: '*',
+    status: 'failed',
+    count: 1,
+    reason: 'specialist failed: query failed',
+  }]);
+});
 test('the `when` predicate includes the email specialist only when M365 is in scope', () => {
   assert.equal(inScopeRoster(graph, { scope: { m365_in_scope: false } }).length, 11);
   assert.equal(inScopeRoster(graph, { scope: { m365_in_scope: true } }).length, 12);

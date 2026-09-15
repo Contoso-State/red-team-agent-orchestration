@@ -19,10 +19,10 @@ echo '{"command":"az vm delete ...","cwd":".","toolName":"shell"}' | node guardr
 > guard. Restore `onPreToolUse` here once Copilot App honours project hooks.
 
 
-Runtime **hook** that enforces the read-only safety model of the Azure red team. It registers a
-session-wide `preToolUse` hook that **denies any Azure command that is not a recognized read/query
-operation** — so an engagement can never change the target environment by accident, no matter which
-agent issues the command.
+Runtime guardrail adapter for the Azure red team’s read-only safety model. The shared guard
+**denies any Azure command that is not a recognized read/query operation** — so an engagement can
+never change the target environment by accident in runtimes that support tool-boundary hooks,
+regardless of which agent issues the command.
 
 ## Behavior
 

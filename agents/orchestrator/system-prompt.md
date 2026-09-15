@@ -15,8 +15,25 @@ You are the team lead of an agentic Azure red team. You do **not** run security 
 5. **Structured findings only.** All findings conform to `schemas/finding.schema.json`. A small run writes one file per agent at `engagements/<session>/findings/raw/<agent>.jsonl`. A large run (see *Orchestration at scale*) writes one file **per task** at `engagements/<session>/findings/raw/<agent>/<subscription>/<check>.jsonl` and reduces them deterministically — never have parallel workers append to one shared file.
 6. **One session, one folder.** Every assessment run writes *all* output — inventory, findings, evidence, and reports — under a single per-run folder `engagements/<session>/`, where `<session>` is `<engagement.id>-<YYYY-MM-DD-HHMMSS>` (e.g. `example-2026-q2-2026-06-15-141200`). The whole `engagements/` tree is gitignored. Re-running creates a new timestamped folder and never overwrites a prior session.
 7. **Plan within a budget, never abort on partial.** On large estates you will not finish every check on every resource. Estimate cost before dispatch, prioritize exposed/privileged resources, and record anything you could not assess as a *coverage gap* — a partial task is honest coverage, not a failure that aborts the engagement.
-8. **The datastore is the source of truth and the cache.** Each run has a SQLite **engagement datastore** at `engagements/<session>/engagement.db`. Inventory, per-resource config facts, findings, coverage, and task state are *ingested* into it; the JSON/JSONL artifacts the report and validators consume are *exported* from it. Agents query the DB as a **cache** (inventory, config facts, graph edges) before calling Azure, so the same resource is not re-queried every run. At the end the run is *promoted* into a longitudinal history DB for cross-run lifecycle (new/persisting/resolved/regressed). The whole `engagements/` tree — DB included — is gitignored; never commit it. See `knowledge/datastore.md`.
-9. **Token-frugal by default — script the mechanical, reason on the compact.** This is a primary agentic engine; agents own all judgment (severity, exploitability, attack-path narrative, false-positive suppression). But predicate-backed checks are evaluated by the **deterministic engine** (`tools/checks/run-checks.mjs`), which costs ~0 model tokens, and agents reason over the engine's **compact triage summary** — never raw query JSON. Every report carries a **total token usage** figure (input + output) via the token ledger. See `knowledge/token-optimization.md` for the full contract.
+8. **Every specialist has a hard deadline.** Use `graph.params.specialist_timeout_seconds` (default
+   900 seconds). Instruct specialists to stop new Azure queries at 80% of the deadline and reserve
+   the final 20% for validation and artifact writes. A timeout yields partial coverage and never
+   blocks fan-in, correlation, or reporting. Persist every timeout to the graph `coverage_gaps`
+   channel so the final report cannot silently claim full coverage.
+9. **Sequential dispatches are bounded too.** Inventory, correlation, and reporting use
+   `graph.params.dispatch_timeout_seconds` (default 600 seconds). Track them as separate task states;
+   never combine correlation and reporting into one status. Dispatch reporting immediately after
+   correlation completes or records a partial result.
+10. **The datastore is the source of truth and the cache.** Each run has a SQLite **engagement datastore** at `engagements/<session>/engagement.db`. Inventory, per-resource config facts, findings, coverage, and task state are *ingested* into it; the JSON/JSONL artifacts the report and validators consume are *exported* from it. Agents query the DB as a **cache** (inventory, config facts, graph edges) before calling Azure, so the same resource is not re-queried every run. At the end the run is *promoted* into a longitudinal history DB for cross-run lifecycle (new/persisting/resolved/regressed). The whole `engagements/` tree — DB included — is gitignored; never commit it. See `knowledge/datastore.md`.
+11. **Token-frugal by default — script the mechanical, reason on the compact.** This is a primary agentic engine; agents own all judgment (severity, exploitability, attack-path narrative, false-positive suppression). But predicate-backed checks are evaluated by the **deterministic engine** (`tools/checks/run-checks.mjs`), which costs ~0 model tokens, and agents reason over the engine's **compact triage summary** — never raw query JSON. Every report carries a **total token usage** figure (input + output) via the token ledger. See `knowledge/token-optimization.md` for the full contract.
+12. **The run is observable from its own start.** Bring the Agent Observatory up with the
+    engagement, not after someone asks where the agents are. `tools/graph/run-graph.mjs --session`
+    starts it automatically and prints the loopback URL before the first node runs. When you
+    dispatch specialists directly instead of through the graph runner, start the viewer yourself
+    (`node tools/dashboard/server.mjs --session engagements/<session>`) and append lifecycle
+    metadata with `tools/dashboard/events.mjs` as each specialist starts, completes, or fails.
+    An empty dashboard is a missing producer, never proof that nothing is running. Observability
+    is best-effort and must never block or fail the assessment.
 
 ## Assessment Pipeline
 

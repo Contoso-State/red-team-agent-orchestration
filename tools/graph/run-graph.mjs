@@ -34,10 +34,11 @@
  */
 
 import { readFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
-import { join, isAbsolute, resolve } from 'node:path';
+import { join, isAbsolute, resolve, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mergeFinding } from '../orchestration/manifest.mjs';
 import { ROOT, loadGraph, validateGraph, loadAgentNames, GUARD_NAMESPACES } from './validate-graph.mjs';
+import { createEventWriter } from '../dashboard/events.mjs';
 
 // Re-export the graph-loading helpers so callers can drive the runner from one module.
 export { ROOT, loadGraph } from './validate-graph.mjs';
@@ -359,6 +360,208 @@ export function runGraph(graph, options = {}) {
   return { status: 'completed', state, path, steps };
 }
 
+/**
+ * Async graph execution for hosts whose dispatch handlers launch real agents.
+ * Fan-out children are started together and their results are reduced in roster
+ * order so execution is concurrent while state merging stays deterministic.
+ */
+export async function runGraphAsync(graph, options = {}) {
+  const params = { ...(graph.params || {}), ...(options.params || {}) };
+  const routers = { ...defaultRouters(), ...(options.routers || {}) };
+  const handlers = { ...defaultHandlers({ store: options.store }), ...(options.handlers || {}) };
+  const maxSteps = options.maxSteps ?? 1000;
+  const onCheckpoint = options.onCheckpoint || (() => {});
+  const decision = options.decision;
+  const onSpecialistTimeout = options.onSpecialistTimeout || (() => {});
+  const emit = options.emitEvent || (() => {});
+
+  const { byId, edgeFrom, condFrom } = indexGraph(graph);
+  const state = options.initialState || initialState(graph);
+  const ctx = {
+    graph,
+    params,
+    state,
+    scope: options.scope,
+    dispatch: options.dispatchFn,
+    judge: options.judgeFn,
+    quality: options.quality,
+  };
+
+  const runHandler = async (node, handlerCtx = ctx) => {
+    const h = handlers[node.id] || handlers[node.kind];
+    if (!h) return {};
+    return (await h(node, handlerCtx)) || {};
+  };
+  const runBoundedDispatch = async (node) => {
+    const timeoutSeconds = Number(params.dispatch_timeout_seconds ?? 600);
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+      throw new Error('dispatch_timeout_seconds must be a positive number');
+    }
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        runHandler(node, { ...ctx, signal: controller.signal }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort(new Error(`dispatch deadline exceeded (${timeoutSeconds}s)`));
+            reject(new Error(`dispatch node "${node.id}" deadline exceeded (${timeoutSeconds}s)`));
+          }, timeoutSeconds * 1000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const linearNext = (nodeId) => (edgeFrom.get(nodeId) || [])[0];
+  const conditionalNext = (nodeId) => {
+    const cond = condFrom.get(nodeId);
+    const label = routers[cond.router](state, params, ctx);
+    const target = cond.branches[label];
+    if (target === undefined) throw new Error(`router ${cond.router} returned unknown branch "${label}"`);
+    return target;
+  };
+
+  let current = options.startAt || linearNext('START');
+  if (!current) throw new Error('graph has no START edge');
+  const path = [];
+  let steps = 0;
+  const checkpoint = (status) => {
+    const rec = { step: steps, node: current, status, ts: new Date().toISOString(), state: structuredClone(state) };
+    onCheckpoint(rec);
+  };
+
+  while (current !== 'END') {
+    if (++steps > maxSteps) throw new Error(`step budget exceeded (${maxSteps}); possible non-terminating loop`);
+    const node = byId.get(current);
+    if (!node) throw new Error(`unknown node "${current}"`);
+    path.push(current);
+    emit('node.started', { node_id: node.id, status: 'running' });
+
+    if (node.kind === 'fanout') {
+      const child = byId.get(node.into);
+      const timeoutSeconds = Number(params.specialist_timeout_seconds ?? 900);
+      if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+        throw new Error('specialist_timeout_seconds must be a positive number');
+      }
+      const subscriptionId =
+        ctx.scope?.subscriptions?.[0]?.id ||
+        ctx.scope?.subscription_id ||
+        ctx.scope?.subscriptionId ||
+        'unknown';
+      const results = await Promise.all(
+        inScopeRoster(graph, state).map(async (item) => {
+          let timer;
+          let timedOut = false;
+          const controller = new AbortController();
+          const timeout = new Promise((resolve) => {
+            timer = setTimeout(() => {
+              timedOut = true;
+              controller.abort(new Error(`specialist deadline exceeded (${timeoutSeconds}s)`));
+              resolve({ timedOut: true });
+            }, timeoutSeconds * 1000);
+          });
+          try {
+            emit('task.dispatched', { node_id: child.id, agent_id: item.agent, task_id: item.domain, status: 'pending' });
+            emit('agent.started', { node_id: child.id, agent_id: item.agent, task_id: item.domain, status: 'running' });
+            const childCtx = {
+              ...ctx,
+              state: structuredClone(state),
+              item,
+              roster: item,
+              signal: controller.signal,
+            };
+            const result = await Promise.race([
+              runHandler(child, childCtx).then((value) => ({ value })),
+              timeout,
+            ]);
+            if (!result.timedOut) {
+              emit('agent.completed', { node_id: child.id, agent_id: item.agent, task_id: item.domain, status: 'completed' });
+              return result.value;
+            }
+
+            const gap = {
+              domain: item.domain,
+              check_id: '__specialist__',
+              subscription_id: subscriptionId,
+              type: '*',
+              status: 'partial',
+              count: 1,
+              reason: `specialist deadline exceeded (${timeoutSeconds}s)`,
+            };
+            onSpecialistTimeout({ node: child.id, item, timeoutSeconds, coverageGap: gap });
+            emit('agent.failed', { node_id: child.id, agent_id: item.agent, task_id: item.domain, status: 'failed' });
+            return { writes: { coverage_gaps: [gap] } };
+          } catch (error) {
+            const reason = timedOut
+              ? `specialist deadline exceeded (${timeoutSeconds}s)`
+              : `specialist failed: ${error instanceof Error ? error.message : String(error)}`;
+            emit('agent.failed', { node_id: child.id, agent_id: item.agent, task_id: item.domain, status: 'failed' });
+            return {
+              writes: {
+                coverage_gaps: [{
+                  domain: item.domain,
+                  check_id: '__specialist__',
+                  subscription_id: subscriptionId,
+                  type: '*',
+                  status: timedOut ? 'partial' : 'failed',
+                  count: 1,
+                  reason,
+                }],
+              },
+            };
+          } finally {
+            clearTimeout(timer);
+          }
+        }),
+      );
+      for (const result of results) applyResults(state, graph, result);
+      checkpoint('done');
+      emit('node.completed', { node_id: node.id, status: 'completed' });
+      current = linearNext(node.into);
+      continue;
+    }
+
+    if (node.kind === 'interrupt') {
+      const active = routers.route_active(state, params, ctx);
+      if (active !== 'none') {
+        const known = state.approved;
+        if (known == null && decision == null) {
+          checkpoint('interrupted');
+          emit('node.completed', { node_id: node.id, status: 'blocked' });
+          return { status: 'interrupted', state, path, steps, prompt: node.prompt, node: current };
+        }
+        const approved = known != null ? known : decision;
+        applyWrite(state, graph, 'approved', approved);
+        if (!approved) {
+          checkpoint('done');
+          current = node.on_reject;
+          continue;
+        }
+      }
+      const cond = condFrom.get(current);
+      const target = cond.branches[active];
+      if (target === undefined) throw new Error(`route_active returned unknown branch "${active}"`);
+      checkpoint('done');
+      emit('node.completed', { node_id: node.id, status: 'completed' });
+      current = target;
+      continue;
+    }
+
+    const result = node.kind === 'dispatch'
+      ? await runBoundedDispatch(node)
+      : await runHandler(node);
+    applyResults(state, graph, result);
+    checkpoint('done');
+    emit('node.completed', { node_id: node.id, status: 'completed' });
+    current = condFrom.has(current) ? conditionalNext(current) : linearNext(current);
+    if (current === undefined) throw new Error(`node "${node.id}" has no outgoing transition`);
+  }
+
+  path.push('END');
+  return { status: 'completed', state, path, steps };
+}
+
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
@@ -399,6 +602,50 @@ function checkpointWriter(sessionDir) {
   };
 }
 
+/**
+ * Bring the Agent Observatory up before the first node runs, so a long assessment is
+ * observable from its own start rather than from whenever someone remembers to launch it.
+ * Observability is best-effort: a port clash or a dashboard fault degrades to a warning
+ * and never takes the engagement down with it.
+ */
+export async function startObservatory(sessionDir, args = {}, { engagementRoot } = {}) {
+  if (!sessionDir || args['no-dashboard'] || args.dashboard === false || args.dashboard === 'false') return null;
+  const port = args['dashboard-port'] === undefined ? 4318 : Number(args['dashboard-port']);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.warn('⚠ ignoring invalid --dashboard-port; the assessment continues without the Observatory');
+    return null;
+  }
+  try {
+    const { createDashboard } = await import('../dashboard/server.mjs');
+    const dashboard = createDashboard({ session: sessionDir, ...(engagementRoot ? { engagementRoot } : {}) });
+    const url = await dashboard.listen(port);
+    console.log(`▶ Agent Observatory: ${url}`);
+    console.log(`  session: ${basename(sessionDir)} · metadata only · no Azure calls`);
+    return { dashboard, url };
+  } catch (error) {
+    const hint = error?.code === 'EADDRINUSE'
+      ? `port ${port} is already in use; pass --dashboard-port <n> for a second run`
+      : error.message;
+    console.warn(`⚠ Agent Observatory unavailable (${hint}); the assessment continues`);
+    return null;
+  }
+}
+
+/**
+ * A finished run normally releases the port. `--dashboard-linger` keeps the completed
+ * run readable until Ctrl+C, which is what you want when the report is the thing you
+ * came to look at.
+ */
+async function finishObservatory(observatory, args) {
+  if (!observatory) return;
+  if (args['dashboard-linger']) {
+    console.log(`▶ Agent Observatory still serving ${observatory.url} — press Ctrl+C to stop`);
+    await new Promise(() => {});
+    return;
+  }
+  await observatory.dashboard.close();
+}
+
 function loadLastCheckpoint(sessionDir) {
   const file = join(sessionDir, 'runs', 'graph-checkpoints.jsonl');
   if (!existsSync(file)) return null;
@@ -407,7 +654,7 @@ function loadLastCheckpoint(sessionDir) {
   return JSON.parse(lines[lines.length - 1]);
 }
 
-function main(argv) {
+async function main(argv) {
   const args = parseArgs(argv);
   const rel = typeof args.graph === 'string' ? args.graph : join('graph', 'redteam.graph.json');
   const graphPath = isAbsolute(rel) ? rel : resolve(ROOT, rel);
@@ -431,6 +678,15 @@ function main(argv) {
     onCheckpoint: checkpointWriter(sessionDir),
     store: makeMemoryStore({ persist: Boolean(sessionDir) }),
   };
+  // The event writer creates runs/ first: the dashboard only serves an existing session
+  // directory, and the run.started row must not land before there is anything to read it.
+  let observatory = null;
+  if (sessionDir) {
+    const emit = createEventWriter(sessionDir);
+    opts.emitEvent = emit;
+    observatory = await startObservatory(sessionDir, args);
+    emit('run.started', { node_id: 'validate_scope', status: 'running' });
+  }
 
   if (args.resume) {
     if (!sessionDir) { console.error('✖ --resume requires --session <dir>'); process.exit(1); }
@@ -443,21 +699,28 @@ function main(argv) {
     else { console.error('✖ resuming an interrupt requires --approve or --reject'); process.exit(1); }
   }
 
-  const result = runGraph(graph, opts);
+  const result = await runGraphAsync(graph, opts);
 
   if (result.status === 'interrupted') {
     console.log(`⏸ paused at "${result.node}" for human authorization:`);
     console.log(`   ${result.prompt}`);
     console.log(`   resume with: node tools/graph/run-graph.mjs --session <dir> --resume --approve   (or --reject)`);
+    await finishObservatory(observatory, args);
     process.exit(0);
   }
 
   console.log(`✓ ${graph.name}@${graph.version} completed in ${result.steps} steps`);
   console.log(`  path: ${result.path.join(' -> ')}`);
   console.log(`  confirmed findings: ${(result.state.confirmed_findings || []).length}`);
+  opts.emitEvent?.('run.completed', {
+    node_id: 'reflexion_debrief',
+    status: 'completed',
+    metrics: { confirmed_findings: (result.state.confirmed_findings || []).length },
+  });
+  await finishObservatory(observatory, args);
   process.exit(0);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main(process.argv);
+  await main(process.argv);
 }

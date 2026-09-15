@@ -2,7 +2,7 @@
 /**
  * validate-findings.mjs — strict pre-flight validator for assessment artifacts.
  *
- * Validates a findings.json (and optionally an attack-paths.json) against the
+ * Validates findings JSON/JSONL (and optionally an attack-paths.json) against the
  * essential constraints in schemas/finding.schema.json and
  * schemas/attack-path.schema.json BEFORE report generation, so authoring
  * mistakes fail fast instead of rendering into a polished-but-wrong report.
@@ -65,6 +65,36 @@ function loadJson(path, label) {
   } catch (err) {
     console.error(`Error: ${label} at "${path}" is not valid JSON: ${err.message}`);
     process.exit(2);
+  }
+}
+
+function loadFindings(path) {
+  let text;
+  try {
+    text = readFileSync(path, 'utf8').trim();
+  } catch (err) {
+    console.error(`Error: could not read findings at "${path}": ${err.message}`);
+    process.exit(2);
+  }
+  if (!text) return [];
+  try {
+    return JSON.parse(text);
+  } catch {
+    try {
+      return text.split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          try {
+            return JSON.parse(line);
+          } catch (err) {
+            throw new Error(`line ${index + 1}: ${err.message}`);
+          }
+        });
+    } catch (err) {
+      console.error(`Error: findings at "${path}" is neither valid JSON nor JSONL: ${err.message}`);
+      process.exit(2);
+    }
   }
 }
 
@@ -208,7 +238,7 @@ function main() {
     console.log('Usage: node tools/validate-findings.mjs --findings <path> [--attack-paths <path>]');
     process.exit(args.help ? 0 : 2);
   }
-  const findingIndex = validateFindings(asFindings(loadJson(args.findings, 'findings')));
+  const findingIndex = validateFindings(asFindings(loadFindings(args.findings)));
   if (args.attackPaths) validateAttackPaths(loadJson(args.attackPaths, 'attack-paths'), findingIndex);
 
   for (const w of warnings) console.error('warning: ' + w);

@@ -89,6 +89,27 @@ try {
   eq(findings.length, 1, 'replace mode removes stale prior findings');
   eq(findings[0].id, 'AZ-NET-002', 'replace mode keeps only current findings input');
 
+  // Summary objects and malformed collection shapes in a findings directory are
+  // ignored rather than crashing or polluting the canonical findings table.
+  const mixedDir = join(temp, 'mixed-raw');
+  mkdirSync(mixedDir, { recursive: true });
+  writeJson(join(mixedDir, 'summary.jsonl'), {
+    schema: 'finding-summary/v1',
+    total_findings: 0,
+    evidence: { count: 0 },
+  });
+  writeJson(join(mixedDir, 'malformed.jsonl'), {
+    ...finding('AZ-NET-003', 'bad-evidence', '/subscriptions/sub-a/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip-bad', 'Malformed evidence'),
+    evidence: { source: 'unit-test', summary: 'not an array' },
+  });
+  writeJson(join(mixedDir, 'valid.jsonl'), [
+    finding('AZ-NET-004', 'valid-after-malformed', '/subscriptions/sub-a/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip-valid', 'Valid finding'),
+  ]);
+  run(['tools/datastore/ingest.mjs', '--db', db, '--findings', mixedDir, '--replace-findings']);
+  findings = exportedFindings(db, out);
+  eq(findings.length, 1, 'malformed and summary records are skipped without aborting ingest');
+  eq(findings[0].id, 'AZ-NET-004', 'valid records still ingest after malformed records');
+
   // Replace mode with an empty findings directory is a valid zero-findings snapshot.
   run(['tools/datastore/ingest.mjs', '--db', db, '--findings', emptyRaw, '--replace-findings']);
   findings = exportedFindings(db, out);
