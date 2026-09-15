@@ -63,7 +63,7 @@ The team ships as native **GitHub Copilot CLI** primitives, so once this repo is
 
 Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run an Azure red team assessment").
 
-## 🕸️ Graph engineering & self-improving loops
+## 🕸️ Graph engineering & evidence-gated learning loops
 
 The primary architecture is the canonical declarative graph in
 [`graph/redteam.graph.json`](graph/redteam.graph.json): scope validation and read-only permission
