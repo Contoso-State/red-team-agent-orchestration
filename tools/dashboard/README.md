@@ -29,6 +29,8 @@ History replay is explicitly labeled and advances recorded events at a presentat
 
 Memory panels distinguish retrieved records, inert candidates, promotions, evidence-integrity verification, and recorded measurements. Verification or promotion is never presented as measured improvement. Counts come from event metrics when supplied; otherwise a count denotes a recorded event. The timeline exposes the underlying metrics and references.
 
+Direct methodology-memory library calls must wire Observatory emission explicitly. When a host calls `reflexionDebrief()` or `consolidateMethodology()` outside `tools/graph/run-graph.mjs`, pass the shared dashboard writer as `emitEvent` (or pass `session: "engagements/<session>"` so the library creates that writer with `createEventWriter`). Real experience writes emit `memory.candidate`; real knowledge promotions emit `memory.promoted`; no event is emitted for zero writes/promotions. If neither `emitEvent` nor `session` is supplied, memory still writes, but the dashboard will truthfully show no candidate/promotion events.
+
 ## Event contract
 
 JSONL rows use `schema_version: 1`, `id` (nonnegative integer or safe identifier), ISO `ts`, and a supported `type`. Optional metadata fields are `session_id`, `run_id`, `agent_id`, `node_id`, `status`, `mode` (`live`, `dry-run`, `replay`), `from_agent`, `to_agent`, `task_id`, `metrics`, and session-relative `evidence_refs`.

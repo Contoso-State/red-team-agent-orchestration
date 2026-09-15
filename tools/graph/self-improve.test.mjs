@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, loadGraph } from './run-graph.mjs';
 import {
@@ -219,6 +219,49 @@ test('reflexion debrief writes a methodology entry and audits', () => {
   assert.ok(audit.entries().some((e) => e.action === 'reflexion.debrief'));
 });
 
+test('direct reflexion debrief emits candidate metrics only for real experience writes', () => {
+  const store = makeProceduralStore();
+  const events = [];
+  reflexionDebrief(
+    { confirmed_findings: [{ dedupe_key: 'identity:stale-owner', severity: 'high', domain: 'identity' }], revision: 1 },
+    { store, runId: 'run-a', emitEvent: (type, metadata) => events.push({ type, ...metadata }) },
+  );
+  assert.deepEqual(events.map((event) => event.type), ['memory.candidate']);
+  assert.equal(events[0].metrics.count, 1);
+  assert.equal(events[0].metrics.candidates, 1);
+  assert.equal(events[0].metrics.records, 1);
+  assert.deepEqual(events[0].evidence_refs, ['identity:stale-owner']);
+});
+
+test('direct reflexion debrief can create the shared dashboard event writer from a session', () => {
+  const root = join(ROOT, '.test-artifacts', 'self-improve-events');
+  const session = join(root, 'engagements', 'direct-session');
+  rmSync(root, { recursive: true, force: true });
+  mkdirSync(session, { recursive: true });
+  try {
+    const store = makeProceduralStore();
+    reflexionDebrief(
+      { confirmed_findings: [{ dedupe_key: 'identity:stale-owner', severity: 'high', domain: 'identity' }], revision: 1 },
+      { store, runId: 'run-a', session, engagementRoot: join(root, 'engagements') },
+    );
+    const rows = readFileSync(join(session, 'runs', 'live-events.jsonl'), 'utf8').trim().split(/\r?\n/).map(JSON.parse);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].type, 'memory.candidate');
+    assert.deepEqual(rows[0].metrics, { count: 1, records: 1, candidates: 1 });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('direct reflexion debrief emits no memory event when no methodology write occurs', () => {
+  const events = [];
+  reflexionDebrief(
+    { confirmed_findings: [{ dedupe_key: 'identity:stale-owner', severity: 'high', domain: 'identity' }], revision: 1 },
+    { runId: 'run-a', emitEvent: (type, metadata) => events.push({ type, ...metadata }) },
+  );
+  assert.equal(events.length, 0);
+});
+
 test('AEF consolidation keeps one run as an episode and promotes repeated agent knowledge', () => {
   const store = makeProceduralStore();
   const audit = makeAuditLog();
@@ -238,6 +281,32 @@ test('AEF consolidation keeps one run as an episode and promotes repeated agent 
   assert.equal(knowledge[0].agent_id, 'identity');
   assert.deepEqual(knowledge[0].run_ids, ['run-a', 'run-b']);
   assert.equal(knowledge[0].occurrences, 2);
+});
+
+test('direct methodology consolidation emits promoted metrics only for real promotions', () => {
+  const store = makeProceduralStore();
+  const events = [];
+  const base = {
+    kind: 'experience',
+    contract: AEF_LEARNING_CONTRACT.version,
+    source_commit: AEF_LEARNING_CONTRACT.source_commit,
+    agent_id: 'identity',
+    signature: 'same-pattern',
+    outcome: 'confirmed',
+    executable: false,
+  };
+  store.write('methodology', { ...base, run_id: 'run-a' });
+  store.write('methodology', { ...base, run_id: 'run-b' });
+  const first = consolidateMethodology(store, { emitEvent: (type, metadata) => events.push({ type, ...metadata }) });
+  assert.equal(first.promoted.length, 1);
+  assert.deepEqual(events.map((event) => event.type), ['memory.promoted']);
+  assert.equal(events[0].metrics.count, 1);
+  assert.equal(events[0].metrics.promoted, 1);
+  assert.equal(events[0].metrics.records, 1);
+
+  events.length = 0;
+  assert.equal(consolidateMethodology(store, { emitEvent: (type, metadata) => events.push({ type, ...metadata }) }).promoted.length, 0);
+  assert.equal(events.length, 0);
 });
 
 test('AEF consolidation never pools evidence across agents', () => {

@@ -40,6 +40,7 @@ import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, runGraph } from './run-graph.mjs';
 import { GUARD_NAMESPACES } from './validate-graph.mjs';
+import { createEventWriter } from '../dashboard/events.mjs';
 
 export const METHODOLOGY_NS = 'methodology';
 export const AEF_LEARNING_CONTRACT = Object.freeze({
@@ -206,6 +207,41 @@ export function selfImprovementEnabled(env = process.env) {
 // ---------------------------------------------------------------------------
 
 const round2 = (n) => Math.round(n * 100) / 100;
+
+
+const MEMORY_EVENT_DEFAULTS = Object.freeze({
+  'memory.candidate': { status: 'candidate', metricKey: 'candidates' },
+  'memory.promoted': { status: 'promoted', metricKey: 'promoted' },
+});
+
+function resolveMemoryEventEmitter({ emitEvent, session, runId, engagementRoot } = {}) {
+  if (typeof emitEvent === 'function') return emitEvent;
+  const resolvedSession = session || process.env.REDTEAM_OBSERVATORY_SESSION || process.env.AGENT_OBSERVATORY_SESSION;
+  if (!resolvedSession) return null;
+  return createEventWriter(
+    resolvedSession,
+    engagementRoot ? { runId: runId || `memory-${Date.now()}`, engagementRoot } : { runId: runId || `memory-${Date.now()}` },
+  );
+}
+
+function emitMemoryEvent(type, { emitEvent, session, runId, engagementRoot, audit, nodeId } = {}, { count = 0, evidenceRefs = [] } = {}) {
+  const observed = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+  if (observed <= 0) return null;
+  const defaults = MEMORY_EVENT_DEFAULTS[type];
+  if (!defaults) throw new Error(`unsupported memory event type "${type}"`);
+  const emitter = resolveMemoryEventEmitter({ emitEvent, session, runId, engagementRoot });
+  if (!emitter) {
+    if (audit) audit.record('memory.event.missing', { event_type: type, count: observed, reason: 'no emitEvent or session option' });
+    return null;
+  }
+  const metrics = { count: observed, records: observed, [defaults.metricKey]: observed };
+  return emitter(type, {
+    node_id: nodeId,
+    status: defaults.status,
+    metrics,
+    evidence_refs: evidenceRefs,
+  });
+}
 
 function tally(values) {
   const out = {};
@@ -496,7 +532,7 @@ export function judgeFindings(candidates, { store, audit } = {}) {
 // Reflexion / ExpeL debrief.
 // ---------------------------------------------------------------------------
 
-export function consolidateMethodology(store, { audit, minDistinctRuns = AEF_LEARNING_CONTRACT.min_distinct_runs } = {}) {
+export function consolidateMethodology(store, { audit, minDistinctRuns = AEF_LEARNING_CONTRACT.min_distinct_runs, emitEvent, session, runId, engagementRoot, nodeId = 'consolidate_methodology' } = {}) {
   if (!store) return { promoted: [] };
   const entries = store.load(METHODOLOGY_NS).entries || [];
   const groups = new Map();
@@ -546,10 +582,14 @@ export function consolidateMethodology(store, { audit, minDistinctRuns = AEF_LEA
     promoted.push(knowledge);
     if (audit) audit.record('knowledge.promote', { agent_id: agentId, signature, outcome, distinct_runs: runIds.length });
   }
+  emitMemoryEvent('memory.promoted', { emitEvent, session, runId, engagementRoot, audit, nodeId }, {
+    count: promoted.length,
+    evidenceRefs: promoted.flatMap((entry) => Array.isArray(entry.run_ids) ? entry.run_ids : []),
+  });
   return { promoted };
 }
 
-export function reflexionDebrief(state, { store, audit, runId = 'unattributed', agentId = 'orchestrator' } = {}) {
+export function reflexionDebrief(state, { store, audit, runId = 'unattributed', agentId = 'orchestrator', emitEvent, session, engagementRoot, nodeId = 'reflexion_debrief' } = {}) {
   const confirmed = (state && state.confirmed_findings) || [];
   const entry = {
     kind: 'reflexion_debrief',
@@ -565,8 +605,9 @@ export function reflexionDebrief(state, { store, audit, runId = 'unattributed', 
   };
   if (store) {
     store.write(METHODOLOGY_NS, entry);
+    const writtenExperiences = [];
     for (const finding of confirmed) {
-      store.write(METHODOLOGY_NS, {
+      const experience = {
         kind: 'experience',
         contract: AEF_LEARNING_CONTRACT.version,
         source_commit: AEF_LEARNING_CONTRACT.source_commit,
@@ -577,9 +618,16 @@ export function reflexionDebrief(state, { store, audit, runId = 'unattributed', 
         severity: String(finding?.severity || 'unknown').toLowerCase(),
         executable: false,
         ts: new Date().toISOString(),
-      });
+      };
+      store.write(METHODOLOGY_NS, experience);
+      writtenExperiences.push(experience);
     }
-    consolidateMethodology(store, { audit });
+    emitMemoryEvent('memory.candidate', { emitEvent, session, runId, engagementRoot, audit, nodeId }, {
+      count: writtenExperiences.length,
+      evidenceRefs: writtenExperiences.map((experience) => experience.signature),
+    });
+    const emitter = resolveMemoryEventEmitter({ emitEvent, session, runId, engagementRoot });
+    consolidateMethodology(store, { audit, emitEvent: emitter || emitEvent, session: emitter ? undefined : session, runId, engagementRoot, nodeId });
   }
   if (audit) audit.record('reflexion.debrief', { confirmed: entry.confirmed, revision: entry.revision });
   return entry;
@@ -631,7 +679,7 @@ export function makeSelfImprovementHandlers({
       emitMemory('memory.candidate', {
         node_id: node.id,
         status: 'candidate',
-        metrics: { count: 1 },
+        metrics: { count: 1, candidates: 1 },
         evidence_refs: [candidate.fingerprint],
       });
       const promotion = promoteLearningCandidate(candidate, { store, audit });
@@ -639,7 +687,7 @@ export function makeSelfImprovementHandlers({
         emitMemory('memory.promoted', {
           node_id: node.id,
           status: 'promoted',
-          metrics: { count: 1 },
+          metrics: { count: 1, promoted: 1 },
           evidence_refs: promotion.run_ids,
         });
       }
@@ -655,7 +703,7 @@ export function makeSelfImprovementHandlers({
         emitMemory('memory.candidate', {
           node_id: node.id,
           status: 'candidate',
-          metrics: { count: newlySuppressed.length },
+          metrics: { count: newlySuppressed.length, candidates: newlySuppressed.length },
           evidence_refs: newlySuppressed,
         });
       }
@@ -663,27 +711,7 @@ export function makeSelfImprovementHandlers({
     },
     reflexion_debrief(node, ctx) {
       if (!enabled) return {};
-      const before = store.load(METHODOLOGY_NS).entries.length;
-      reflexionDebrief(ctx.state, { store, audit, runId, agentId });
-      const added = store.load(METHODOLOGY_NS).entries.slice(before);
-      const candidates = added.filter((entry) => ['reflexion_debrief', 'experience'].includes(entry?.kind));
-      const promoted = added.filter((entry) => entry?.kind === 'knowledge');
-      if (candidates.length) {
-        emitMemory('memory.candidate', {
-          node_id: node.id,
-          status: 'candidate',
-          metrics: { count: candidates.length },
-          evidence_refs: candidates.flatMap((entry) => entry?.signature ? [entry.signature] : []),
-        });
-      }
-      if (promoted.length) {
-        emitMemory('memory.promoted', {
-          node_id: node.id,
-          status: 'promoted',
-          metrics: { count: promoted.length },
-          evidence_refs: promoted.flatMap((entry) => Array.isArray(entry.run_ids) ? entry.run_ids : []),
-        });
-      }
+      reflexionDebrief(ctx.state, { store, audit, runId, agentId, emitEvent, nodeId: node.id });
       return {};
     },
   };
