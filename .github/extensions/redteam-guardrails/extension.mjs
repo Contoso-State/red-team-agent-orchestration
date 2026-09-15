@@ -1,39 +1,36 @@
 // Extension: redteam-guardrails
-// Read-only enforcement for Azure red team engagements.
+// Copilot App session adapter for Azure red team engagements.
 //
-// Registers a preToolUse hook that enforces a READ-ONLY posture across every agent in the
-// session (including sub-agents the orchestrator dispatches). Any Azure CLI (az/azd) or Azure
-// PowerShell command that is not a recognized read/query operation is DENIED. In
-// controlled-validation mode the same commands are downgraded to an explicit human-approval
-// prompt instead of being allowed silently — the read-only guarantee can never be bypassed
-// without intent.
+// Copilot App (observed on 1.0.84-5) fails project `onPreToolUse` hooks BEFORE the callback
+// is invoked — a minimal synchronous allow callback fails the same way. Because a security
+// hook must fail closed, that rejection denied every tool call in the session, including
+// commands with nothing to do with Azure (`git status`, `git fetch`). Registering the hook
+// here therefore does not enforce the posture; it only makes the session unusable.
 //
-// Decision logic lives in the platform-neutral shared core at guardrails/core/ (pure +
-// unit-tested). This extension is only the Copilot-SDK wire adapter; Claude, Codex and
-// Cursor have their own thin adapters over the same core.
+// Until the App honours project hooks, this adapter supplies the read-only posture at
+// session start and leaves classification available through the platform-neutral CLI:
+//
+//   echo '{"command":"az vm delete ...","cwd":".","toolName":"shell"}' | node guardrails/guard.mjs
+//
+// IMPORTANT: Copilot App consequently has NO automatic tool-boundary enforcement. Claude,
+// Codex and Cursor keep their native enforcement adapters over the same shared guard, and
+// the repository-level guard remains the source of truth for every runtime that can run it.
 
 import { joinSession } from "@github/copilot-sdk/extension";
-import { decideSafe, READONLY_BANNER } from "../../../guardrails/guard.mjs";
+import { READONLY_BANNER } from "../../../guardrails/guard.mjs";
 
-const session = await joinSession({
+const COMPATIBILITY_NOTICE =
+  "Copilot App compatibility mode: the project onPreToolUse hook is not registered because " +
+  "Copilot App rejects project tool hooks before the callback runs, which blocked every " +
+  "command in the session. This runtime therefore has NO automatic tool-boundary " +
+  "enforcement. Preserve the read-only posture manually: classify any Azure command before " +
+  "running it by piping its JSON payload to `node guardrails/guard.mjs`, and never run a " +
+  "mutating az/azd/Az PowerShell command against the engagement subscription.";
+
+await joinSession({
   hooks: {
     onSessionStart: async () => ({
-      additionalContext: READONLY_BANNER,
+      additionalContext: `${READONLY_BANNER}\n\n${COMPATIBILITY_NOTICE}`,
     }),
-
-    onPreToolUse: async (input) => {
-      // Keep hook execution pure: nested session RPCs from inside a permission hook can
-      // deadlock or fail on some hosts. The shared adapter handles all three evaluators,
-      // catches malformed input, and fails closed.
-      const result = decideSafe({
-        command: input?.toolArgs,
-        cwd: input?.workingDirectory,
-        toolName: input?.toolName,
-      });
-      return {
-        permissionDecision: result.decision,
-        ...(result.reason ? { permissionDecisionReason: result.reason } : {}),
-      };
-    },
   },
 });
