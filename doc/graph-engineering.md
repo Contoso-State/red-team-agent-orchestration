@@ -1,9 +1,9 @@
 ---
-title: Graph Engineering & Self-Improvement
-description: The canonical declarative graph, bounded self-improving loops, and two-engine execution model for the Azure red-team agent framework.
+title: Graph Engineering & Evidence-Gated Learning
+description: The canonical declarative graph, bounded evidence-gated learning loops, and two-engine execution model for the Azure red-team agent framework.
 ---
 
-# Graph Engineering & Self-Improvement
+# Graph Engineering & Evidence-Gated Learning
 
 The primary architectural standard for this framework is now **graph engineering**: one
 explicit, declarative engagement graph defines the topology, state channels, reducers,

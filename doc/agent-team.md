@@ -107,7 +107,7 @@ step, a **bounded evaluate → refine** reflection loop, an Agent-as-a-Judge fal
 a human-in-the-loop `authorize_active` interrupt for the gated lanes, and a `reflexion_debrief`
 that writes learning back to methodology memory. Each specialist above also runs a bounded
 [Self-Refine](../knowledge/self-refine.md) pass on its own draft findings. See
-[Graph Engineering & Self-Improvement](graph-engineering.md) for the full topology.
+[Graph Engineering & Evidence-Gated Learning](graph-engineering.md) for the full topology.
 :::
 
 ## How the team is packaged
