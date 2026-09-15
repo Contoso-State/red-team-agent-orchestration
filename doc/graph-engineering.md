@@ -143,6 +143,16 @@ outputs are limited to bounded parameters and non-executable methodology; code, 
 permissions, and policy are outside the learning surface.
 :::
 
+:::{note}
+**What "self-improving" does and does not mean here.** The mechanism is demonstrable: a later run
+retrieves records attributed to an earlier distinct run, and promotion occurs only once that
+second attributed run exists. What is *not* claimed is that reuse improves detection quality,
+coverage or speed — establishing that requires a controlled comparison (fixed evidence snapshot,
+a memory-disabled control arm, an equal read budget, multiple seeds, and a pre-registered metric).
+Absent that comparison, run-to-run differences are explained by bounded sampling and model
+nondeterminism. No model weights are trained anywhere in this system.
+:::
+
 ### AEF-compatible learning contract
 
 The loop adapts the safe reflection-and-memory architecture from the read-only `aef-core`
