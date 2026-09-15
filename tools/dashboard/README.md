@@ -46,13 +46,32 @@ nor an increased judgment score establishes a security pass or a learning gain.
 Free-form summaries, message bodies, model reasoning, commands, outputs, environment variables, and unknown fields are never forwarded. The UI generates neutral event summaries. Numeric metrics use a fixed allowlist. Producers must emit metadata only; this viewer is not a sanitizer for arbitrary customer data.
 
 The dashboard is a reader, not an activity detector. Graph runs started with
-`tools/graph/run-graph.mjs --session ...` emit events automatically. Hosts that dispatch agents
-directly must append lifecycle metadata through `tools/dashboard/events.mjs`; otherwise the
-dashboard truthfully remains empty.
+`tools/graph/run-graph.mjs --session ...` emit lifecycle events automatically. Hosts that
+dispatch agents directly must append lifecycle metadata themselves; otherwise the dashboard
+truthfully reports no started, running, completed, or failed agents.
+
+Producer boundaries are intentionally strict:
+
+- `tools/dashboard/watch-session.mjs` can observe only local artifact changes under findings,
+  evidence, inventory, and reports. It emits `tool.completed` and `message.sent` events for
+  files that appear or grow. A findings file is not proof that its producer has finished, so the
+  watcher never emits `agent.completed`, never infers completion from quiet periods, and never
+  invents heartbeats.
+- The dispatcher/orchestrator is the only producer that knows agent lifecycle. A direct host
+  should use `tools/dashboard/agent-lifecycle.mjs`, which wraps the shared event writer and
+  records only explicit `agent.started`, `agent.completed`, or `agent.failed` observations.
+
+Both the watcher and lifecycle helper default to joining the latest non-watcher `run_id` already
+present in `<session>/runs/live-events.jsonl`. That keeps artifact and lifecycle events in the
+same dashboard run by default. Pass `--run-id` only when intentionally starting or targeting a
+different recorded run.
 
 ```sh
-node tools/dashboard/events.mjs --session engagements/<session> \
-  --type agent.started --agent "Red Team Reporting" --node report --status running
+node tools/dashboard/agent-lifecycle.mjs --session engagements/<session> \
+  --type started --agent "Red Team Reporting" --node report --task reporting
+
+node tools/dashboard/agent-lifecycle.mjs --session engagements/<session> \
+  --type completed --agent "Red Team Reporting" --node report --task reporting
 ```
 
 Evidence links return only the exact recorded reference and event provenance. They never read the referenced file, confirm its existence, or serve artifact contents. Inspect local artifacts through the normal authorized workspace workflow.

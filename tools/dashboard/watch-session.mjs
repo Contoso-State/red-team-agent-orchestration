@@ -176,8 +176,18 @@ export function diffAndEmit(previous, current, emit) {
   return emitted;
 }
 
-export async function watchSession(sessionDir, { intervalMs = 5000, runId = 'watch', signal, engagementRoot, emitExisting = false } = {}) {
-  const emit = createEventWriter(sessionDir, engagementRoot ? { runId, engagementRoot } : { runId });
+function validateRunId(runId) {
+  if (runId === undefined || runId === null) return null;
+  if (typeof runId !== 'string') throw new Error('--run-id must be a string');
+  const normalized = String(runId).trim();
+  if (!normalized) throw new Error('--run-id must be a non-empty string');
+  if (/\s/.test(normalized)) throw new Error('--run-id must not contain whitespace');
+  return normalized;
+}
+
+export async function watchSession(sessionDir, { intervalMs = 5000, runId, signal, engagementRoot, emitExisting = false } = {}) {
+  const resolvedRunId = validateRunId(runId) || detectRunId(sessionDir) || `watch-${Date.now()}`;
+  const emit = createEventWriter(sessionDir, engagementRoot ? { runId: resolvedRunId, engagementRoot } : { runId: resolvedRunId });
   // Starting from an empty baseline reports artifacts already on disk. They were
   // genuinely produced, so attributing them to their node is a record of real work
   // rather than a replay of activity that never happened.
@@ -204,8 +214,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const intervalMs = Number.isFinite(intervalArg) && intervalArg > 0 ? intervalArg * 1000 : 5000;
   const controller = new AbortController();
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => controller.abort());
-  const explicitRun = args.includes('--run-id') ? args[args.indexOf('--run-id') + 1] : null;
-  const runId = explicitRun || detectRunId(session) || `watch-${Date.now()}`;
+  const runIndex = args.indexOf('--run-id');
+  if (runIndex >= 0 && (!args[runIndex + 1] || args[runIndex + 1].startsWith('--'))) {
+    console.error('--run-id requires a non-empty value');
+    process.exit(2);
+  }
+  const explicitRun = runIndex >= 0 ? args[runIndex + 1] : null;
+  const runId = validateRunId(explicitRun) || detectRunId(session) || `watch-${Date.now()}`;
   console.log(`Watching ${session} every ${intervalMs / 1000}s as run "${runId}" — emitting events only for observed artifact changes.`);
   await watchSession(session, {
     intervalMs,

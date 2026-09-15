@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, loadGraph } from './run-graph.mjs';
 import {
@@ -53,6 +54,22 @@ test('procedural store appends, loads, and rolls back', () => {
   assert.equal(store.rollbackLast(), true);
   assert.equal(store.load('methodology').entries.length, 1);
   assert.equal(store.load('methodology').entries[0].kind, 'a');
+});
+
+test('procedural store reloads persisted methodology log', () => {
+  const root = join(ROOT, '.test-artifacts', 'memory-persistence');
+  rmSync(root, { recursive: true, force: true });
+  try {
+    const first = makeProceduralStore({ root, persist: true });
+    first.write('methodology', { kind: 'experience', run_id: 'run-a', agent_id: 'identity' });
+
+    const second = makeProceduralStore({ root, persist: true });
+    assert.deepEqual(second.load('methodology').entries, [
+      { kind: 'experience', run_id: 'run-a', agent_id: 'identity' },
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('procedural store refuses guardrail namespaces', () => {
@@ -274,6 +291,34 @@ test('disabled learning makes handlers static (no methodology writes)', () => {
   handlers.evaluate({}, ctx);
   handlers.reflexion_debrief({}, ctx);
   assert.equal(store.load('methodology').entries.length, 0);
+});
+
+test('self-improvement handlers emit only observed memory candidate and promotion events', () => {
+  const store = makeProceduralStore();
+  const audit = makeAuditLog();
+  const events = [];
+  const emitEvent = (type, metadata) => events.push({ type, ...metadata });
+  const first = makeSelfImprovementHandlers({ store, audit, runId: 'run-a', emitEvent });
+  const ctx = { state: { candidate_findings: [], revision: 0 }, params: graph.params };
+
+  first.handlers.evaluate({ id: 'evaluate' }, ctx);
+  assert.equal(events.filter((event) => event.type === 'memory.candidate').length, 1);
+  assert.equal(events.some((event) => event.type === 'memory.promoted'), false);
+
+  reflexionDebrief(
+    { confirmed_findings: [{ dedupe_key: 'identity:stale-owner', severity: 'high', domain: 'identity' }] },
+    { store, audit, runId: 'run-a' },
+  );
+  const second = makeSelfImprovementHandlers({ store, audit, runId: 'run-b', emitEvent });
+  second.handlers.reflexion_debrief(
+    { id: 'reflexion_debrief' },
+    { state: { confirmed_findings: [{ dedupe_key: 'identity:stale-owner', severity: 'high', domain: 'identity' }], revision: 1 } },
+  );
+
+  const promoted = events.filter((event) => event.type === 'memory.promoted');
+  assert.equal(promoted.length, 1);
+  assert.equal(promoted[0].node_id, 'reflexion_debrief');
+  assert.equal(promoted[0].metrics.count, 1);
 });
 
 // --- learned params ---

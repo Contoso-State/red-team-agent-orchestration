@@ -13,6 +13,7 @@ import {
   makeMemoryStore,
   inScopeRoster,
 } from './run-graph.mjs';
+import { makeAuditLog, makeProceduralStore, makeSelfImprovementHandlers } from './self-improve.mjs';
 
 const graph = loadGraph(join(ROOT, 'graph', 'redteam.graph.json')).graph;
 
@@ -106,8 +107,15 @@ test('async fan-out starts specialist handlers concurrently and reduces determin
       },
     },
   });
+  assert.ok(maxActive > 1);
+  assert.equal(res.state.raw_findings.length, 11);
+  assert.deepEqual(
+    res.state.raw_findings.map((finding) => finding.dedupe_key),
+    inScopeRoster(graph, { scope: { m365_in_scope: false } }).map((item) => `f-${item.domain}`),
+  );
+});
 
-  test('async graph emits node and specialist lifecycle events', async () => {
+test('async graph emits node and specialist lifecycle events', async () => {
     const events = [];
     const res = await runGraphAsync(graph, {
       scope: { mode: 'read-only-assessment', m365_in_scope: false },
@@ -121,7 +129,7 @@ test('async fan-out starts specialist handlers concurrently and reduces determin
     assert.ok(events.some(event => event.type === 'node.completed' && event.node_id === 'report'));
   });
 
-  test('a memory read reports what it retrieved, including an empty store', async () => {
+test('a memory read reports what it retrieved, including an empty store', async () => {
     const events = [];
     await runGraphAsync(graph, {
       scope: { mode: 'read-only-assessment', m365_in_scope: false },
@@ -132,9 +140,10 @@ test('async fan-out starts specialist handlers concurrently and reduces determin
     assert.equal(retrieved[0].node_id, 'memory_load');
     assert.equal(typeof retrieved[0].metrics.retrieved, 'number');
     assert.equal(retrieved[0].metrics.retrieved, 0, 'an empty store reports zero rather than staying silent');
+    assert.equal(retrieved[0].metrics.records, 0, 'dashboard counters consume the allowlisted records metric');
   });
 
-  test('a memory read reports real counts when the store holds entries', async () => {
+test('a memory read reports real counts when the store holds entries', async () => {
     const events = [];
     await runGraphAsync(graph, {
       scope: { mode: 'read-only-assessment', m365_in_scope: false },
@@ -154,18 +163,39 @@ test('async fan-out starts specialist handlers concurrently and reduces determin
       },
     });
     const [event] = events.filter(e => e.type === 'memory.retrieved');
+    assert.equal(event.metrics.records, 3);
     assert.equal(event.metrics.retrieved, 3);
     assert.equal(event.metrics.knowledge_count, 2);
     assert.equal(event.metrics.suppression_count, 1);
     assert.equal(event.metrics.experience_count, 0);
   });
-  assert.ok(maxActive > 1);
-  assert.equal(res.state.raw_findings.length, 11);
-  assert.deepEqual(
-    res.state.raw_findings.map((finding) => finding.dedupe_key),
-    inScopeRoster(graph, { scope: { m365_in_scope: false } }).map((item) => `f-${item.domain}`),
-  );
-});
+
+test('async graph emits real self-improvement memory candidates without fabricating promotions', async () => {
+    const store = makeProceduralStore();
+    const audit = makeAuditLog();
+    const events = [];
+    const emitEvent = (type, metadata) => events.push({ type, ...metadata });
+    const { handlers: learningHandlers } = makeSelfImprovementHandlers({
+      store,
+      audit,
+      runId: 'run-observed-memory',
+      emitEvent,
+    });
+    await runGraphAsync(graph, {
+      scope: { mode: 'read-only-assessment', m365_in_scope: false },
+      emitEvent,
+      handlers: {
+        ...specialistDispatch().handlers,
+        ...learningHandlers,
+      },
+    });
+
+    const memoryEvents = events.filter((event) => event.type.startsWith('memory.'));
+    assert.ok(memoryEvents.some((event) => event.type === 'memory.retrieved'));
+    assert.ok(memoryEvents.some((event) => event.type === 'memory.candidate' && event.node_id === 'evaluate'));
+    assert.ok(memoryEvents.some((event) => event.type === 'memory.candidate' && event.node_id === 'reflexion_debrief'));
+    assert.equal(memoryEvents.some((event) => event.type === 'memory.promoted'), false);
+  });
 
 test('async fan-out times out one stalled specialist without blocking the others', async () => {
   const timedOut = [];

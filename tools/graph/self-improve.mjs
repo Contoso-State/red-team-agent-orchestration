@@ -34,7 +34,7 @@
  * Dependency-free (Node stdlib only).
  */
 
-import { mkdirSync, appendFileSync } from 'node:fs';
+import { mkdirSync, appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -137,6 +137,16 @@ export function makeProceduralStore({ root = ROOT, persist = false, seed } = {})
     for (const [ns, val] of Object.entries(seed)) {
       assertMethodologyNamespace(ns);
       mem.set(ns, { entries: [...((val && val.entries) || [])] });
+    }
+  } else if (persist) {
+    const file = assertWritablePath(join('memory', METHODOLOGY_NS, 'store.log.jsonl'), { root });
+    if (existsSync(file)) {
+      for (const line of readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean)) {
+        const rec = JSON.parse(line);
+        const ns = assertMethodologyNamespace(rec.ns || METHODOLOGY_NS);
+        const cur = mem.get(ns) || { entries: [] };
+        mem.set(ns, { entries: [...cur.entries, rec.entry] });
+      }
     }
   }
   const dir = join(root, 'memory', METHODOLOGY_NS);
@@ -597,8 +607,10 @@ export function makeSelfImprovementHandlers({
   env = process.env,
   runId = randomUUID(),
   agentId = 'orchestrator',
+  emitEvent = () => {},
 } = {}) {
   const enabled = selfImprovementEnabled(env);
+  const emitMemory = (type, metadata) => emitEvent(type, metadata);
 
   const handlers = {
     evaluate(node, ctx) {
@@ -616,7 +628,21 @@ export function makeSelfImprovementHandlers({
         signals: scored.signals,
       });
       store.write(METHODOLOGY_NS, candidate);
+      emitMemory('memory.candidate', {
+        node_id: node.id,
+        status: 'candidate',
+        metrics: { count: 1 },
+        evidence_refs: [candidate.fingerprint],
+      });
       const promotion = promoteLearningCandidate(candidate, { store, audit });
+      if (promotion.promoted) {
+        emitMemory('memory.promoted', {
+          node_id: node.id,
+          status: 'promoted',
+          metrics: { count: 1 },
+          evidence_refs: promotion.run_ids,
+        });
+      }
       audit.record('evaluate.score', { quality: scored.quality, revision: rev, proposed: candidate.params, promoted: promotion.promoted });
       // Tests / callers may force a quality to exercise the refine loop; otherwise use the score.
       const quality = typeof ctx.quality === 'number' ? ctx.quality : scored.quality;
@@ -624,12 +650,40 @@ export function makeSelfImprovementHandlers({
     },
     judge(node, ctx) {
       if (!enabled) return { writes: { confirmed_findings: ctx.state.candidate_findings || [] } };
-      const { confirmed } = judgeFindings(ctx.state.candidate_findings, { store, audit });
+      const { confirmed, newlySuppressed } = judgeFindings(ctx.state.candidate_findings, { store, audit });
+      if (newlySuppressed.length) {
+        emitMemory('memory.candidate', {
+          node_id: node.id,
+          status: 'candidate',
+          metrics: { count: newlySuppressed.length },
+          evidence_refs: newlySuppressed,
+        });
+      }
       return { writes: { confirmed_findings: confirmed } };
     },
     reflexion_debrief(node, ctx) {
       if (!enabled) return {};
+      const before = store.load(METHODOLOGY_NS).entries.length;
       reflexionDebrief(ctx.state, { store, audit, runId, agentId });
+      const added = store.load(METHODOLOGY_NS).entries.slice(before);
+      const candidates = added.filter((entry) => ['reflexion_debrief', 'experience'].includes(entry?.kind));
+      const promoted = added.filter((entry) => entry?.kind === 'knowledge');
+      if (candidates.length) {
+        emitMemory('memory.candidate', {
+          node_id: node.id,
+          status: 'candidate',
+          metrics: { count: candidates.length },
+          evidence_refs: candidates.flatMap((entry) => entry?.signature ? [entry.signature] : []),
+        });
+      }
+      if (promoted.length) {
+        emitMemory('memory.promoted', {
+          node_id: node.id,
+          status: 'promoted',
+          metrics: { count: promoted.length },
+          evidence_refs: promoted.flatMap((entry) => Array.isArray(entry.run_ids) ? entry.run_ids : []),
+        });
+      }
       return {};
     },
   };
@@ -646,7 +700,7 @@ export function runSelfImprovingGraph(graph, options = {}) {
   const store = options.store || makeProceduralStore({ persist: options.persist });
   const audit = options.audit || makeAuditLog({ persist: options.persist });
   const runId = options.runId || randomUUID();
-  const { handlers } = makeSelfImprovementHandlers({ store, audit, env: options.env, runId, agentId: options.agentId });
+  const { handlers } = makeSelfImprovementHandlers({ store, audit, env: options.env, runId, agentId: options.agentId, emitEvent: options.emitEvent });
   const params = applyLearnedParams({ ...(graph.params || {}), ...(options.params || {}) }, store);
   const result = runGraph(graph, {
     ...options,

@@ -39,6 +39,12 @@ import { pathToFileURL } from 'node:url';
 import { mergeFinding } from '../orchestration/manifest.mjs';
 import { ROOT, loadGraph, validateGraph, loadAgentNames, GUARD_NAMESPACES } from './validate-graph.mjs';
 import { createEventWriter } from '../dashboard/events.mjs';
+import {
+  applyLearnedParams,
+  makeAuditLog,
+  makeProceduralStore,
+  makeSelfImprovementHandlers,
+} from './self-improve.mjs';
 
 // Re-export the graph-loading helpers so callers can drive the runner from one module.
 export { ROOT, loadGraph } from './validate-graph.mjs';
@@ -563,6 +569,7 @@ export async function runGraphAsync(graph, options = {}) {
         node_id: node.id,
         status: 'retrieved',
         metrics: {
+          records: entries.length,
           retrieved: entries.length,
           knowledge_count: kindCount('knowledge'),
           experience_count: kindCount('experience'),
@@ -690,17 +697,27 @@ async function main(argv) {
     ? readEngagementScope(resolve(ROOT, args.engagement))
     : { mode: 'read-only-assessment', m365_in_scope: false };
 
+  const runId = typeof args.run === 'string' ? args.run : `run-${Date.now()}`;
+  const methodology = sessionDir ? makeProceduralStore({ persist: true }) : makeMemoryStore({ persist: false });
+  const audit = sessionDir ? makeAuditLog({ persist: true }) : null;
   const opts = {
     scope,
     onCheckpoint: checkpointWriter(sessionDir),
-    store: makeMemoryStore({ persist: Boolean(sessionDir) }),
+    store: methodology,
   };
+  if (sessionDir) opts.params = applyLearnedParams({ ...(graph.params || {}) }, methodology);
   // The event writer creates runs/ first: the dashboard only serves an existing session
   // directory, and the run.started row must not land before there is anything to read it.
   let observatory = null;
   if (sessionDir) {
-    const emit = createEventWriter(sessionDir);
+    const emit = createEventWriter(sessionDir, { runId });
     opts.emitEvent = emit;
+    opts.handlers = makeSelfImprovementHandlers({
+      store: methodology,
+      audit,
+      runId,
+      emitEvent: emit,
+    }).handlers;
     observatory = await startObservatory(sessionDir, args);
     emit('run.started', { node_id: 'validate_scope', status: 'running' });
   }
