@@ -145,3 +145,51 @@ test('codex adapter: unknown lifecycle event passes through (exit 0, silent)', (
   assert.equal(stdout.trim(), '');
   assert.equal(stderr.trim(), '');
 });
+
+// The Claude hook script is also discovered by other runtimes that read
+// .claude/settings.json. It previously understood only Claude's payload shape and,
+// on anything else, handed a non-string to the guard — which cannot classify one and
+// answered "allow". A mutating Azure command in an unrecognized shape was silently
+// permitted, while the file's own header promised it never silently allows.
+const HOOK = '.claude/hooks/redteam-guard.mjs';
+const decisionOf = (out) => {
+  if (!out.trim()) return 'allow';
+  return JSON.parse(out).hookSpecificOutput.permissionDecision;
+};
+
+test('hook denies a mutating command sent in a non-Claude payload shape', () => {
+  const { stdout } = run(HOOK, {
+    toolName: 'shell',
+    toolArgs: 'az group delete --name prod-rg --yes',
+    workingDirectory: '.',
+  });
+  assert.equal(decisionOf(stdout), 'deny', 'unrecognized shape must not fail open');
+});
+
+test('hook still evaluates a read-only command in a non-Claude payload shape', () => {
+  const { stdout } = run(HOOK, { toolName: 'shell', toolArgs: 'az group list', workingDirectory: '.' });
+  assert.equal(decisionOf(stdout), 'allow');
+});
+
+test('hook denies a shell tool call whose command cannot be read', () => {
+  assert.equal(decisionOf(run(HOOK, { toolName: 'bash' }).stdout), 'deny');
+  assert.equal(decisionOf(run(HOOK, { tool_name: 'Bash', tool_input: {} }).stdout), 'deny');
+});
+
+test('hook keeps no opinion on tool calls that carry no command by design', () => {
+  const { stdout } = run(HOOK, { tool_name: 'Read', tool_input: { file_path: 'x' } });
+  assert.equal(decisionOf(stdout), 'allow', 'non-shell tools must not be blocked');
+});
+
+test('hook preserves Claude-shape behaviour', () => {
+  const mutating = run(HOOK, {
+    hook_event_name: 'PreToolUse', tool_name: 'Bash',
+    tool_input: { command: 'az group delete -n x' }, cwd: '.',
+  });
+  assert.equal(decisionOf(mutating.stdout), 'deny');
+  const readOnly = run(HOOK, {
+    hook_event_name: 'PreToolUse', tool_name: 'Bash',
+    tool_input: { command: 'git status' }, cwd: '.',
+  });
+  assert.equal(decisionOf(readOnly.stdout), 'allow');
+});
