@@ -33,7 +33,7 @@ the **combined working tree**, including that earlier work.
 | Offline adapter | Nested retained text and multi-value credential headers could escape redaction; affected resources and optional finding fields lacked complete validation. | Recursively redact retained strings, remove full credential-header values, reject unknown payload fields, validate all affected resources against request provenance, and validate canonical finding fields. |
 | Live integration | Adding topology alone did not implement the stage in the separate live runner. | Persist `evidence/security-context.json`, pass its content into both specialist model passes, emit normal lifecycle/exchange metadata, and count actual scoped dispatches in reporting. |
 | Live scope and cancellation | Scope normalization discarded domain selections; cancellation could leave preflight descendants running; separator checks rejected valid Windows paths. | Preserve and validate supported domain selections, propagate cancellation through every preflight step with process-tree cleanup, and use platform-aware path containment checks. |
-| Fresh-checkout verification | Local AEF installation masked a missing CI prerequisite, and evolution tests depended on the caller's branch. | Bootstrap the pinned AEF source in CI, run the Python execution suite, and isolate evolution tests on a temporary branch while retaining production main/detached rejection. |
+| Fresh-checkout verification | Local AEF installation masked a missing CI prerequisite, and evolution tests depended on the caller's branch. | Bootstrap the pinned AEF source in both CI and documentation workflows, run the Python execution suite, and isolate evolution tests on a temporary branch while retaining production main/detached rejection. |
 | Documentation | Generated guidance overstated automatic learning and blurred simulation, live execution, and LangGraph stubs. | Regenerate definitions from canonical sources; describe evidence gates, collector gaps, and runtime limitations explicitly. |
 
 The context is a versioned **handoff**, not a new Azure collector. Its eight signal
@@ -81,13 +81,20 @@ documentation workflow's Node 20 runtime reproduced the nested-test cancellation
 which was corrected by registering the timeout test independently. An obsolete
 generated-document assertion was also updated to reflect evidence-gated learning.
 
+Hosted verification then exposed a Node 20 test-transport failure when Observatory
+startup logs interleaved with serialized test events. The failure reproduced in
+21 of 80 concurrent isolated runs. Test-scoped capture now verifies the startup
+messages without writing to that transport; all 160 subsequent stress runs passed.
+Production logging remains unchanged. The documentation workflow also installs
+the pinned AEF runtime before running its graph tests.
+
 For a fresh checkout, use Node 24 and Python 3.12. Obtain the AEF repository and
 revision recorded in `tools/aef/source-lock.json` in a **disjoint checkout**:
 neither repository may contain the other. The bootstrap reads that source's Git
 objects and builds the pinned package inside this repository's ignored
 `engagements/` directory; it does not install into or change the source checkout.
-The full Node suite requires this target-local AEF environment. The CI workflow
-now installs it before running the suite.
+The full Node suite requires this target-local AEF environment. The CI
+and documentation workflows now install it before running their suites.
 
 From the repository root, replace `<disjoint-aef-checkout>` with that source path
 and run the following in a POSIX shell:
