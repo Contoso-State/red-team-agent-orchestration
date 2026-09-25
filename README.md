@@ -67,7 +67,8 @@ Start the team with `/agent redteam-orchestrator` (or just ask Copilot to "run a
 
 The primary architecture is the canonical declarative graph in
 [`graph/redteam.graph.json`](graph/redteam.graph.json): scope validation and read-only permission
-checks run first, prior methodology memory is loaded, specialists fan out in parallel, findings
+checks run first, prior methodology memory is loaded, shared security context is prepared,
+specialists fan out in parallel, findings
 fan back in through deterministic reducers, the evaluator-optimizer loop reflects only while
 bounded by `max_revisions: 2` and `quality_threshold: 0.85`, and the judge/debrief nodes record
 evidence-gated methodology memory for later runs.
@@ -77,7 +78,8 @@ graph TD
     START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
     VS --> ML[memory_load<br/>methodology memory]
     ML --> PI[preflight_inventory<br/>sequential inventory]
-    PI --> PS[plan_specialists<br/>Send fan-out]
+    PI --> SC[build_security_context<br/>source references + coverage gaps]
+    SC --> PS[plan_specialists<br/>Send fan-out]
 
     subgraph Fanout[Parallel read-only specialist fan-out]
         PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]
@@ -89,7 +91,7 @@ graph TD
     EV -->|route_after_evaluate: refine<br/>revision < max_revisions<br/>and quality < quality_threshold| PS
     EV -->|route_after_evaluate: proceed| J[judge<br/>Agent-as-a-Judge FP gate]
 
-    J -->|auto-write FP suppressions| MW[(memory/methodology/)]
+    J -->|inert false-positive candidates| MW[(memory/methodology/)]
     J --> AA{{authorize_active<br/>HITL interrupt}}
     AA -->|route_active: external_active| EVA[eva_active<br/>gated external lane]
     AA -->|route_active: cluster_active| CA[cluster_active<br/>gated AKS lane]
@@ -109,14 +111,25 @@ graph TD
     class EVA,CA active;
 ```
 
-One graph has two engines: the dependency-free Node runner (`tools/graph/run-graph.mjs`) for the
-four CLI runtimes, and the first-class LangGraph target in
-[`integrations/langgraph/`](integrations/langgraph/) for Python deployment. The learning contract
-is adapted from AEF's safe reflection-and-memory loop: one run is an episode; matching evidence
-from at least two distinct runs for the same agent is required before bounded parameters or inert
-knowledge can be promoted. Runtime code evolution is excluded. The memory firewall keeps the
-read-only guard immutable: it can never modify `guardrails/**`, egress/cluster allowlists, role
-requirements, code, prompts, or tools. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
+The canonical graph has **15 nodes**. Its dependency-free Node runner
+(`tools/graph/run-graph.mjs`) uses simulated dispatch by default; the separate
+[`tools/graph/run-live.mjs`](tools/graph/LIVE.md) entry point uses the Claude native adapter
+for scoped live assessment. Standalone live CLI adapters for Copilot, Codex, and Cursor are
+not implemented. The [LangGraph target](integrations/langgraph/) compiles the same topology
+with specialist dispatch stubs for a host to replace.
+
+The shared `security_context` handoff records source references and unavailable signal
+families. Its default inventory reference is unverified; naming Defender, Entra, Sentinel,
+or other signal families does not connect those services. A host must supply verified,
+bounded summaries and evidence provenance before specialists can use them as current facts.
+
+The learning contract is adapted from AEF's reflection-and-memory loop: one run is an
+episode; matching evidence from at least two distinct runs for the same agent is required
+before bounded parameters or inert knowledge can be promoted. This is methodology reuse,
+not model-weight training or proof of improved detection. A separate, bounded target-owned
+code-evolution runner is available; it does not run automatically after assessments.
+Methodology memory cannot modify `guardrails/**`, egress/cluster allowlists, role requirements,
+code, prompts, or tools. Full reference: [`doc/graph-engineering.md`](doc/graph-engineering.md).
 
 ## 🤖 Agent Team
 
@@ -332,8 +345,8 @@ node tools/agents/build-agent-defs.mjs --check  # CI: fail if any runtime is sta
 
 The generator also surfaces the canonical **graph-orchestration standard** — derived directly
 from [`graph/redteam.graph.json`](graph/redteam.graph.json) — into each runtime, so every platform
-plans and runs engagements as the *same* self-improving graph (executed by the dependency-free
-`tools/graph/run-graph.mjs`, or the LangGraph target for Python deployments).
+plans engagements from the same graph. Execution requires the chosen host's dispatch adapter;
+the default Node runner simulates dispatch and the LangGraph target supplies dispatch stubs.
 
 > **Codex first-run trust:** Codex requires you to trust the project hook before it runs —
 > start Codex in the repo and run **`/hooks`** once to trust

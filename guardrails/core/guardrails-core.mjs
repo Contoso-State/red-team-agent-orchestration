@@ -11,7 +11,7 @@ import { join } from "node:path";
 
 // Tool names that actually execute shell commands. The hook ONLY inspects these — file
 // edit/create/read tools are never treated as commands (prevents scanning file contents).
-const EXEC_TOOL =
+export const EXEC_TOOL =
   /(?:^|[._-])(exec|execute|shell|bash|sh|zsh|pwsh|powershell|cmd|command|run|terminal|process|spawn)(?:[._-]|$)/i;
 
 // ---------------------------------------------------------------------------

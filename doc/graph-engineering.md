@@ -38,12 +38,16 @@ The graph makes orchestration inspectable instead of implicit prompt choreograph
 
 ## Canonical topology
 
+The canonical graph contains **15 nodes**, including the shared context stage between
+inventory and specialist fan-out.
+
 ```{mermaid}
 graph TD
     START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
     VS --> ML[memory_load<br/>methodology memory]
     ML --> PI[preflight_inventory<br/>sequential inventory]
-    PI --> PS[plan_specialists<br/>Send fan-out]
+    PI --> SC[build_security_context<br/>source references + coverage gaps]
+    SC --> PS[plan_specialists<br/>Send fan-out]
 
     subgraph Fanout[Parallel read-only specialist fan-out]
         PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]
@@ -55,7 +59,7 @@ graph TD
     EV -->|route_after_evaluate: refine<br/>revision < max_revisions<br/>and quality < quality_threshold| PS
     EV -->|route_after_evaluate: proceed| J[judge<br/>Agent-as-a-Judge FP gate]
 
-    J -->|auto-write FP suppressions| MW[(memory/methodology/)]
+    J -->|inert false-positive candidates| MW[(memory/methodology/)]
     J --> AA{{authorize_active<br/>HITL interrupt}}
     AA -->|route_active: external_active| EVA[eva_active<br/>gated external lane]
     AA -->|route_active: cluster_active| CA[cluster_active<br/>gated AKS lane]
@@ -82,21 +86,34 @@ The topology is:
 2. **`memory_load`** — prior methodology memory is loaded as read-only context.
 3. **`preflight_inventory`** — the Inventory & Scope agent performs sequential permission checks
    and resource enumeration.
-4. **`plan_specialists -> run_specialist`** — a LangGraph-style **Send** fan-out maps over the
-   in-scope read-only roster and dispatches one specialist worker per domain in parallel.
-5. **`collect_raw`** — raw specialist outputs fan back in through a deterministic
+4. **`build_security_context`** — a compact handoff names source references and unavailable
+   signal families. The default context contains an unverified inventory reference, not
+   fetched security telemetry. A custom host can supply verified, bounded summaries with
+   evidence provenance. Defender, Entra, Sentinel, and other family names are coverage slots,
+   not automatic integrations. Missing signals remain coverage gaps; raw telemetry and
+   secrets do not belong in this prompt context.
+5. **`plan_specialists -> run_specialist`** — a LangGraph-style **Send** fan-out maps over the
+   in-scope read-only roster and dispatches one specialist worker per domain in parallel. The
+   runners apply both `scope.domains` and `scope.resource_types`: a specialist must match
+   both when both filters are present. ARM types match case-insensitively, including provider
+   `/*` patterns on either side. These filters narrow agent dispatch; they do not replace
+   resource-level scope validation before a read.
+6. **`collect_raw`** — raw specialist outputs fan back in through a deterministic
    `merge_findings` reduce.
-6. **`evaluate`** — the evaluator-optimizer loop head runs deterministic checks plus a critic
+7. **`evaluate`** — the evaluator-optimizer loop head runs deterministic checks plus a critic
    score over candidate findings.
-7. **`route_after_evaluate`** — if `revision < max_revisions` and quality is below
+8. **`route_after_evaluate`** — if `revision < max_revisions` and quality is below
    `quality_threshold`, the graph reflects back to `plan_specialists`; otherwise it proceeds.
-8. **`judge`** — an Agent-as-a-Judge gate re-checks candidate findings using targeted
-   **read-only** evidence queries and suppresses false positives into methodology memory.
-9. **`authorize_active` / `route_active`** — a human-in-the-loop interrupt gates the optional
-   active lanes. Read-only or rejected runs route straight to correlation.
-10. **`correlate -> report`** — confirmed findings are correlated into RBAC and attack paths,
+9. **`judge`** — an Agent-as-a-Judge gate re-checks candidate findings using targeted
+   **read-only** evidence queries. False-positive observations enter methodology memory as
+   inert candidates; historical observations do not automatically suppress current findings.
+10. **`authorize_active` / `route_active`** — a human-in-the-loop interrupt gates the optional
+   active lanes. Before pausing for approval, the runner fails closed unless the selected lane's
+   enabled flag and attestation ID are present. Read-only or rejected runs route straight to
+   correlation.
+11. **`correlate -> report`** — confirmed findings are correlated into RBAC and attack paths,
     then rendered into deliverables.
-11. **`reflexion_debrief -> END`** — the run records an inert episode. Stable lessons are
+12. **`reflexion_debrief -> END`** — the run records an inert episode. Stable lessons are
     promoted only after matching evidence from at least two distinct runs for the same agent.
 
 ## State channels and reducers
@@ -109,6 +126,7 @@ each channel declares its reducer in the graph contract.
 | `scope` | object | `last` | Validated subscription, mode, domain, exclusion, and read-only role context. |
 | `memory` | object | `last` | Methodology memory loaded from prior runs. |
 | `inventory_ref` | string | `last` | Path to the preflight resource inventory. |
+| `security_context` | object | `last` | Shared source references, verification state, and coverage gaps; verified summaries when supplied by the host. |
 | `raw_findings` | array | `append` | Per-specialist JSONL outputs accumulated by Send fan-in. |
 | `candidate_findings` | array | `merge_findings` | Deterministically deduped findings before critique and judge. |
 | `critique` | object | `last` | Evaluator quality score and notes that drive reflection. |
@@ -116,6 +134,14 @@ each channel declares its reducer in the graph contract.
 | `confirmed_findings` | array | `merge_findings` | Findings promoted by the false-positive judge. |
 | `attack_paths` | array | `append` | Cross-domain authorization and attack-path chains. |
 | `report_refs` | array | `append` | Rendered deliverable paths. |
+
+The default `security-context/v1` object has `status: summary-only`. A nonempty inventory
+reference produces `inventory.status: referenced` and ARM `status: unverified`; no reference
+produces `missing` and `unavailable`, respectively. The default builder does not open the
+inventory file or establish that it exists. All eight signal-family slots remain explicit,
+including unavailable families. Node hosts can supply `securityContextFn`; asynchronous
+callbacks require `runGraphAsync`, while `runGraph` requires a synchronous callback. Hosts
+remain responsible for verifying evidence and bounding or redacting supplied summaries.
 | `approved` | boolean/null | `last` | Human decision at the gated active-lane interrupt. |
 
 ## Self-improving loops
@@ -129,9 +155,9 @@ runtime self-modification:
   score and stages a bounded, inert parameter candidate; `route_after_evaluate` routes back to
   targeted specialist planning only while the loop is under `max_revisions` and below
   `quality_threshold`.
-- **Agent-as-a-Judge** — `judge` re-verifies candidate findings with 1-3 targeted read-only Azure
-  queries, promotes confirmed / needs-review findings, and writes false-positive suppressions to
-  methodology memory.
+- **Agent-as-a-Judge** — `judge` re-verifies candidate findings with bounded targeted read-only
+  queries, distinguishes confirmed from unverified results, and records inert false-positive
+  candidates in methodology memory. Reuse still requires the distinct-run evidence gate.
 - **Reflexion / ExpeL-style debrief** — `reflexion_debrief` records run-attributed experiences.
   Stateless consolidation promotes only stable signatures reproduced in at least two distinct
   runs, and never pools evidence between agents.
@@ -155,11 +181,14 @@ nondeterminism. No model weights are trained anywhere in this system.
 
 ### AEF-compatible learning contract
 
-The loop adapts the safe reflection-and-memory architecture from the read-only `aef-core`
-snapshot at commit `48ee1ef7cd9f2cc91762f4b4c08150d954d443ec`. The source checkout is not a
-runtime dependency and was not modified. AEF's disabled runtime code-evolution path is deliberately
-excluded. The imported contract contributes four controls: inert candidates, independent run
-attribution, per-agent consolidation, and auditable promotion or rollback.
+The current AEF integration pins the read-only `aef-core` source at
+`07b291198cfdeee9dc82095a9366931cf14b2a92` in `tools/aef/source-lock.json`. Its bootstrap builds
+an isolated runtime from that source; it does not modify the upstream checkout. The contract
+contributes inert candidates, independent run attribution, per-agent consolidation, and
+auditable promotion or rollback. See [the integration review](aef-update-review.md) for source
+provenance and measured limits. The separate target-owned code-evolution runner is bounded and
+explicitly invoked; it does not enable the upstream evolution engine or run automatically
+after each assessment.
 
 ## Observability: the Agent Observatory
 
@@ -224,21 +253,26 @@ point, and its `READONLY_BANNER` tells every runtime that only read/query Azure 
 permitted unless an explicitly gated, human-authorized lane applies.
 :::
 
-Unsafe runtime self-modification is intentionally excluded: no runtime code execution, no tool
-creation, and no self-rewriting of the guard. Methodology memory can change how agents
-investigate and critique; it cannot change what they are allowed to do.
+Methodology learning cannot execute generated code, create tools, or rewrite the guard.
+It can change what prior observations agents retrieve; it cannot change what they are allowed
+to do. The separate target-owned evolution runner has its own bounded mutation surface and
+verification gates, outside the assessment's methodology-memory loop.
 
 ## One graph, two engines
 
 The same [`graph/redteam.graph.json`](../graph/redteam.graph.json) drives two execution models:
 
-1. **Dependency-free Node runner** — `tools/graph/run-graph.mjs` executes the graph inside the
-   GitHub Copilot CLI, Claude Code, OpenAI Codex CLI, and Cursor runtimes. The core stays
-   zero-dependency and uses the durable JSONL checkpointer in `tools/orchestration/manifest.mjs`.
+1. **Dependency-free Node runner** — `tools/graph/run-graph.mjs` executes the topology with
+   simulated dispatch by default. It is suitable for deterministic graph tests, not proof of
+   an Azure assessment. The separate [`tools/graph/run-live.mjs`](../tools/graph/LIVE.md)
+   entry point uses the Claude native adapter with scoped preflight and guarded reads.
+   Standalone live CLI adapters for Copilot, Codex, and Cursor are not implemented; those
+   runtimes use their native agent orchestration separately.
 2. **First-class LangGraph target** — [`integrations/langgraph/`](https://github.com/Contoso-State/red-team-agent-orchestration/tree/main/integrations/langgraph)
    compiles the same JSON graph into a Python `StateGraph`, using LangGraph concepts such as
    `Send`, reducers, checkpointers, interrupts, and Store-style memory while reusing the same
-   read-only guard through a subprocess bridge. Its dependencies are isolated from the Node core.
+   read-only guard through a subprocess bridge. Its dependencies are isolated from the Node core,
+   and its specialist bodies remain host integration stubs. Compilation is not live execution.
 
 ## Prior art and ecosystem
 

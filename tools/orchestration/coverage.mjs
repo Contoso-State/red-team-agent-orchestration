@@ -209,6 +209,7 @@ function buildCoverage(records) {
       by_status: byStatus,
       total_cells: cells.length,
       total_resources: totalResources,
+      count_unit: cells.length && cells.every((c) => c.type === 'domain-check') ? 'checks' : 'resource observations',
       assessed_pct: assessedPct,
     },
     _gaps: cells
@@ -242,7 +243,7 @@ function renderMarkdown(report) {
   lines.push('');
   lines.push(`**assessed_pct:** ${report.summary.assessed_pct.toFixed(1)}%`);
   lines.push('');
-  lines.push(`Total coverage cells: **${N(report.summary.total_cells)}** · Total represented resources: **${N(report.summary.total_resources)}**`);
+  lines.push(`Total coverage cells: **${N(report.summary.total_cells)}** · Total represented ${report.summary.count_unit}: **${N(report.summary.total_resources)}**`);
   lines.push('');
   lines.push('## Gaps');
   lines.push('');
@@ -310,7 +311,7 @@ function main() {
   writeFileSync(jsonPath, JSON.stringify(json, null, 2) + '\n');
   writeFileSync(mdPath, markdown + '\n');
   console.log(`Coverage written:\n  ${jsonPath}\n  ${mdPath}`);
-  console.log(`${N(report.summary.total_resources)} represented resources · ${report.summary.assessed_pct.toFixed(1)}% assessed`);
+  console.log(`${N(report.summary.total_resources)} represented ${report.summary.count_unit} · ${report.summary.assessed_pct.toFixed(1)}% assessed`);
 }
 
 main();

@@ -33,6 +33,8 @@ def test_compiled_topology_conforms_to_canonical_graph():
     for node in spec.nodes:
         if node.get("kind") == "fanout":
             expected_edges.add((node["id"], node["into"]))
+        if node.get("kind") == "context":
+            assert node.get("writes") == "security_context"
 
     missing = expected_edges - edges
     assert not missing

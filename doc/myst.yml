@@ -31,6 +31,8 @@ project:
     - file: safety.md
     - file: external-vuln.md
     - file: repository.md
+    - file: pr-integration-review.md
+      title: PR Integration Review
 site:
   template: book-theme
   title: Azure Red Team Agent Orchestration

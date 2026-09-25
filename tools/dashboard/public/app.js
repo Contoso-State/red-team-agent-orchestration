@@ -1,7 +1,9 @@
 import {resolveNode} from './node-resolver.mjs';
+import {summarizeModelUsage} from './model-usage-summary.mjs';
+const usageLabels = {input_tokens:'Input tokens',output_tokens:'Output tokens',cache_read_input_tokens:'Cache read tokens',cache_creation_input_tokens:'Cache write tokens',cost_usd:'Estimated cost (USD)'};
 const $ = id => document.getElementById(id);
 const COLORS = { orchestration: '#67e6dd', agent: '#b5a3ff', memory: '#b6eb9c', evolution: '#ffc280', failed: '#ff878c', idle: '#536274' };
-const shortNames = { validate_scope:'Scope gate', memory_load:'Memory retrieval', preflight_inventory:'Inventory', plan_specialists:'Dispatch', run_specialist:'Specialists', collect_raw:'Reduce', evaluate:'Evaluate', judge:'Evidence judge', authorize_active:'Authorization', eva_active:'External lane', cluster_active:'Cluster lane', correlate:'Attack paths', report:'Reporting', reflexion_debrief:'Memory debrief' };
+const shortNames = { validate_scope:'Scope gate', memory_load:'Memory retrieval', preflight_inventory:'Inventory',build_security_context:'Security context', plan_specialists:'Dispatch', run_specialist:'Specialists', collect_raw:'Reduce', evaluate:'Evaluate', judge:'Evidence judge', authorize_active:'Authorization', eva_active:'External lane', cluster_active:'Cluster lane', correlate:'Attack paths', report:'Reporting', reflexion_debrief:'Memory debrief' };
 const state = { packets: [], runSelection: '', timelineLimit: 100, memoryLimit: 100, events: [], topology: null, selected: '', replay: false, replayEvents: [], replayPosition: 0, replayTimer: null, filter: 'all', connected: false, logState: 'waiting', flashes: [], nodes: [], edges: [], yaw: -.18, pitch: .4, zoom: 1, latestRun: '', initial: true };
 const canvas = $('graph'), ctx = canvas.getContext('2d');
 let width = 600, height = 400, frame = null, projected = [], dragging = null;
@@ -147,7 +149,17 @@ function render(){
   $('graph-status').textContent=state.replay?'Recorded history playback':last?`Latest ${time(last.ts)} · no synthetic activity`:'No recorded activity';
   $('replay').disabled=state.events.length===0||state.replay;$('live').hidden=!state.replay;$('replay-bar').hidden=!state.replay;
   $('replay-position').max=state.replayEvents.length;$('replay-position').value=state.replayPosition;$('replay-count').textContent=`${state.replayPosition} / ${state.replayEvents.length}`;
-  renderInspector();renderTimeline();renderMemory();renderEvaluation();renderEvolution();scheduleDraw();
+  renderInspector();renderTimeline();renderMemory();renderUsage();renderEvaluation();renderEvolution();scheduleDraw();
+}
+function usageValue(field,value){return value===null||value===undefined?'Unavailable':field==='cost_usd'?`$${value.toLocaleString(undefined,{minimumFractionDigits:4,maximumFractionDigits:6})}`:value.toLocaleString();}
+function renderUsage(){
+  const summary=summarizeModelUsage(selectedEvents()),cards=$('usage-cards');cards.replaceChildren();
+  $('usage-count').textContent=`${summary.invocations} model exchanges · ${summary.usageRecords} usage records in this selection`;
+  for(const [field,metric] of Object.entries(summary.fields)){
+    const card=el('article');card.append(el('h3',usageLabels[field]),el('strong',usageValue(field,metric.value)),el('p',`${metric.reported} / ${summary.invocations} exchanges reported`));cards.append(card);
+  }
+  const missing=summary.invocations-summary.usableRecords;
+  $('usage-gaps').textContent=(summary.invocations===0?'No correlated model calls recorded in this selection.':`${missing} ${missing===1?'exchange has':'exchanges have'} no reported usage values.`)+`${summary.conflicts?` ${summary.conflicts} conflicting exchanges excluded.`:''}${summary.uncorrelated?` ${summary.uncorrelated} uncorrelated events excluded.`:''}`;
 }
 function addDetail(list,title,value){list.append(el('dt',title),el('dd',value));}
 function recordDetails(event) {
@@ -176,6 +188,13 @@ function recordDetails(event) {
     if(event.memory.environment_key)addDetail(data,'Environment',event.memory.environment_key);
     if(event.memory.source_ids?.length)addDetail(data,'Source runs',event.memory.source_ids.join(' · '));
   }
+  if(event.usage){
+    addDetail(data,'Usage source','Native runtime metadata');
+    if(event.status)addDetail(data,'Invocation outcome',label(event.status));
+    for(const [field,title] of Object.entries(usageLabels))addDetail(data,title,usageValue(field,event.usage[field]));
+    addDetail(data,'Models',event.usage.models?.join(' · ')||'Unavailable');
+    addDetail(data,'Cost meaning','Runtime estimate; not a billing statement');
+  }
   details.append(data);
   for(const [index,ref] of (event.evidence_refs||[]).entries()){
     const link=el('a',ref);link.href=`/api/evidence?event=${encodeURIComponent(event.cursor)}&index=${index}`;
@@ -186,7 +205,11 @@ function recordDetails(event) {
 }
 function metricChips(event){
   const chips=el('div',undefined,'metric-chips');
-  for(const [key,value] of Object.entries(event.metrics||{}))chips.append(el('span',`${['holdout_total','challenge_total'].includes(key)?'known routing cases':key.replaceAll('_',' ')}: ${value.toLocaleString()}`,'metric-chip'));
+  for(const [key,value] of Object.entries(event.metrics||{})){
+    const name=key==='promoted'&&(event.type==='memory.retrieved'||event.run_kind==='memory-review')?'previously promoted':
+      ['holdout_total','challenge_total'].includes(key)?'known routing cases':key.replaceAll('_',' ');
+    chips.append(el('span',`${name}: ${value.toLocaleString()}`,'metric-chip'));
+  }
   if(event.transfer&&Number.isFinite(event.transfer.bytes))chips.append(el('span',`${event.transfer.bytes.toLocaleString()} bytes · ${event.transfer.outcome||'recorded'}`,'metric-chip'));
   return chips;
 }

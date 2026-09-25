@@ -65,3 +65,28 @@ function ConvertTo-JsonArrayFile {
         ConvertTo-Json -InputObject @($Items) -Depth $Depth | Set-Content -Path $Path
     }
 }
+
+function Read-EngagementTarget {
+    param([Parameter(Mandatory)][string]$EngagementFile)
+    $raw = & node (Join-Path $PSScriptRoot 'read-scope.mjs') $EngagementFile
+    if ($LASTEXITCODE -ne 0 -or -not $raw) { throw 'Invalid or unsupported engagement scope; no Azure reads performed.' }
+    return ($raw | ConvertFrom-Json)
+}
+
+function Invoke-AzJson {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $raw = & az @Arguments --only-show-errors --output json
+    if ($LASTEXITCODE -ne 0) { throw "Azure CLI failed ($LASTEXITCODE): $($Arguments[0..([Math]::Min(2, $Arguments.Length - 1))] -join ' ')" }
+    if (-not $raw) { throw 'Azure CLI returned no JSON.' }
+    try { return ($raw | ConvertFrom-Json -ErrorAction Stop) }
+    catch { throw 'Azure CLI returned malformed JSON; response withheld.' }
+}
+
+function Get-ScopedAccount {
+    param([Parameter(Mandatory)]$Target)
+    $account = Invoke-AzJson -Arguments @('account', 'show', '--subscription', $Target.subscriptionId)
+    if ($account.id -ne $Target.subscriptionId -or $account.tenantId -ne $Target.tenantId -or $account.state -ne 'Enabled') {
+        throw 'Azure account does not match the enabled engagement subscription and tenant.'
+    }
+    return $account
+}

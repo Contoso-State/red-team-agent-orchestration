@@ -15,7 +15,7 @@ The system's primary orchestration standard is an **explicit declarative graph**
 
 ### Graph engineering & self-improvement
 
-The graph is executed by the dependency-free Node runner (`tools/graph/run-graph.mjs`) inside the Copilot, Claude, Codex, and Cursor runtimes, and also by the first-class LangGraph deployment target in `integrations/langgraph/`, which compiles the same JSON spec into a `StateGraph` and reuses the same read-only guard through a subprocess bridge.
+The dependency-free Node runner (`tools/graph/run-graph.mjs`) provides deterministic graph execution with simulated dispatch by default; it does not launch a live Azure assessment. The separate live entry point (`tools/graph/run-live.mjs`) uses the Claude native adapter for bounded live assessment, with an explicit scoped engagement and fresh preflight. Standalone live CLI adapters for Copilot, Codex, and Cursor are not implemented; those runtimes support native agent orchestration separately. The first-class LangGraph deployment target in `integrations/langgraph/` compiles the same JSON spec into a `StateGraph` and reuses the same read-only guard through a subprocess bridge.
 
 Learning is autonomous but evidence-gated, and may write only inside `memory/methodology/`: each run records inert candidates and experiences, while parameter updates or reusable knowledge require corroboration from at least two distinct runs for the same agent. The loop never rewrites prompts, code, tools, or policy. The memory firewall is the immutable boundary: learning must never touch `guardrails/**`, the egress or cluster allowlists, or the read-only role boundary.
 
@@ -136,3 +136,19 @@ When working in this repo:
 - KQL for Log Analytics and Sentinel queries
 - Azure Resource Graph query language for resource enumeration
 - Node ESM `.mjs` (dependency-free) for tooling; SQLite via the built-in `node:sqlite` for the datastore
+
+<!-- aef:begin sha256=b5f45c42dbe29152 -->
+## AEF integration and target evolution
+
+Read `AGENT_INTEGRATION.md`, `AUTONOMY.md` and `AEF_MIGRATION_CHECKLIST.md`.
+The upstream aef-core checkout is strictly read-only. Install its pinned wheel
+inside this target; do not use editable imports or write upstream caches.
+`aef_adapter.py` runs real AEF consolidate/retrieve/reflect nodes through Services.
+Memory requires verified same-environment, same-agent evidence and bounded context.
+Retrieved advice never overrides scope, guardrails or permission boundaries.
+The owner enabled target-only code evolution. Its current fixed mutation surface
+and evaluation gates are defined in `tools/evolution/` and `AUTONOMY.md`.
+AEF's upstream evolution engine stays disabled; the target loop is separate.
+No model-weight training, scheduled loop or security-quality improvement is implied.
+
+<!-- aef:end -->

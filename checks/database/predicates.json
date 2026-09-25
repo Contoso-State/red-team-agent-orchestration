@@ -64,7 +64,7 @@
       "evaluate": {
         "any": [
           { "field": "hasEntraAdmin", "op": "eq", "value": false },
-          { "not": { "field": "azureADOnlyAuthentication", "op": "eq", "value": true } }
+          { "field": "azureADOnlyAuthentication", "op": "eq", "value": false }
         ]
       },
       "evidence_fields": ["hasEntraAdmin", "azureADOnlyAuthentication"]
@@ -175,9 +175,9 @@
       },
       "evaluate": {
         "any": [
-          { "not": { "field": "alertPolicyState", "op": "eqi", "value": "Enabled" } },
-          { "not": { "field": "vaRecurringScansEnabled", "op": "eq", "value": true } },
-          { "not": { "field": "vaResultsStoreConfigured", "op": "eq", "value": true } }
+          { "field": "alertPolicyState", "op": "eqi", "value": "Disabled" },
+          { "field": "vaRecurringScansEnabled", "op": "eq", "value": false },
+          { "field": "vaResultsStoreConfigured", "op": "eq", "value": false }
         ]
       },
       "evidence_fields": ["alertPolicyState", "vaRecurringScansEnabled", "vaResultsStoreConfigured"]

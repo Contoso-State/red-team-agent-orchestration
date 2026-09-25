@@ -15,18 +15,19 @@
  * 2. Every Azure call must still be provably read-only. Each invocation is classified
  *    by the shared guard before it runs, and a non-allow decision refuses to execute.
  */
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn as spawnChild } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, dirname, join } from 'node:path';
+import { posix, win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { decideSafe } from '../../guardrails/guard.mjs';
 
 /** Locate az.cmd / az on PATH without trusting the shell to do it. */
-function findOnPath(names) {
-  for (const dir of (process.env.PATH || '').split(delimiter).filter(Boolean)) {
+function findOnPath(names, { env, exists, paths }) {
+  const pathKey = Object.keys(env).find(key => key.toLowerCase() === 'path');
+  for (const dir of (env[pathKey] || '').split(paths.delimiter).filter(Boolean)) {
     for (const name of names) {
-      const candidate = join(dir, name);
-      if (existsSync(candidate)) return candidate;
+      const candidate = paths.join(dir, name);
+      if (exists(candidate)) return candidate;
     }
   }
   return null;
@@ -36,20 +37,22 @@ function findOnPath(names) {
  * Resolve an argv that Node can spawn with shell:false on this platform.
  * Returns null when the Azure CLI cannot be located at all.
  */
-export function resolveAzCommand(platform = process.platform) {
+export function resolveAzCommand(platform = process.platform, { env = process.env, exists = existsSync } = {}) {
+  const paths = platform === 'win32' ? win32 : posix;
+  const lookup = { env, exists, paths };
   if (platform !== 'win32') {
-    const found = findOnPath(['az']);
+    const found = findOnPath(['az'], lookup);
     return found ? { file: found, prefix: [] } : null;
   }
-  const wrapper = findOnPath(['az.cmd', 'az.bat']);
+  const wrapper = findOnPath(['az.cmd', 'az.bat'], lookup);
   if (wrapper) {
     // wbin\az.cmd -> CLI2\python.exe : the interpreter the wrapper itself calls.
-    const cliRoot = dirname(dirname(wrapper));
-    for (const python of [join(cliRoot, 'python.exe'), join(cliRoot, 'Scripts', 'python.exe')]) {
-      if (existsSync(python)) return { file: python, prefix: ['-m', 'azure.cli'] };
+    const cliRoot = paths.dirname(paths.dirname(wrapper));
+    for (const python of [paths.join(cliRoot, 'python.exe'), paths.join(cliRoot, 'Scripts', 'python.exe')]) {
+      if (exists(python)) return { file: python, prefix: ['-m', 'azure.cli'] };
     }
   }
-  const exe = findOnPath(['az.exe']);
+  const exe = findOnPath(['az.exe'], lookup);
   return exe ? { file: exe, prefix: [] } : null;
 }
 
@@ -57,20 +60,26 @@ export function resolveAzCommand(platform = process.platform) {
  * Run one read-only `az` invocation. `args` is an argv array, never a command string,
  * so nothing is re-parsed by a shell.
  */
-export function runAz(args, { cwd = process.cwd(), timeoutMs = 120_000, maxBuffer = 64 * 1024 * 1024 } = {}) {
+function prepareAz(args, { cwd, env, resolveCommand }) {
   if (!Array.isArray(args) || args.some(a => typeof a !== 'string')) {
     throw new TypeError('runAz expects an array of string arguments');
   }
-  const verdict = decideSafe({ command: ['az', ...args].join(' '), cwd, toolName: 'shell' });
+  // Serialize only for guard classification. The subprocess receives the original
+  // argv, including query pipes and punctuation, without any shell interpretation.
+  const quote = value => /^[a-zA-Z0-9_./:@=-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`;
+  const verdict = decideSafe({ command: ['az', ...args].map(quote).join(' '), cwd, toolName: 'shell' });
   if (verdict.decision !== 'allow') {
     return { ok: false, status: null, stdout: '', stderr: '', json: null, refused: verdict.reason || 'refused by guardrails' };
   }
-  const resolved = resolveAzCommand();
+  const resolved = resolveCommand(process.platform, { env });
   if (!resolved) {
     return { ok: false, status: null, stdout: '', stderr: '', json: null, refused: 'Azure CLI not found on PATH' };
   }
 
-  const result = spawnSync(resolved.file, [...resolved.prefix, ...args], { cwd, encoding: 'utf8', timeout: timeoutMs, maxBuffer });
+  return { resolved };
+}
+
+function resultOf(result, timeoutMs) {
   const stdout = result.stdout || '';
   const stderr = result.stderr || '';
   if (result.error) {
@@ -80,6 +89,46 @@ export function runAz(args, { cwd = process.cwd(), timeoutMs = 120_000, maxBuffe
   let json = null;
   if (stdout.trim()) { try { json = JSON.parse(stdout); } catch { json = null; } }
   return { ok: result.status === 0, status: result.status, stdout, stderr, json, refused: null };
+}
+
+export function runAz(args, { cwd = process.cwd(), env = process.env, timeoutMs = 120_000, maxBuffer = 64 * 1024 * 1024, spawn = spawnSync, resolveCommand = resolveAzCommand } = {}) {
+  const prepared = prepareAz(args, { cwd, env, resolveCommand });
+  if (!prepared.resolved) return prepared;
+  const { resolved } = prepared;
+  return resultOf(spawn(resolved.file, [...resolved.prefix, ...args], { cwd, env, shell: false, encoding: 'utf8', timeout: timeoutMs, maxBuffer }), timeoutMs);
+}
+
+/** Live readers use a direct async child so cancellation and streaming bounds apply
+ * to Azure itself, without an intermediate Node CLI process that could orphan it. */
+export async function runAzAsync(args, { cwd = process.cwd(), env = process.env, timeoutMs = 120_000, maxBuffer = 64 * 1024 * 1024, signal, spawn = spawnChild, resolveCommand = resolveAzCommand } = {}) {
+  const prepared = prepareAz(args, { cwd, env, resolveCommand });
+  if (!prepared.resolved) return prepared;
+  if (signal?.aborted) return resultOf({ error: { message: 'Azure read cancelled' } }, timeoutMs);
+  const { resolved } = prepared;
+  return new Promise(resolve => {
+    let child;
+    try { child = spawn(resolved.file, [...resolved.prefix, ...args], { cwd, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (error) { resolve(resultOf({ error }, timeoutMs)); return; }
+    let stdout = [], stderr = [], bytes = 0, error;
+    const stop = reason => { error ??= reason; child.kill('SIGKILL'); };
+    const abort = () => stop({ message: 'Azure read cancelled' });
+    const timer = setTimeout(() => stop({ code: 'ETIMEDOUT' }), timeoutMs);
+    const capture = target => chunk => {
+      if (error) return;
+      bytes += chunk.length;
+      if (bytes > maxBuffer) { stdout = []; stderr = []; stop({ message: 'Azure read output limit exceeded' }); }
+      else target.push(chunk);
+    };
+    child.stdout.on('data', capture(stdout));
+    child.stderr.on('data', capture(stderr));
+    child.on('error', failure => { error ??= failure; });
+    child.on('close', status => {
+      clearTimeout(timer); signal?.removeEventListener('abort', abort);
+      resolve(resultOf({ status, stdout: Buffer.concat(stdout).toString('utf8'), stderr: Buffer.concat(stderr).toString('utf8'), error }, timeoutMs));
+    });
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

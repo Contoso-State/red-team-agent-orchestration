@@ -170,7 +170,7 @@
       "evaluate": {
         "any": [
           { "field": "enableSoftDelete", "op": "eq", "value": false },
-          { "not": { "field": "enablePurgeProtection", "op": "eq", "value": true } }
+          { "field": "enablePurgeProtection", "op": "eq", "value": false }
         ]
       },
       "evidence_fields": ["enableSoftDelete", "enablePurgeProtection"]
@@ -192,7 +192,7 @@
         "ref": "tools/az-cli/storage.md#CHK-STOR-NO-INFRA-ENCRYPTION",
         "kql": "Resources | where type =~ 'microsoft.storage/storageaccounts' | project id, name, type, resourceGroup, subscriptionId, location, requireInfrastructureEncryption = properties.encryption.requireInfrastructureEncryption"
       },
-      "evaluate": { "not": { "field": "requireInfrastructureEncryption", "op": "eq", "value": true } },
+      "evaluate": { "field": "requireInfrastructureEncryption", "op": "eq", "value": false },
       "evidence_fields": ["requireInfrastructureEncryption"]
     },
     {

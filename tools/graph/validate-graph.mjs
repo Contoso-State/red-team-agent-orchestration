@@ -39,6 +39,7 @@ export const RESERVED = new Set(['START', 'END']);
 export const NODE_KINDS = new Set([
   'validate',
   'memory_read',
+  'context',
   'dispatch',
   'fanout',
   'reduce',
@@ -218,6 +219,11 @@ export function validateGraph(graph, { agentNames = new Set() } = {}) {
           err(`memory_read node "${n.id}": missing namespace`);
         }
         if (n.mutable === true) err(`memory_read node "${n.id}": must not be mutable`);
+        break;
+      }
+      case 'context': {
+        if (!n.writes) err(`context node "${n.id}": missing writes channel`);
+        if (!n.reads) err(`context node "${n.id}": missing reads channel`);
         break;
       }
       case 'memory_write': {

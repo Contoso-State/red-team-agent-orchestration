@@ -8,8 +8,9 @@
   - `last` channels use normal last-write-wins assignment.
   - `append` channels use `Annotated[list, operator.add]` for fan-in concatenation.
   - `merge_findings` channels use a custom reducer that dedupes by `dedupe_key` and unions `affected_resources` while applying last-write-wins for other fields.
-- `nodes[]` are compiled one-for-one into LangGraph nodes.
-- `fanout` (`plan_specialists`) maps the in-scope roster to `Send("run_specialist", ...)` calls; `run_specialist` is the specialist-dispatch integration point.
+- The canonical graph's 15 `nodes[]` are compiled one-for-one into LangGraph nodes.
+- `context` (`build_security_context`) prepares the shared `security-context/v1` handoff after inventory and before fan-out. Its default inventory path is a reference: ARM remains `unverified`, and missing signal families remain `unavailable`. The stage does not connect Defender, Entra, Sentinel, or any other service. A custom host must supply independently verified, bounded summaries with evidence provenance before using them as current observations; raw telemetry and secrets must stay out of this handoff.
+- `fanout` (`plan_specialists`) maps the in-scope roster to `Send("run_specialist", ...)` calls, carrying the shared context; `run_specialist` is the specialist-dispatch integration point. Domain and ARM-type filters intersect, with case-insensitive type matching and provider `/*` support.
 - `conditional_edges[]` become LangGraph conditional edges. `route_after_evaluate` implements the bounded evaluator-optimizer reflection loop using `params.max_revisions` and `params.quality_threshold`; `route_active` selects the gated active lane or skips to correlation.
 - `interrupt` (`authorize_active`) maps to LangGraph `interrupt()` for human authorization before active testing lanes.
 - `memory_read`, `judge.memory_write`, and `memory_write` use a methodology-only memory layer intended to persist cross-run procedural learning under repo-root `memory/methodology/` at runtime.
@@ -26,7 +27,14 @@ Any subprocess failure, missing `node`, non-JSON output, invalid shape, or empty
 
 ## Self-improving loops and memory firewall
 
-The evaluator/optimizer loop (`evaluate -> plan_specialists`) is bounded by the graph params. The judge and `reflexion_debrief` persist learned false-positive suppression hints, investigation workflows, and methodology notes into the **methodology** namespace only. The memory layer rejects `guardrails`, `allowlist`, `egress`, `readonly`, and `guard` namespaces, so self-improvement cannot rewrite enforcement policy.
+The evaluator/optimizer loop (`evaluate -> plan_specialists`) is bounded by the graph params.
+The judge and `reflexion_debrief` record methodology events in the **methodology** namespace only.
+The memory layer rejects `guardrails`, `allowlist`, `egress`, `readonly`, and `guard` namespaces,
+so it cannot rewrite enforcement policy. This Python target provides event persistence and a
+namespace firewall; it does not itself implement the live adapter's evidence verification and
+distinct-run promotion gate. Hosts must preserve those gates before treating any event as
+reusable knowledge. Neither topology compilation nor stored events prove improved detection
+or model-weight training.
 
 ## Compiled topology
 
@@ -35,7 +43,8 @@ flowchart TD
     START --> validate_scope
     validate_scope --> memory_load
     memory_load --> preflight_inventory
-    preflight_inventory --> plan_specialists
+    preflight_inventory --> build_security_context
+    build_security_context --> plan_specialists
     plan_specialists -- Send over roster --> run_specialist
     run_specialist --> collect_raw
     collect_raw --> evaluate
@@ -65,4 +74,9 @@ Dry-run mode builds the graph and prints the compiled node/edge topology without
 
 ## Current stubs
 
-The deployment target wires the real graph topology, reducers, guard bridge, checkpointer, interrupt, and methodology memory firewall. Specialist execution is stubbed because actual dispatch to Copilot/Claude/Codex/Cursor agent cards is runtime-specific; `builder.py` marks the exact callable where the agent-card adapter should be connected.
+The deployment target wires the real graph topology, reducers, guard bridge, checkpointer,
+interrupt, and methodology memory firewall. Scope validation, inventory, specialist execution,
+evaluation, and reporting use integration stubs; a successful dry run does not establish
+current Azure state. Actual dispatch to Copilot/Claude/Codex/Cursor agent cards is
+runtime-specific; `builder.py` marks where host adapters should be connected. The separate
+Node live entry point (`tools/graph/run-live.mjs`) currently supports the Claude native adapter.

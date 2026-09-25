@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Contoso-State/red-team-agent-orchestration/schemas/hexstrike-adapter.schema.json",
+  "title": "HexStrike passive adapter contract",
+  "description": "Offline contract for a future, narrowly scoped passive HexStrike adapter. This schema does not authorize or implement live invocation.",
+  "oneOf": [
+    { "$ref": "#/definitions/request" },
+    { "$ref": "#/definitions/result" }
+  ],
+  "definitions": {
+    "finding": {
+      "description": "Canonical finding fields with an adapter-only deny-by-default key boundary. Unknown tool payloads are rejected, and all retained strings are redacted before promotion. Resource membership is additionally checked against the request at runtime.",
+      "allOf": [
+        { "$ref": "finding.schema.json" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {},
+            "title": {},
+            "severity": {},
+            "confidence": {},
+            "agent": {},
+            "category": {},
+            "check_id": {},
+            "finding_class": {},
+            "dedupe_key": {},
+            "resource_id": {},
+            "subscription_id": {},
+            "resource_group": {},
+            "region": {},
+            "affected_resources": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "resource_id": {},
+                  "subscription_id": {},
+                  "resource_group": {},
+                  "type": {},
+                  "region": {},
+                  "name": {},
+                  "evidence_ref": {}
+                }
+              }
+            },
+            "description": {},
+            "attack_vector": {},
+            "risk": {},
+            "recommendation": {},
+            "evidence": {
+              "items": {
+                "additionalProperties": false,
+                "properties": { "source": {}, "summary": {}, "raw_ref": {} }
+              }
+            },
+            "attack_path": {},
+            "controls": {
+              "additionalProperties": false,
+              "properties": {
+                "cis_azure": {},
+                "mitre": {},
+                "defender_for_cloud": {},
+                "nist_800_53": {}
+              }
+            },
+            "references": {},
+            "status": {},
+            "first_seen": {},
+            "last_seen": {}
+          }
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "capability", "engagement_id", "allowlist_hash", "targets"],
+      "properties": {
+        "schema": { "const": "hexstrike-adapter/v1" },
+        "capability": { "const": "passive-http-observations" },
+        "engagement_id": { "type": "string", "minLength": 1 },
+        "allowlist_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["host", "source_resource_ids"],
+            "properties": {
+              "host": { "type": "string", "minLength": 1 },
+              "source_resource_ids": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "capability", "status", "tool", "targets", "findings"],
+      "properties": {
+        "schema": { "const": "hexstrike-adapter/v1" },
+        "capability": { "const": "passive-http-observations" },
+        "status": { "enum": ["completed", "partial", "failed"] },
+        "tool": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "const": "hexstrike-ai" },
+            "version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["host", "status"],
+            "properties": {
+              "host": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["completed", "failed", "skipped"] },
+              "reason": { "type": "string" }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "status": { "enum": ["failed", "skipped"] } },
+                  "required": ["status"]
+                },
+                "then": {
+                  "required": ["reason"],
+                  "properties": { "reason": { "minLength": 1 } }
+                }
+              }
+            ]
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target_host", "finding"],
+            "properties": {
+              "target_host": { "type": "string", "minLength": 1 },
+              "finding": { "$ref": "#/definitions/finding" }
+            }
+          }
+        },
+        "reason": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "completed" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "targets": {
+                "minItems": 1,
+                "items": {
+                  "properties": { "status": { "const": "completed" } },
+                  "required": ["status"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "partial" } },
+            "required": ["status"]
+          },
+          "then": { "properties": { "targets": { "minItems": 1 } } }
+        },
+        {
+          "if": {
+            "properties": { "status": { "enum": ["partial", "failed"] } },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["reason"],
+            "properties": { "reason": { "type": "string", "minLength": 1 } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "failed" } },
+            "required": ["status"]
+          },
+          "then": { "properties": { "findings": { "maxItems": 0 } } }
+        }
+      ]
+    }
+  }
+}

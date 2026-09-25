@@ -72,8 +72,12 @@ Claude-compatible lifecycle hook plus a hardened config:
   blocks every deny / ask / error path with **stderr + `exit 2`** — the only signal Codex
   honours — and stays silent on allow.
 - **`.codex/config.toml`** pins a defense-in-depth read-only posture: `approval_policy =
-  "untrusted"` (auto-run only known-safe reads), `sandbox_mode = "workspace-write"` with
-  `network_access = true` (so `az` can *read* Azure while writes stay in the workspace).
+  "on-request"` (the model decides when to request approval; this does not prompt
+  before every command),
+  `sandbox_mode = "workspace-write"` with `network_access = true` (so `az` can *read*
+  Azure while writes stay in the workspace). The trusted command guard and Azure
+  account permissions enforce the Azure read-only boundary; approval routing and
+  the local filesystem sandbox do not enforce Azure permissions themselves.
 
 :::{warning}
 **Trust the hook on first run.** Codex requires you to trust a newly discovered project hook
