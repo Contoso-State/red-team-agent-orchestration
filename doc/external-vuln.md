@@ -86,6 +86,28 @@ code read-only from Azure (App Service Kudu, Storage `$web`) into
 executed**, and no traffic is sent to the target. If the scanner isn't installed, the wrapper
 degrades to a dry run.
 
+## HexStrike adapter boundary (offline contract only)
+
+The repository includes `schemas/hexstrike-adapter.schema.json` and
+`tools/external/hexstrike-adapter.mjs` as an **offline contract and result normalizer** for a
+possible, narrowly scoped HexStrike integration. The current implementation:
+
+- accepts only the fixed `passive-http-observations` capability;
+- builds requests from an `external-targets/v1` document with a validated host/IP allowlist
+  hash and Azure resource provenance, rejecting targets outside that allowlist;
+- checks result target membership and finding resource/subscription provenance;
+- preserves `completed`, `partial`, and `failed` distinctly, so completed with no findings is
+  not confused with an unsuccessful scan; and
+- redacts common credential forms from finding text and attaches tool/capability provenance.
+
+**This is not a live HexStrike connector.** It has no HTTP/MCP transport, process execution,
+shell path, or scanner invocation. The result envelope is this repository's internal contract,
+not a claim about HexStrike's native response format. Do not connect a host or dispatch live
+scans until the exact HexStrike operation and transport are reviewed and shown to pass through
+the existing EVA authorization, Azure-derived target allowlist, and egress guardrail. If that
+cannot be enforced, keep use fixture-only. The adapter does not replace EVA's active-testing
+authorization or the independent egress guard.
+
 ## Running EVA — the `/external` command
 
 ```text
