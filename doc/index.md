@@ -38,7 +38,7 @@ thumbnail: assets/social-card.png
 
   <aside class="rt-verified-strip" aria-label="Executable architecture verification">
     <strong>VERIFIED IN CI</strong>
-    <span>14 graph nodes</span><i aria-hidden="true"></i>
+    <span>15 graph nodes</span><i aria-hidden="true"></i>
     <span>12 scoped roster lanes</span><i aria-hidden="true"></i>
     <span>2-run promotion gate</span><i aria-hidden="true"></i>
     <span>immutable guardrails</span>
