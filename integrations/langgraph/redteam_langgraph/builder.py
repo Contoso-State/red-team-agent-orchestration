@@ -134,6 +134,39 @@ def _node_callable(node: dict[str, Any], spec: GraphSpec, memory: MethodologyMem
     if kind == "memory_read":
         return lambda state: {"memory": memory.read(str(node.get("namespace") or "methodology"))}
 
+    if kind == "context":
+        def build_context(state: dict[str, Any]) -> dict[str, Any]:
+            inventory_ref = state.get("inventory_ref")
+            return {
+                str(node.get("writes")): {
+                    "version": "security-context/v1",
+                    "status": "summary-only",
+                    "scope": {
+                        "mode": (state.get("scope") or {}).get("mode", "read-only-assessment"),
+                        "domains": (state.get("scope") or {}).get("domains", []),
+                        "resource_types": (state.get("scope") or {}).get("resource_types", []),
+                    },
+                    "inventory": {
+                        "ref": inventory_ref,
+                        "status": "available" if inventory_ref else "missing",
+                    },
+                    "signals": {
+                        "arm": {
+                            "status": "available" if inventory_ref else "unavailable",
+                            "evidence_refs": [inventory_ref] if inventory_ref else [],
+                        },
+                    },
+                    "handoff": {
+                        "instructions": [
+                            "Treat unavailable signals as coverage gaps, not clean results.",
+                            "Use evidence_refs to retrieve source summaries.",
+                            "Never infer a signal that is not present.",
+                        ],
+                    },
+                },
+            }
+        return build_context
+
     if kind == "dispatch":
         return _dispatch_stub(node)
 

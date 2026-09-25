@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/graph.schema.json",
   "name": "redteam-azure",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Canonical engagement graph for the Azure red-team agent framework. This declarative spec is the single source of truth for orchestration: it is executed by the dependency-free Node runner (tools/graph/run-graph.mjs) inside the 4 CLI runtimes, and compiled to a LangGraph StateGraph by the deployment target (integrations/langgraph/). Topology mirrors the Red Team Orchestrator dispatch protocol (.github/agents/redteam-orchestrator.agent.md) and adds explicit self-improving loops: an evaluator-optimizer reflection cycle, an Agent-as-a-Judge false-positive gate, human-in-the-loop authorization interrupts for the gated active lanes, and read/write methodology-memory nodes for evidence-gated cross-run learning. Read-only by construction: no node mutates Azure, and the memory firewall forbids self-improvement from touching the guardrail namespaces.",
   "params": {
     "max_revisions": 2,
@@ -14,6 +14,7 @@
       "scope": { "type": "object", "reducer": "last", "description": "Validated engagement scope: subscription(s), mode, domains, exclusions, read-only role attestation." },
       "memory": { "type": "object", "reducer": "last", "description": "Methodology memory loaded from prior runs (FP-suppression rules, investigation workflows, evolved prompts). Read-in context for this run." },
       "inventory_ref": { "type": "string", "reducer": "last", "description": "Path to engagements/<session>/inventory/resources.jsonl produced by preflight." },
+      "security_context": { "type": "object", "reducer": "last", "description": "Normalized, provenance-preserving security context assembled from inventory and available Defender, Entra, Sentinel, ARM, exposure, and threat-intelligence signal summaries. No raw secrets or fabricated signals." },
       "raw_findings": { "type": "array", "reducer": "append", "description": "Per-specialist raw finding files accumulated by fan-in (Send -> reducer)." },
       "candidate_findings": { "type": "array", "reducer": "merge_findings", "description": "Deduped candidate findings after the deterministic reduce, before critique/judge." },
       "critique": { "type": "object", "reducer": "last", "description": "Evaluator-optimizer critique: quality score + per-finding notes that drive the reflection loop." },
@@ -26,18 +27,18 @@
     }
   },
   "roster": [
-    { "domain": "identity", "agent": "Red Team Identity", "lane": "default" },
-    { "domain": "network", "agent": "Red Team Network", "lane": "default" },
-    { "domain": "compute", "agent": "Red Team Compute", "lane": "default" },
-    { "domain": "aks-container", "agent": "Red Team Azure Container & Kubernetes Agent", "lane": "default" },
-    { "domain": "data", "agent": "Red Team Data", "lane": "default" },
-    { "domain": "web", "agent": "Red Team Web & Static Sites", "lane": "default" },
-    { "domain": "ai", "agent": "Red Team AI & Foundry", "lane": "default" },
-    { "domain": "easm", "agent": "Red Team Attack Surface (EASM)", "lane": "default" },
-    { "domain": "logging", "agent": "Red Team Logging", "lane": "default" },
-    { "domain": "governance", "agent": "Red Team Governance & Posture", "lane": "default" },
-    { "domain": "supplychain", "agent": "Red Team DevOps & Supply Chain", "lane": "default" },
-    { "domain": "email", "agent": "Red Team Email Security", "lane": "default", "when": "m365_in_scope" }
+    { "domain": "identity", "agent": "Red Team Identity", "lane": "default", "scope_domains": ["identity-posture"], "resource_types": ["microsoft.aad/*", "microsoft.authorization/*", "microsoft.managedidentity/*"] },
+    { "domain": "network", "agent": "Red Team Network", "lane": "default", "scope_domains": ["network-exposure"], "resource_types": ["microsoft.network/*"] },
+    { "domain": "compute", "agent": "Red Team Compute", "lane": "default", "scope_domains": ["compute-platform"], "resource_types": ["microsoft.compute/*", "microsoft.web/*"] },
+    { "domain": "aks-container", "agent": "Red Team Azure Container & Kubernetes Agent", "lane": "default", "scope_domains": ["aks-container"], "resource_types": ["microsoft.containerservice/*", "microsoft.containerregistry/*", "microsoft.app/*"] },
+    { "domain": "data", "agent": "Red Team Data", "lane": "default", "scope_domains": ["data-protection"], "resource_types": ["microsoft.storage/*", "microsoft.keyvault/*", "microsoft.sql/*", "microsoft.documentdb/*", "microsoft.dbforpostgresql/*", "microsoft.dbformysql/*"] },
+    { "domain": "web", "agent": "Red Team Web & Static Sites", "lane": "default", "scope_domains": ["web-exposure"], "resource_types": ["microsoft.web/*", "microsoft.cdn/*", "microsoft.network/applicationgateways", "microsoft.apimanagement/*"] },
+    { "domain": "ai", "agent": "Red Team AI & Foundry", "lane": "default", "scope_domains": ["ai-foundry"], "resource_types": ["microsoft.cognitiveservices/*", "microsoft.machinelearningservices/*", "microsoft.search/*"] },
+    { "domain": "easm", "agent": "Red Team Attack Surface (EASM)", "lane": "default", "scope_domains": ["attack-surface"], "resource_types": ["microsoft.network/*", "microsoft.web/*", "microsoft.cdn/*", "microsoft.apimanagement/*"] },
+    { "domain": "logging", "agent": "Red Team Logging", "lane": "default", "scope_domains": ["logging-coverage"], "resource_types": ["microsoft.insights/*", "microsoft.operationalinsights/*", "microsoft.security/*"] },
+    { "domain": "governance", "agent": "Red Team Governance & Posture", "lane": "default", "scope_domains": ["governance-posture"], "resource_types": ["microsoft.policy/*", "microsoft.security/*", "microsoft.authorization/*"] },
+    { "domain": "supplychain", "agent": "Red Team DevOps & Supply Chain", "lane": "default", "scope_domains": ["devops-supplychain"], "resource_types": ["microsoft.devops/*", "microsoft.containerregistry/*", "microsoft.automation/*", "microsoft.logic/*"] },
+    { "domain": "email", "agent": "Red Team Email Security", "lane": "default", "scope_domains": ["email-security"], "when": "m365_in_scope" }
   ],
   "nodes": [
     {
@@ -61,6 +62,13 @@
       "lane": "default",
       "writes": "inventory_ref",
       "description": "Sequential preflight. Validate permissions and enumerate in-scope resources to engagements/<session>/inventory/resources.jsonl. The parallel fan-out does not start until this completes."
+    },
+    {
+      "id": "build_security_context",
+      "kind": "context",
+      "reads": "inventory_ref",
+      "writes": "security_context",
+      "description": "Normalize the inventory and signal summaries into a compact, provenance-preserving handoff for every specialist. Sources may include Defender for Endpoint, Entra ID, Sentinel, Defender for Cloud, ARM, behavior analytics, exposure management, and threat intelligence. Missing sources are marked unavailable; no signal is inferred."
     },
     {
       "id": "plan_specialists",
@@ -162,7 +170,8 @@
     { "from": "START", "to": "validate_scope" },
     { "from": "validate_scope", "to": "memory_load" },
     { "from": "memory_load", "to": "preflight_inventory" },
-    { "from": "preflight_inventory", "to": "plan_specialists" },
+    { "from": "preflight_inventory", "to": "build_security_context" },
+    { "from": "build_security_context", "to": "plan_specialists" },
     { "from": "run_specialist", "to": "collect_raw" },
     { "from": "collect_raw", "to": "evaluate" },
     { "from": "judge", "to": "authorize_active" },

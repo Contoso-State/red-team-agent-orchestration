@@ -185,6 +185,39 @@ export function defaultRouters() {
 
 export function defaultHandlers({ store } = {}) {
   const memory = store || makeMemoryStore();
+  const defaultSecurityContext = (ctx) => ({
+    version: 'security-context/v1',
+    status: 'summary-only',
+    scope: {
+      mode: ctx.state.scope?.mode || 'read-only-assessment',
+      domains: ctx.state.scope?.domains || [],
+      resource_types: ctx.state.scope?.resource_types || [],
+    },
+    inventory: {
+      ref: ctx.state.inventory_ref || null,
+      status: ctx.state.inventory_ref ? 'available' : 'missing',
+    },
+    signals: {
+      defender_endpoint: { status: 'unavailable', evidence_refs: [] },
+      entra_identity: { status: 'unavailable', evidence_refs: [] },
+      sentinel: { status: 'unavailable', evidence_refs: [] },
+      defender_cloud: { status: 'unavailable', evidence_refs: [] },
+      arm: {
+        status: ctx.state.inventory_ref ? 'available' : 'unavailable',
+        evidence_refs: ctx.state.inventory_ref ? [ctx.state.inventory_ref] : [],
+      },
+      behavior_analytics: { status: 'unavailable', evidence_refs: [] },
+      exposure_management: { status: 'unavailable', evidence_refs: [] },
+      threat_intelligence: { status: 'unavailable', evidence_refs: [] },
+    },
+    handoff: {
+      instructions: [
+        'Treat unavailable signals as coverage gaps, not clean results.',
+        'Use evidence_refs to retrieve source summaries.',
+        'Never infer a signal that is not present.',
+      ],
+    },
+  });
   return {
     validate(node, ctx) {
       // Scope is normally seeded from engagement.yaml by the caller; pass it through.
@@ -193,6 +226,12 @@ export function defaultHandlers({ store } = {}) {
     },
     memory_read(node) {
       return { writes: { memory: memory.load(node.namespace || 'methodology') } };
+    },
+    context(node, ctx) {
+      const context = typeof ctx.securityContext === 'function'
+        ? ctx.securityContext(node, ctx)
+        : defaultSecurityContext(ctx);
+      return { writes: { [node.writes]: context } };
     },
     // dispatch is a no-op in the engine: the CLI orchestrator performs the real
     // read-only specialist run. A caller-supplied dispatch handler emits findings.
@@ -252,10 +291,42 @@ function indexGraph(graph) {
 /** Which roster specialists are in scope (honors the `when` inclusion predicate). */
 export function inScopeRoster(graph, state) {
   const scope = state.scope || {};
+  const selectedDomains = Array.isArray(scope.domains) ? scope.domains : [];
+  const selectedTypes = Array.isArray(scope.resource_types) ? scope.resource_types : [];
+  const normalize = (value) => String(value).toLowerCase();
+  const typeMatches = (selected, supported) => {
+    const candidate = normalize(selected);
+    const pattern = normalize(supported);
+    if (pattern.endsWith('/*')) return candidate.startsWith(pattern.slice(0, -1));
+    return candidate === pattern;
+  };
   return (graph.roster || []).filter((r) => {
     if (!r.when) return true;
-    return scope[r.when] === true || (Array.isArray(scope.flags) && scope.flags.includes(r.when));
+    if (scope[r.when] !== true && !(Array.isArray(scope.flags) && scope.flags.includes(r.when))) return false;
+    return true;
+  }).filter((r) => {
+    if (selectedDomains.length && Array.isArray(r.scope_domains) &&
+        !r.scope_domains.some((domain) => selectedDomains.includes(domain))) return false;
+    if (selectedTypes.length && (!Array.isArray(r.resource_types) || !r.resource_types.length)) return false;
+    if (selectedTypes.length && Array.isArray(r.resource_types) && r.resource_types.length &&
+        !selectedTypes.some((selected) => r.resource_types.some((supported) => typeMatches(selected, supported)))) return false;
+    return true;
   });
+}
+
+function getPath(value, path) {
+  return String(path).split('.').reduce((current, key) => (
+    current && typeof current === 'object' ? current[key] : undefined
+  ), value);
+}
+
+function assertActiveRequirements(graph, scope, lane) {
+  const mode = lane === 'external_active' ? 'external-active-testing' : 'cluster-active-testing';
+  const node = graph.nodes.find((candidate) => candidate.gated?.mode === mode);
+  const missing = (node?.gated?.requires || []).filter((path) => !getPath(scope, path));
+  if (missing.length) {
+    throw new Error(`${mode} requires ${missing.join(', ')}`);
+  }
 }
 
 /**
@@ -280,6 +351,7 @@ export function runGraph(graph, options = {}) {
     dispatch: options.dispatchFn,
     judge: options.judgeFn,
     quality: options.quality,
+    securityContext: options.securityContextFn,
   };
 
   const runHandler = (node) => {
@@ -332,6 +404,7 @@ export function runGraph(graph, options = {}) {
     if (node.kind === 'interrupt') {
       const active = routers.route_active(state, params, ctx);
       if (active !== 'none') {
+        assertActiveRequirements(graph, state.scope || {}, active);
         const known = state.approved;
         if (known == null && decision == null) {
           checkpoint('interrupted');
@@ -391,6 +464,7 @@ export async function runGraphAsync(graph, options = {}) {
     dispatch: options.dispatchFn,
     judge: options.judgeFn,
     quality: options.quality,
+    securityContext: options.securityContextFn,
   };
 
   const runHandler = async (node, handlerCtx = ctx) => {
@@ -531,6 +605,7 @@ export async function runGraphAsync(graph, options = {}) {
     if (node.kind === 'interrupt') {
       const active = routers.route_active(state, params, ctx);
       if (active !== 'none') {
+        assertActiveRequirements(graph, state.scope || {}, active);
         const known = state.approved;
         if (known == null && decision == null) {
           checkpoint('interrupted');

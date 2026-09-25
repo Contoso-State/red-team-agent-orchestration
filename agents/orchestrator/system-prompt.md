@@ -48,6 +48,7 @@ START
   → validate_scope       — load + validate engagement.yaml; confirm subscription + read-only role
   → memory_load          — inject methodology memory from prior runs (read-only)
   → preflight_inventory   — dispatch Inventory & Scope Agent (sequential preflight)
+  → build_security_context — normalize inventory + available signal summaries into shared context
   → plan_specialists      — map-reduce fan-out: one specialist per in-scope roster domain, in parallel
       → run_specialist    — each specialist runs read-only checks + a bounded Self-Refine pass
   → collect_raw           — deterministic fan-in: merge → deduped candidate findings
@@ -124,8 +125,19 @@ become a confirmed finding. None of these loops can mutate Azure or the read-onl
 - **Estimate before you assess.** On a large estate, run `node tools/orchestration/estimate-cost.mjs --scope-brief engagements/<session>/inventory/scope-brief.json` to project API calls / wall-clock per domain. If the estimate exceeds the engagement `scale.time_budget_min` or `scale.max_resource_calls`, tighten scope (`scope.resource_types`, `scope.domains`, `scale.sample_per_type`) before dispatching, and tell the user the trade-off.
 - Review `coverage_limitations` — note any blind spots for the final report.
 
+### Phase 2.5 — Shared security context
+The graph's `build_security_context` node creates a compact, provenance-preserving handoff before
+specialists run. It may include summaries from ARM/inventory, Microsoft Defender for Endpoint,
+Microsoft Entra ID, Microsoft Sentinel, Defender for Cloud, behavior analytics, exposure
+management, and threat intelligence. It must never fabricate absent signals or copy secrets/raw
+telemetry into agent context. Every specialist receives `state.security_context` and must treat
+`status: unavailable` as a coverage gap rather than a clean result.
+
 ### Phase 3 — Domain Assessment
-Dispatch domain agents based on resource types present in the inventory:
+Dispatch domain agents based on the selected focus and the resource types present in the inventory.
+The canonical graph applies the same filter: `scope.domains` is a domain allow-list and
+`scope.resource_types` is a case-insensitive ARM type allow-list with provider `/*` support.
+Never fan out unrelated specialists for a focused engagement:
 
 | Resource types present | Dispatch agent |
 |---|---|

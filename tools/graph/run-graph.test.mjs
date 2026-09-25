@@ -40,6 +40,7 @@ test('initialState seeds channels by shape', () => {
   const s = initialState(graph);
   assert.deepEqual(s.raw_findings, []); // append
   assert.deepEqual(s.candidate_findings, []); // merge_findings
+  assert.equal(s.security_context, null); // object/last
   assert.equal(s.revision, 0); // number
   assert.equal(s.scope, null); // object/last
 });
@@ -75,6 +76,33 @@ test('read-only engagement runs the full path without pausing', () => {
   assert.ok(!res.path.includes('eva_active'));
   assert.ok(!res.path.includes('cluster_active'));
   assert.ok(res.path.includes('correlate') && res.path.includes('report'));
+  assert.ok(res.path.includes('build_security_context'));
+});
+
+test('security context is available to every specialist without fabricating signals', () => {
+  const seen = [];
+  const res = runGraph(graph, {
+    scope: { mode: 'read-only-assessment', m365_in_scope: false },
+    handlers: {
+      preflight_inventory: () => ({ writes: { inventory_ref: 'engagements/test/inventory/resources.jsonl' } }),
+      build_security_context: (_node, ctx) => ({
+        writes: {
+          security_context: {
+            version: 'security-context/v1',
+            signals: { arm: { status: 'available', evidence_refs: [ctx.state.inventory_ref] } },
+          },
+        },
+      }),
+      run_specialist: (_node, ctx) => {
+        seen.push(ctx.state.security_context);
+        return {};
+      },
+    },
+  });
+  assert.equal(res.status, 'completed');
+  assert.equal(seen.length, 11);
+  assert.ok(seen.every((context) => context?.version === 'security-context/v1'));
+  assert.equal(seen[0].signals.arm.status, 'available');
 });
 
 test('fan-out Send runs every in-scope specialist and the reduce dedupes into candidates', () => {
@@ -284,6 +312,20 @@ test('the `when` predicate includes the email specialist only when M365 is in sc
   assert.equal(res.state.raw_findings.length, 12);
 });
 
+test('specialist fan-out honors selected assessment domains', () => {
+  const scoped = inScopeRoster(graph, {
+    scope: { domains: ['identity-posture', 'data-protection'], m365_in_scope: false },
+  });
+  assert.deepEqual(scoped.map((item) => item.domain), ['identity', 'data']);
+});
+
+test('specialist fan-out honors selected ARM resource types', () => {
+  const scoped = inScopeRoster(graph, {
+    scope: { resource_types: ['Microsoft.Compute/virtualMachines'], m365_in_scope: true },
+  });
+  assert.deepEqual(scoped.map((item) => item.domain), ['compute']);
+});
+
 test('duplicate findings from different specialists merge in candidate_findings', () => {
   const res = runGraph(graph, {
     scope: { mode: 'read-only-assessment', m365_in_scope: false },
@@ -327,7 +369,12 @@ test('route_after_evaluate proceeds once quality clears the threshold', () => {
 // --- human-in-the-loop authorization interrupt ---
 
 test('external-active engagement pauses at the authorization interrupt', () => {
-  const res = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const res = runGraph(graph, {
+    scope: {
+      mode: 'external-active-testing',
+      external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+    },
+  });
   assert.equal(res.status, 'interrupted');
   assert.equal(res.node, 'authorize_active');
   assert.match(res.prompt, /authoriz/i);
@@ -335,7 +382,11 @@ test('external-active engagement pauses at the authorization interrupt', () => {
 });
 
 test('resuming the interrupt with approval runs the external active lane', () => {
-  const paused = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const scope = {
+    mode: 'external-active-testing',
+    external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+  };
+  const paused = runGraph(graph, { scope });
   const resumed = runGraph(graph, {
     initialState: paused.state,
     startAt: 'authorize_active',
@@ -348,7 +399,12 @@ test('resuming the interrupt with approval runs the external active lane', () =>
 });
 
 test('resuming the interrupt with rejection skips the active lane', () => {
-  const paused = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const paused = runGraph(graph, {
+    scope: {
+      mode: 'external-active-testing',
+      external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+    },
+  });
   const resumed = runGraph(graph, {
     initialState: paused.state,
     startAt: 'authorize_active',
@@ -361,11 +417,22 @@ test('resuming the interrupt with rejection skips the active lane', () => {
 });
 
 test('cluster-active engagement pauses then runs the cluster lane on approval', () => {
-  const paused = runGraph(graph, { scope: { mode: 'cluster-active-testing' } });
+  const scope = {
+    mode: 'cluster-active-testing',
+    cluster_testing: { enabled: true, authorization: { attestation_id: 'ROE-2' } },
+  };
+  const paused = runGraph(graph, { scope });
   assert.equal(paused.status, 'interrupted');
   const resumed = runGraph(graph, { initialState: paused.state, startAt: 'authorize_active', decision: true });
   assert.ok(resumed.path.includes('cluster_active'));
   assert.ok(!resumed.path.includes('eva_active'));
+});
+
+test('active mode fails closed when its enabled attestation block is missing', () => {
+  assert.throws(
+    () => runGraph(graph, { scope: { mode: 'external-active-testing' } }),
+    /external-active-testing requires external_testing.enabled, external_testing.authorization.attestation_id/,
+  );
 });
 
 // --- checkpointing ---

@@ -35,7 +35,8 @@ flowchart TD
     START --> validate_scope
     validate_scope --> memory_load
     memory_load --> preflight_inventory
-    preflight_inventory --> plan_specialists
+    preflight_inventory --> build_security_context
+    build_security_context --> plan_specialists
     plan_specialists -- Send over roster --> run_specialist
     run_specialist --> collect_raw
     collect_raw --> evaluate

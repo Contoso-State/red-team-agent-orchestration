@@ -43,7 +43,8 @@ graph TD
     START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
     VS --> ML[memory_load<br/>methodology memory]
     ML --> PI[preflight_inventory<br/>sequential inventory]
-    PI --> PS[plan_specialists<br/>Send fan-out]
+    PI --> SC[build_security_context<br/>normalized signals]
+    SC --> PS[plan_specialists<br/>Send fan-out]
 
     subgraph Fanout[Parallel read-only specialist fan-out]
         PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]
@@ -82,21 +83,30 @@ The topology is:
 2. **`memory_load`** — prior methodology memory is loaded as read-only context.
 3. **`preflight_inventory`** — the Inventory & Scope agent performs sequential permission checks
    and resource enumeration.
-4. **`plan_specialists -> run_specialist`** — a LangGraph-style **Send** fan-out maps over the
-   in-scope read-only roster and dispatches one specialist worker per domain in parallel.
-5. **`collect_raw`** — raw specialist outputs fan back in through a deterministic
+4. **`build_security_context`** — inventory and available signal summaries are normalized into a
+   compact, provenance-preserving context handoff. The context names its sources, evidence
+   references, and unavailable signal families; it never invents a clean result or carries raw
+   secrets/telemetry into prompts.
+5. **`plan_specialists -> run_specialist`** — a LangGraph-style **Send** fan-out maps over the
+   in-scope read-only roster and dispatches one specialist worker per domain in parallel. The
+   runner now enforces `scope.domains` and `scope.resource_types` here, so a focused engagement
+   cannot accidentally fan out unrelated agents; an ARM type allow-list is matched
+   case-insensitively with provider `/*` support.
+6. **`collect_raw`** — raw specialist outputs fan back in through a deterministic
    `merge_findings` reduce.
-6. **`evaluate`** — the evaluator-optimizer loop head runs deterministic checks plus a critic
+7. **`evaluate`** — the evaluator-optimizer loop head runs deterministic checks plus a critic
    score over candidate findings.
-7. **`route_after_evaluate`** — if `revision < max_revisions` and quality is below
+8. **`route_after_evaluate`** — if `revision < max_revisions` and quality is below
    `quality_threshold`, the graph reflects back to `plan_specialists`; otherwise it proceeds.
-8. **`judge`** — an Agent-as-a-Judge gate re-checks candidate findings using targeted
+9. **`judge`** — an Agent-as-a-Judge gate re-checks candidate findings using targeted
    **read-only** evidence queries and suppresses false positives into methodology memory.
-9. **`authorize_active` / `route_active`** — a human-in-the-loop interrupt gates the optional
-   active lanes. Read-only or rejected runs route straight to correlation.
-10. **`correlate -> report`** — confirmed findings are correlated into RBAC and attack paths,
+10. **`authorize_active` / `route_active`** — a human-in-the-loop interrupt gates the optional
+   active lanes. Before pausing for approval, the runner fails closed unless the selected lane's
+   enabled flag and attestation ID are present. Read-only or rejected runs route straight to
+   correlation.
+11. **`correlate -> report`** — confirmed findings are correlated into RBAC and attack paths,
     then rendered into deliverables.
-11. **`reflexion_debrief -> END`** — the run records an inert episode. Stable lessons are
+12. **`reflexion_debrief -> END`** — the run records an inert episode. Stable lessons are
     promoted only after matching evidence from at least two distinct runs for the same agent.
 
 ## State channels and reducers
@@ -109,6 +119,7 @@ each channel declares its reducer in the graph contract.
 | `scope` | object | `last` | Validated subscription, mode, domain, exclusion, and read-only role context. |
 | `memory` | object | `last` | Methodology memory loaded from prior runs. |
 | `inventory_ref` | string | `last` | Path to the preflight resource inventory. |
+| `security_context` | object | `last` | Normalized signal summaries and evidence references handed to every specialist. |
 | `raw_findings` | array | `append` | Per-specialist JSONL outputs accumulated by Send fan-in. |
 | `candidate_findings` | array | `merge_findings` | Deterministically deduped findings before critique and judge. |
 | `critique` | object | `last` | Evaluator quality score and notes that drive reflection. |

@@ -77,7 +77,8 @@ graph TD
     START([START]) --> VS[validate_scope<br/>subscription + read-only gate]
     VS --> ML[memory_load<br/>methodology memory]
     ML --> PI[preflight_inventory<br/>sequential inventory]
-    PI --> PS[plan_specialists<br/>Send fan-out]
+    PI --> SC[build_security_context<br/>normalized signals]
+    SC --> PS[plan_specialists<br/>Send fan-out]
 
     subgraph Fanout[Parallel read-only specialist fan-out]
         PS --> RS[run_specialist<br/>12 domains + bounded Self-Refine]

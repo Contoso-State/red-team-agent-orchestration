@@ -208,7 +208,11 @@ export function runHitl(graph, { rowsProvider, env } = {}) {
   const store = makeProceduralStore();
   const audit = makeAuditLog();
   const dispatch = makeDispatchFactory({ rowsProvider, seq: {} });
-  const scope = { mode: 'cluster-active-testing', m365_in_scope: false };
+  const scope = {
+    mode: 'cluster-active-testing',
+    m365_in_scope: false,
+    cluster_testing: { enabled: true, authorization: { attestation_id: 'BENCH-ROE' } },
+  };
   const run1 = runSelfImprovingGraph(graph, { scope, store, audit, dispatchFn: dispatch, env });
   // run1 must pause at the authorization interrupt (no decision supplied yet).
   const run2 = run1.status === 'interrupted'
