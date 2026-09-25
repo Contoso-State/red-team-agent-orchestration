@@ -52,6 +52,7 @@ test('the reference names every canonical graph artifact + the immutable boundar
   for (const ref of [
     'graph/redteam.graph.json',
     'tools/graph/run-graph.mjs',
+    'tools/graph/run-live.mjs',
     'tools/graph/validate-graph.mjs',
     'tools/graph/self-improve.mjs',
     'integrations/langgraph/',
@@ -63,8 +64,10 @@ test('the reference names every canonical graph artifact + the immutable boundar
   // The one thing the self-improving graph must never be able to rewrite.
   assert.match(body, /read-only enforcement/i);
   assert.match(body, /never (modify|rewrite)/i);
-  // Self-improvement posture: auto-applied, no PR/gate.
-  assert.match(body, /NO pull request and NO human gate/);
+  // Default learning remains evidence-gated; the CLI simulation is explicit.
+  assert.match(body, /enabled by default with evidence-gated methodology promotion/);
+  assert.match(body, /executes simulated dispatch/);
+  assert.match(body, /build_security_context/);
 });
 
 test('Claude and Cursor both carry the graph reference, embedding the identical body', () => {

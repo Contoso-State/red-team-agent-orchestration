@@ -183,6 +183,59 @@ export function defaultRouters() {
 // overrides dispatch/evaluator/judge with real implementations.
 // ---------------------------------------------------------------------------
 
+/** Build an evidence-reference summary. A reference alone never proves collection succeeded. */
+export function buildSecurityContext(state = {}) {
+  const inventoryRef = typeof state.inventory_ref === 'string' && state.inventory_ref.trim()
+    ? state.inventory_ref : null;
+  return {
+    version: 'security-context/v1',
+    status: 'summary-only',
+    scope: {
+      mode: state.scope?.mode || 'read-only-assessment',
+      domains: state.scope?.domains || [],
+      resource_types: state.scope?.resource_types || [],
+    },
+    inventory: {
+      ref: inventoryRef,
+      status: inventoryRef ? 'referenced' : 'missing',
+    },
+    signals: {
+      defender_endpoint: { status: 'unavailable', evidence_refs: [] },
+      entra_identity: { status: 'unavailable', evidence_refs: [] },
+      sentinel: { status: 'unavailable', evidence_refs: [] },
+      defender_cloud: { status: 'unavailable', evidence_refs: [] },
+      arm: {
+        status: inventoryRef ? 'unverified' : 'unavailable',
+        evidence_refs: inventoryRef ? [inventoryRef] : [],
+      },
+      behavior_analytics: { status: 'unavailable', evidence_refs: [] },
+      exposure_management: { status: 'unavailable', evidence_refs: [] },
+      threat_intelligence: { status: 'unavailable', evidence_refs: [] },
+    },
+    handoff: {
+      instructions: [
+        'Treat unavailable and unverified signals as coverage gaps, not clean results.',
+        'Use evidence_refs to retrieve source summaries.',
+        'Verify source provenance and collection success before treating a reference as evidence.',
+        'Never infer a signal that is not present.',
+      ],
+    },
+  };
+}
+
+function isThenable(value) {
+  return value != null && typeof value.then === 'function';
+}
+
+function requireSynchronousResult(result, node) {
+  if (isThenable(result)) {
+    // Avoid an unhandled rejection while rejecting async handlers in the sync runner.
+    Promise.resolve(result).catch(() => {});
+    throw new Error(`node "${node.id}" returned a Promise; use runGraphAsync for async handlers`);
+  }
+  return result || {};
+}
+
 export function defaultHandlers({ store } = {}) {
   const memory = store || makeMemoryStore();
   return {
@@ -193,6 +246,15 @@ export function defaultHandlers({ store } = {}) {
     },
     memory_read(node) {
       return { writes: { memory: memory.load(node.namespace || 'methodology') } };
+    },
+    context(node, ctx) {
+      const context = typeof ctx.securityContext === 'function'
+        ? ctx.securityContext(node, ctx)
+        : buildSecurityContext(ctx.state);
+      if (isThenable(context)) {
+        return Promise.resolve(context).then((value) => ({ writes: { [node.writes]: value } }));
+      }
+      return { writes: { [node.writes]: context } };
     },
     // dispatch is a no-op in the engine: the CLI orchestrator performs the real
     // read-only specialist run. A caller-supplied dispatch handler emits findings.
@@ -252,10 +314,57 @@ function indexGraph(graph) {
 /** Which roster specialists are in scope (honors the `when` inclusion predicate). */
 export function inScopeRoster(graph, state) {
   const scope = state.scope || {};
+  const selectedDomains = Array.isArray(scope.domains) ? scope.domains : [];
+  const selectedTypes = Array.isArray(scope.resource_types) ? scope.resource_types : [];
+  const normalize = (value) => String(value).toLowerCase();
+  const typeMatches = (selected, supported) => {
+    if (typeof selected !== 'string' || typeof supported !== 'string') return false;
+    const candidate = normalize(selected);
+    const pattern = normalize(supported);
+    // Select the intersection of two type sets; either side can name a provider wildcard.
+    if (candidate.endsWith('/*') && pattern.startsWith(candidate.slice(0, -1))) return true;
+    if (pattern.endsWith('/*') && candidate.startsWith(pattern.slice(0, -1))) return true;
+    return candidate === pattern;
+  };
   return (graph.roster || []).filter((r) => {
     if (!r.when) return true;
-    return scope[r.when] === true || (Array.isArray(scope.flags) && scope.flags.includes(r.when));
+    if (scope[r.when] !== true && !(Array.isArray(scope.flags) && scope.flags.includes(r.when))) return false;
+    return true;
+  }).filter((r) => {
+    if (selectedDomains.length && Array.isArray(r.scope_domains) &&
+        !r.scope_domains.some((domain) => selectedDomains.includes(domain))) return false;
+    if (selectedTypes.length && (!Array.isArray(r.resource_types) || !r.resource_types.length)) return false;
+    if (selectedTypes.length && Array.isArray(r.resource_types) && r.resource_types.length &&
+        !selectedTypes.some((selected) => r.resource_types.some((supported) => typeMatches(selected, supported)))) return false;
+    return true;
   });
+}
+
+function getPath(value, path) {
+  return String(path).split('.').reduce((current, key) => (
+    current && typeof current === 'object' ? current[key] : undefined
+  ), value);
+}
+
+function assertActiveRequirements(graph, scope, lane) {
+  const mode = lane === 'external_active' ? 'external-active-testing' : 'cluster-active-testing';
+  const node = graph.nodes.find((candidate) => candidate.gated?.mode === mode);
+  const prefix = lane === 'external_active' ? 'external_testing' : 'cluster_testing';
+  const enabledPath = `${prefix}.enabled`;
+  const attestationPath = `${prefix}.authorization.attestation_id`;
+  const requirements = node?.gated?.requires;
+  if (!Array.isArray(requirements) || !requirements.includes(enabledPath) || !requirements.includes(attestationPath)) {
+    throw new Error(`${mode} requires an explicit enabled and attestation gate`);
+  }
+  const missing = requirements.filter((path) => {
+    const value = getPath(scope, path);
+    if (path === enabledPath) return value !== true;
+    if (path === attestationPath) return typeof value !== 'string' || !value.trim();
+    return true; // Unknown requirement contracts fail closed.
+  });
+  if (missing.length) {
+    throw new Error(`${mode} requires ${missing.join(', ')}`);
+  }
 }
 
 /**
@@ -280,12 +389,13 @@ export function runGraph(graph, options = {}) {
     dispatch: options.dispatchFn,
     judge: options.judgeFn,
     quality: options.quality,
+    securityContext: options.securityContextFn,
   };
 
   const runHandler = (node) => {
     const h = handlers[node.id] || handlers[node.kind];
     if (!h) return {};
-    return h(node, ctx) || {};
+    return requireSynchronousResult(h(node, ctx), node);
   };
 
   const linearNext = (nodeId) => {
@@ -321,7 +431,7 @@ export function runGraph(graph, options = {}) {
       for (const item of inScopeRoster(graph, state)) {
         const childCtx = { ...ctx, item, roster: item };
         const h = handlers[child.id] || handlers[child.kind];
-        const res = h ? h(child, childCtx) || {} : {};
+        const res = h ? requireSynchronousResult(h(child, childCtx), child) : {};
         applyResults(state, graph, res);
       }
       checkpoint('done');
@@ -332,12 +442,13 @@ export function runGraph(graph, options = {}) {
     if (node.kind === 'interrupt') {
       const active = routers.route_active(state, params, ctx);
       if (active !== 'none') {
+        assertActiveRequirements(graph, state.scope || {}, active);
         const known = state.approved;
         if (known == null && decision == null) {
           checkpoint('interrupted');
           return { status: 'interrupted', state, path, steps, prompt: node.prompt, node: current };
         }
-        const approved = known != null ? known : decision;
+        const approved = (known != null ? known : decision) === true;
         applyWrite(state, graph, 'approved', approved);
         if (!approved) {
           checkpoint('done');
@@ -391,6 +502,7 @@ export async function runGraphAsync(graph, options = {}) {
     dispatch: options.dispatchFn,
     judge: options.judgeFn,
     quality: options.quality,
+    securityContext: options.securityContextFn,
   };
 
   const runHandler = async (node, handlerCtx = ctx) => {
@@ -531,13 +643,14 @@ export async function runGraphAsync(graph, options = {}) {
     if (node.kind === 'interrupt') {
       const active = routers.route_active(state, params, ctx);
       if (active !== 'none') {
+        assertActiveRequirements(graph, state.scope || {}, active);
         const known = state.approved;
         if (known == null && decision == null) {
           checkpoint('interrupted');
           emit('node.completed', { node_id: node.id, status: 'blocked' });
           return { status: 'interrupted', state, path, steps, prompt: node.prompt, node: current };
         }
-        const approved = known != null ? known : decision;
+        const approved = (known != null ? known : decision) === true;
         applyWrite(state, graph, 'approved', approved);
         if (!approved) {
           checkpoint('done');
@@ -611,8 +724,8 @@ function readEngagementScope(path) {
     const mode = modeMatch ? modeMatch[1] : 'read-only-assessment';
     const m365 = /m365|email|exchange|office\s*365/i.test(text);
     return { mode, m365_in_scope: m365 };
-  } catch {
-    return { mode: 'read-only-assessment', m365_in_scope: false };
+  } catch (error) {
+    throw new Error(`Cannot read requested engagement file: ${error.message}`);
   }
 }
 
@@ -735,6 +848,8 @@ async function main(argv) {
 
   const result = await runGraphAsync(graph, opts);
 
+  console.log('DRY RUN — simulated dispatch; no Azure assessment or live evidence verification performed.');
+
   if (result.status === 'interrupted') {
     console.log(`⏸ paused at "${result.node}" for human authorization:`);
     console.log(`   ${result.prompt}`);
@@ -743,9 +858,9 @@ async function main(argv) {
     process.exit(0);
   }
 
-  console.log(`✓ ${graph.name}@${graph.version} completed in ${result.steps} steps`);
+  console.log(`✓ ${graph.name}@${graph.version} dry run completed in ${result.steps} steps`);
   console.log(`  path: ${result.path.join(' -> ')}`);
-  console.log(`  confirmed findings: ${(result.state.confirmed_findings || []).length}`);
+  console.log(`  simulated confirmed findings: ${(result.state.confirmed_findings || []).length}`);
   opts.emitEvent?.('run.completed', {
     node_id: 'reflexion_debrief',
     status: 'completed',

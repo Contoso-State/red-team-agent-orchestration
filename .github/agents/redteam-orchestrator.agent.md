@@ -39,13 +39,20 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
 
 ## Dispatch Protocol
 
-0. **Start the Agent Observatory.** Before any dispatch, have the run's observability up so the
-   user can watch the team work. `node tools/graph/run-graph.mjs --session engagements/<session>`
-   starts it automatically; when you dispatch sub-agents directly, start
-   `node tools/dashboard/server.mjs --session engagements/<session>` and append lifecycle
-   metadata with `node tools/dashboard/events.mjs --session engagements/<session> --type <event>`
-   as each specialist starts, completes, or fails. Give the user the loopback URL. A dashboard
-   failure is reported and never blocks the assessment.
+**Canonical graph and evidence-gated methodology learning are enabled by default.** Follow
+`graph/redteam.graph.json`, including `memory_load`, bounded evaluation, judging, and
+`reflexion_debrief`; do not bypass those nodes during native agent dispatch. Respect an explicit
+`REDTEAM_SELF_IMPROVE=off` override and record it. Learning adds scoped, read-only context; it
+does not train model weights or rewrite prompts, code, tools, or policy.
+
+0. **Start the Agent Observatory.** Have the authorized runtime host or a delegated specialist
+   start `node tools/dashboard/server.mjs --session engagements/<session>` and emit redacted
+   lifecycle, actual handoff, memory, and evaluation metadata through `tools/dashboard/events.mjs`.
+   Give the user the loopback URL. You remain dispatch-only. The standalone
+   `tools/graph/run-graph.mjs` executes **simulated dispatch**, not a live assessment.
+   `tools/graph/run-live.mjs` is the separate Claude live entry point and requires explicit scope
+   and fresh preflight. Native Copilot/Codex/Cursor dispatch follows the same canonical graph;
+   it must produce its own events. A dashboard failure is reported and never blocks the assessment.
 1. **Validate scope.** Load `engagement.yaml`; validate against `schemas/engagement.schema.json`.
    If missing, tell the user to run `/setup` (or copy `engagement.example.yaml`) and stop. Echo a one-line scope
    summary and the `mode` (default `read-only-assessment`). **Confirm the assessment focus:** if
@@ -53,20 +60,32 @@ Skill (domain knowledge): `.github/skills/azure-redteam-orchestrator/SKILL.md`.
    subscription?"* (Full estate · Public/internet exposure · Virtual Machines & compute · Data stores ·
    Identity & access · AI/Foundry · Logging & governance · DevOps & supply chain · or specific resource
    types like *just VMs* / *just Public IPs*) and record the chosen domains/types. Track phases in the todo list.
-2. **Preflight (sequential).** Dispatch `Red Team Inventory & Scope` first. Do not proceed until
+2. **Load methodology memory (`memory_load`).** Retrieve evidence-verified prior-run context
+   for the scoped environment and agent. Treat candidates as inert; reusable knowledge requires
+   corroboration from at least two distinct runs for that agent and environment. Retain source
+   run references and never treat historical observations as proof of the current Azure state.
+3. **Preflight (sequential).** Dispatch `Red Team Inventory & Scope` first. Do not proceed until
    `engagements/<session>/inventory/resources.jsonl` exists and permissions are validated.
-3. **Domain assessment (parallel).** Dispatch the order-2 agents. Pass each: the engagement scope,
+4. **Domain assessment (parallel).** Dispatch the order-2 agents. Pass each: the engagement scope,
    the inventory path, its target resource types, and the hard specialist deadline from
    `graph.params.specialist_timeout_seconds` (default 900 seconds). Require each specialist to stop
    new Azure queries at 80% of its deadline, reserve the remainder for artifact finalization, and
    return partial coverage rather than waiting indefinitely. Each writes
    `engagements/<session>/findings/raw/<agent>.jsonl`.
-4. **Correlation (sequential).** Dispatch `Red Team Authorization` to chain findings into attack paths.
-5. **Reporting (sequential).** Track reporting separately and dispatch it immediately when correlation
+5. **Evaluate and judge.** Reduce candidates deterministically, run the bounded evaluator-optimizer
+   cycle, and require current evidence before marking a finding confirmed. Record measured outcomes,
+   coverage gaps, and unresolved findings; historical memory alone cannot confirm or suppress a finding.
+   Preserve the graph's human approval interrupt before either gated active lane.
+6. **Correlation (sequential).** Dispatch `Red Team Authorization` to chain findings into attack paths.
+7. **Reporting (sequential).** Track reporting separately and dispatch it immediately when correlation
    completes or returns partial. Apply `graph.params.dispatch_timeout_seconds` (default 600 seconds)
    to both sequential phases. Dispatch `Red Team Reporting` to dedupe, prioritize, and render
    `engagements/<session>/reports/`.
-6. **Brief the user** with finding counts by severity and the top attack path.
+8. **Debrief (`reflexion_debrief`).** Persist redacted methodology candidates and evidence references
+   under `memory/methodology/`; promote reusable knowledge only after the distinct-run evidence gate.
+   Never modify guardrails, allowlists, or the read-only role. Report retrieval, promotion, and measured
+   evaluation separately: memory reuse is not proof of an improvement.
+9. **Brief the user** with finding counts by severity, the top attack path, and any unproven learning gains.
 
 ### Gated external active testing (Phase 2.5 — off by default)
 

@@ -32,6 +32,7 @@
  * Read-only: only reads the input files and writes the single --out file.
  */
 
+import { GRAPH3D_JS, GRAPH3D_CSS, isConditionalEdge } from './graph3d.mjs';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { argv } from 'node:process';
@@ -152,6 +153,7 @@ function parseArgs(args) {
     else if (a === '--out') out.out = args[++i];
     else if (a === '--title') out.title = args[++i];
     else if (a === '--inventory-summary') out.inventorySummary = args[++i];
+    else if (a === '--coverage-summary') out.coverageSummary = args[++i];
     else if (a === '--token-usage') out.tokenUsage = args[++i];
     else if (a === '-h' || a === '--help') out.help = true;
     else if (a.startsWith('--findings=')) out.findings = a.slice(11);
@@ -160,6 +162,7 @@ function parseArgs(args) {
     else if (a.startsWith('--out=')) out.out = a.slice(6);
     else if (a.startsWith('--title=')) out.title = a.slice(8);
     else if (a.startsWith('--inventory-summary=')) out.inventorySummary = a.slice(20);
+    else if (a.startsWith('--coverage-summary=')) out.coverageSummary = a.slice(19);
     else if (a.startsWith('--token-usage=')) out.tokenUsage = a.slice(14);
   }
   return out;
@@ -179,7 +182,8 @@ function usage() {
     '  --out <path>            Output HTML (default: alongside findings as report.html)',
     '  --title <text>          Override report title',
     '  --inventory-summary <p> summary.json type rollup from Export-Inventory (optional;',
-    '                          surfaces "N resources assessed" on the cover without listing them)',
+    '                          surfaces "N resources inventoried" on the cover without listing them)',
+    '  --coverage-summary <p> Check coverage JSON: counts (assessed/partial/unavailable/not_applicable), notes[]',
     '  --token-usage <path>    token-usage.json from tools/tokens/ledger.mjs (optional; renders the',
     '                          total input/output/total token figure + per-phase/agent cost appendix)',
     '  -h, --help              Show this help',
@@ -233,23 +237,51 @@ function loadEngagement(path) {
   }
   const meta = {};
   const subs = [];
+  const subNames = [];
   let inSubs = false;
+  let subsIndent = -1;   // indent of the `subscriptions:` key
+  let itemIndent = -1;   // indent of a direct `- ` item under subscriptions
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.replace(/#.*$/, '');
     if (!line.trim()) continue;
     const indent = line.match(/^\s*/)[0].length;
-    const listItem = line.match(/^\s*-\s+(.*)$/);
-    if (inSubs && listItem && indent >= 2) {
-      subs.push(stripQuotes(listItem[1].trim()));
-      continue;
+    if (inSubs) {
+      // Leave the block once a line returns to (or above) the key's indent,
+      // e.g. a sibling `exclusions:`; then let it fall through to kv handling.
+      if (indent <= subsIndent) {
+        inSubs = false;
+        itemIndent = -1;
+      } else {
+        const listItem = line.match(/^(\s*)-\s+(.*)$/);
+        if (listItem) {
+          const markerIndent = listItem[1].length;
+          if (itemIndent === -1) itemIndent = markerIndent;
+          // Only DIRECT children are subscription entries; a subscription's own
+          // nested lists (e.g. resource_groups: - "*") sit deeper and are skipped.
+          if (markerIndent === itemIndent) {
+            const body = listItem[2].trim();
+            // An entry may be a mapping (`- id: "..."  name: "..."`) or a bare
+            // scalar (`- "sub-id"`); prefer the id field when present.
+            const idInline = body.match(/^id\s*:\s*(.*)$/);
+            subs.push(stripQuotes((idInline ? idInline[1] : body).trim()));
+          }
+        } else {
+          // Mapping continuation of the current subscription entry: capture its
+          // display name but never let it overwrite the engagement's own name.
+          const nameLine = line.match(/^\s*name\s*:\s*(.+)$/);
+          if (nameLine) subNames.push(stripQuotes(nameLine[1].trim()));
+        }
+        continue;
+      }
     }
-    if (indent === 0) inSubs = false;
     const kv = line.match(/^\s*([A-Za-z0-9_]+)\s*:\s*(.*)$/);
     if (!kv) continue;
     const key = kv[1];
     const val = kv[2].trim();
     if (key === 'subscriptions' && val === '') {
       inSubs = true;
+      subsIndent = indent;
+      itemIndent = -1;
       continue;
     }
     if (['name', 'id', 'mode', 'date', 'client', 'scope'].includes(key) && val) {
@@ -257,6 +289,7 @@ function loadEngagement(path) {
     }
   }
   if (subs.length) meta.subscriptions = subs;
+  if (subNames.length) meta.subscriptionName = subNames[0];
   // Capture the external_testing authorization block (best-effort, nested) so the
   // report can render an "External Active Testing" authorization/coverage banner.
   meta.externalTesting = parseExternalTesting(text);
@@ -1677,7 +1710,11 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
   const graphLayout = graphModel.capped ? { width: 0, height: 0 } : layoutGraph(graphModel);
 
   const genDate = new Date().toISOString();
-  const docTitle = meta.name || title || 'Azure Cloud Security Assessment';
+  // Title the report by the target subscription when no explicit --title is
+  // given, falling back to the engagement name. (Previously the subscription
+  // name reached here only via a parser bug that also corrupted the cover's
+  // Subscriptions line; both are now sourced from clean fields.)
+  const docTitle = title || meta.subscriptionName || meta.name || 'Azure Cloud Security Assessment';
   const subs = Array.isArray(meta.subscriptions) ? meta.subscriptions : [];
 
   // ---- Cover -------------------------------------------------------------
@@ -1685,6 +1722,8 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
     .filter((s) => counts[s])
     .map((s) => `<span class="cover-sev sev-${slugId(s)}">${counts[s]} ${escText(s)}</span>`)
     .join('');
+  const coverage = meta.coverageSummary;
+  const coverageHtml = coverage ? `<div class="warnbox"><h3>Assessment Coverage &amp; Limitations</h3><p>${Object.entries(coverage.counts).map(([key, count]) => `${escText(key.replaceAll('_', ' '))}: ${count}`).join(' · ')} checks.</p><p>Inventory totals count discovered resources, not completed security assessments. Partial and unavailable checks are coverage gaps, not passes.</p>${coverage.notes.length ? `<ul>${coverage.notes.map(note => `<li>${escText(note)}</li>`).join('')}</ul>` : ''}</div>` : '';
   const inv = meta.inventorySummary;
   const invLabel = inv
     ? fmtInt(inv.total) + ' resources'
@@ -1701,7 +1740,7 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
     meta.mode ? ['Mode', meta.mode] : ['Mode', 'read-only-assessment'],
     meta.date ? ['Assessment date', meta.date] : null,
     subs.length ? ['Subscriptions', subs.join('  ·  ')] : null,
-    invLabel ? ['Resources assessed', invLabel] : null,
+    invLabel ? ['Resources inventoried', invLabel] : null,
     tokenLabel ? ['Token usage', tokenLabel] : null,
   ].filter(Boolean)
     .map(([k, v]) => `<div class="cm-row"><span class="cm-k">${escText(k)}</span><span class="cm-v">${escText(v)}</span></div>`)
@@ -1766,7 +1805,7 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
     <div class="sec-head"><span class="sec-num">1</span><h2>Executive Summary</h2></div>
     ${extBanner}
     <div class="exec-grid">
-      <div class="exec-prose">${summaryHtml}</div>
+      <div class="exec-prose">${summaryHtml}${coverageHtml}</div>
       <aside class="exec-stats">
         ${donut(counts, total)}
         <div class="kpis">
@@ -1927,13 +1966,36 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
   const legend = (graphModel.pathCount && !graphModel.capped)
     ? `<div class="cg-legend">${SEVERITY_ORDER.map((s) => `<span class="cg-leg sev-${slugId(s)}">${escText(s)}</span>`).join('')}<span class="cg-leg cg-leg-back">back-edge (loop)</span></div>`
     : '';
+  const graph3dData = {
+    nodes: graphModel.nodes.map((n, i) => ({ ...n, paths: [...n.paths],
+      px: (n.x - graphLayout.width / 2) * Math.min(1, 760 / (graphLayout.width || 760)),
+      py: (n.y - graphLayout.height / 2) * .8,
+      pz: Math.sin(i * 1.7) * 145,
+    })),
+    edges: graphModel.edges.map(e => ({ ...e, paths: [...e.paths], conditional: isConditionalEdge(e.label) })),
+  };
+  const graph3d = graphModel.nodes.length && !graphModel.capped ? `
+    <div id="cg3d-shell" class="cg3d-shell" hidden>
+      <div class="cg3d-head"><div><strong>Attack surface · 3D exploration</strong><p>Drag to orbit · scroll to zoom · select a node · arrow keys rotate</p></div><div>
+        <button type="button" class="ab-btn" id="cg3d-in" aria-label="Zoom 3D graph in">+</button>
+        <button type="button" class="ab-btn" id="cg3d-out" aria-label="Zoom 3D graph out">−</button>
+        <button type="button" class="ab-btn" id="cg3d-reset">Reset view</button></div></div>
+      <div class="cg3d-body"><div class="cg3d-stage"><canvas id="cg3d" tabindex="0" role="img" aria-label="Interactive three-dimensional attack graph. Arrow keys orbit, plus and minus zoom, Home resets. Use node buttons below to inspect full evidence labels."></canvas></div>
+      <aside id="cg3d-detail" class="cg3d-detail" aria-live="polite" aria-label="Selected node details"></aside></div>
+      <div class="cg3d-legend"><span>━ Supplied relationship</span><span>┄ Conditional / assumption</span><span>Depth is layout only</span></div>
+      <div id="cg3d-nodes" class="cg3d-nodes" role="group" aria-label="Select an attack graph node"></div>
+    </div><script type="application/json" id="cg3d-data">${jsonForScript(graph3dData)}</script>` : '';
   const sec6 = `
   <section id="attack-graph" class="section">
     <div class="sec-head"><span class="sec-num">6</span><h2>Consolidated Attack Graph</h2></div>
     <p class="sec-intro">All modeled attack paths merged into a single graph. Shared assets are deduplicated so cross-path pivots are visible at a glance.</p>
+    <p class="note">Relationships are taken only from supplied modeled paths. Solid lines do not establish successful exploitation; dashed amber lines flag conditional or assumption language in the supplied labels. Spatial depth conveys layout, not risk or confidence. Select nodes to inspect complete labels and related findings.</p>
+    ${graph3d}
+    <details class="cg3d-fallback" open><summary>Accessible / print graph · all supplied relationships</summary>
     ${graphControls}
     ${legend}
     <div class="cg-frame" id="cgFrame">${graphSvg}</div>
+    <table class="restable"><thead><tr><th>From</th><th>To</th><th>Supplied relationship / limitation</th></tr></thead><tbody>${graphModel.edges.map(e => `<tr><td>${escText(graphModel.nodes.find(n=>n.key===e.from)?.label || e.from)}</td><td>${escText(graphModel.nodes.find(n=>n.key===e.to)?.label || e.to)}</td><td>${isConditionalEdge(e.label) ? 'Conditional · ' : ''}${escText(e.label || 'No evidence label supplied')}</td></tr>`).join('')}</tbody></table></details>
   </section>`;
 
   // ---- Appendices --------------------------------------------------------
@@ -1941,6 +2003,7 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
   <section id="appendix-coverage" class="section appendix">
     <div class="sec-head"><span class="sec-num">A</span><h2>Appendix A · Coverage &amp; Controls</h2></div>
     <p class="sec-intro">Finding distribution across security domains and the control frameworks referenced by the findings.</p>
+    ${coverageHtml}
     ${renderCoverage(findings)}
   </section>`;
 
@@ -2007,7 +2070,7 @@ function buildHtml(findings, paths, meta, title, tokenUsage) {
 <meta name="referrer" content="no-referrer">
 <title>${escText(docTitle)}</title>
 <link rel="icon" href="${escAttr(favicon)}">
-<style>${CSS}</style>
+<style>${CSS}\n${GRAPH3D_CSS}</style>
 <noscript><style>
   .finding-detail{display:block !important}
   .fh-caret,.filters,.actionbar,.cg-controls,.cg-hint{display:none !important}
@@ -2032,7 +2095,7 @@ ${appD}
 </main>
 </div>
 <script type="application/json" id="report-meta">${metaJson}</script>
-<script>${JS}</script>
+<script>${JS}\n${GRAPH3D_JS}</script>
 </body>
 </html>`;
 }
@@ -2594,6 +2657,18 @@ function main() {
     meta = args.engagement ? loadEngagement(args.engagement) : {};
     if (args.inventorySummary) {
       meta.inventorySummary = loadInventorySummary(args.inventorySummary);
+    }
+    if (args.coverageSummary) {
+      const coverage = loadJson(args.coverageSummary, 'coverage-summary');
+      if (!coverage || !coverage.counts || !Array.isArray(coverage.notes)) throw new Error('Coverage summary requires counts and notes[]');
+      const counts = {};
+      for (const key of ['assessed', 'partial', 'unavailable', 'not_applicable']) {
+        const value = coverage.counts[key];
+        if (!Number.isSafeInteger(value) || value < 0) throw new Error(`Invalid coverage count: ${key}`);
+        counts[key] = value;
+      }
+      if (!coverage.notes.every(note => typeof note === 'string')) throw new Error('Coverage notes must be strings');
+      meta.coverageSummary = { counts, notes: coverage.notes };
     }
     if (args.tokenUsage) {
       tokenUsage = loadJson(args.tokenUsage, 'token-usage');

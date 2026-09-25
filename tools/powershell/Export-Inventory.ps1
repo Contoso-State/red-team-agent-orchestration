@@ -9,7 +9,7 @@
     Read-only. Requires the Resource Graph extension (auto-installed by az).
 
 .PARAMETER Subscriptions
-    One or more subscription IDs to enumerate. Defaults to the current subscription.
+    Optional single subscription ID; must match EngagementFile. No default-account fallback.
 
 .PARAMETER SessionPath
     The per-assessment session folder all output is written under. Defaults to the
@@ -22,21 +22,18 @@
 [CmdletBinding()]
 param(
     [string[]]$Subscriptions,
+    [string]$EngagementFile = "./engagement.yaml",
     [string]$SessionPath
 )
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'Common.ps1')
+$target = Read-EngagementTarget $EngagementFile
+if ($Subscriptions -and ($Subscriptions.Count -ne 1 -or $Subscriptions[0] -ne $target.subscriptionId)) { throw 'Subscriptions must match the single engagement subscription.' }
+$Subscriptions = @($target.subscriptionId)
+$account = Get-ScopedAccount $target
 $SessionPath = Resolve-SessionPath $SessionPath
-$invDir = Join-Path $SessionPath "inventory"
-if (-not (Test-Path $invDir)) { New-Item -ItemType Directory -Path $invDir -Force | Out-Null }
-Set-CurrentSession $SessionPath
-Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
-
-if (-not $Subscriptions) {
-    $current = az account show --only-show-errors | ConvertFrom-Json
-    $Subscriptions = @($current.id)
-}
+$invDir = Join-Path $SessionPath 'inventory'
 
 Write-Host "Enumerating resources via Azure Resource Graph..." -ForegroundColor Cyan
 Write-Host "Subscriptions: $($Subscriptions -join ', ')"
@@ -49,13 +46,17 @@ $query = "Resources | project id, name, type, resourceGroup, subscriptionId, loc
 $all = @()
 $skip = 0
 do {
-    $page = az graph query -q $query `
-        --subscriptions $Subscriptions `
-        --first 1000 --skip $skip `
-        --only-show-errors | ConvertFrom-Json
+    $page = Invoke-AzJson -Arguments @('graph', 'query', '-q', $query, '--subscriptions', $target.subscriptionId, '--first', '1000', '--skip', "$skip")
+    if ($null -eq $page.data -or $page.data -isnot [array]) { throw 'Malformed ARG page; inventory incomplete.' }
+    foreach ($row in $page.data) {
+        if ($row.subscriptionId -ne $target.subscriptionId -or $row.id -notlike "/subscriptions/$($target.subscriptionId)/*") { throw 'ARG returned an out-of-scope resource.' }
+    }
+    if ($skip -ge 49000 -and $page.data.Count -eq 1000) { throw 'Inventory pagination cap reached; refusing to publish partial inventory.' }
     if ($page.data) { $all += $page.data }
     $skip += 1000
 } while ($page.data.Count -eq 1000)
+
+New-Item -ItemType Directory -Path $invDir -Force | Out-Null
 
 # Write inventory: a canonical JSON array (resources.json) for downstream tooling,
 # a JSONL stream (resources.jsonl) for line-oriented processing, and a type summary.
@@ -66,10 +67,7 @@ $all | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 10 } | Set-Content 
 Write-Host "Wrote $($all.Count) resources to $jsonPath (+ resources.jsonl)" -ForegroundColor Green
 
 # Write subscription metadata
-$subMeta = foreach ($s in $Subscriptions) {
-    $info = az account show --subscription $s --only-show-errors | ConvertFrom-Json
-    [pscustomobject]@{ id = $info.id; name = $info.name; state = $info.state }
-}
+$subMeta = @([pscustomobject]@{ id = $account.id; name = $account.name; state = $account.state })
 ConvertTo-JsonArrayFile -Items @($subMeta) -Path "$invDir/subscriptions.json" -Depth 4
 
 # Type summary — persisted to summary.json and printed
@@ -79,4 +77,5 @@ ConvertTo-JsonArrayFile -Items @($summary) -Path "$invDir/summary.json" -Depth 4
 Write-Host "`nResource counts by type:" -ForegroundColor Cyan
 $summary | Select-Object count, type | Format-Table -AutoSize
 
+Set-CurrentSession $SessionPath
 Write-Host "Inventory complete. Proceed with assessment (/assess)." -ForegroundColor Cyan

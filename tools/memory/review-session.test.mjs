@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {createWorkshopMemory} from './workshop-memory.mjs';
+import {reviewSession} from './review-session.mjs';
+test('local review records actual verified retrieval without creating a new assessment or corroboration',async t=>{
+ const root=resolve('.');
+ const session=mkdtempSync(join(root,'engagements','qa-review-source-')),next=mkdtempSync(join(root,'engagements','qa-review-target-'));
+ t.after(()=>{rmSync(session,{recursive:true,force:true});rmSync(next,{recursive:true,force:true});});
+ const scope={tenantId:'11111111-1111-1111-1111-111111111111',subscriptionId:'22222222-2222-2222-2222-222222222222',mode:'read-only-assessment'};
+ const proof=join(session,'proof.json');writeFileSync(proof,'{}');
+ createWorkshopMemory({root,session,environment:{...scope,subscriptionIds:[scope.subscriptionId]},runId:'prior'}).recordDebrief({agent:'logging-coverage',observations:[{checkId:'CHK-LOG-X',signature:'stable',outcome:'confirmed',evidence:[{path:'proof.json',sha256:createHash('sha256').update('{}').digest('hex')}]}]});
+ const result=await reviewSession({sessionDir:next,scope});assert.equal(result.records,1);assert.equal(result.promoted,0);assert.equal(result.azure_reads,0);assert.equal(existsSync(join(next,'memory/methodology',result.runId+'.json')),false);assert.ok(existsSync(join(next,'memory/methodology/aef/checkpoints')));
+ const rows=readFileSync(join(next,'runs/live-events.jsonl'),'utf8').trim().split('\n').map(JSON.parse);
+ assert.ok(rows.every(e=>e.run_kind==='memory-review'));assert.ok(!rows.some(e=>e.type.startsWith('agent.')||e.type.startsWith('tool.')||e.type==='memory.promoted'));
+ const verified=rows.find(e=>e.type==='memory.verified');assert.equal(verified.agent_id,'logging-coverage');assert.deepEqual(verified.memory.source_ids,['prior']);assert.equal(verified.metrics.evidenceFiles,1);
+ const audit=JSON.parse(readFileSync(join(next,verified.evidence_refs[0]),'utf8'));
+ assert.equal(audit.kind,'retrieval-audit');assert.equal(audit.records[0].runId,'prior');assert.equal(audit.records[0].evidence[0].path,'proof.json');assert.equal(audit.improvementVerified,false);
+ writeFileSync(proof,'tampered');assert.equal((await reviewSession({sessionDir:next,scope})).records,0);
+ writeFileSync(join(next,'runs/live.lock'),'{}');await assert.rejects(reviewSession({sessionDir:next,scope}),/lock/);
+});

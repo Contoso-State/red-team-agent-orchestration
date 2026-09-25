@@ -20,8 +20,8 @@
       },
       "evaluate": {
         "all": [
-          { "field": "authEnabled", "op": "ne", "value": true },
-          { "not": { "field": "publicNetworkAccess", "op": "eqi", "value": "Disabled" } }
+          { "field": "authEnabled", "op": "eq", "value": false },
+          { "field": "publicNetworkAccess", "op": "eqi", "value": "Enabled" }
         ]
       },
       "evidence_fields": ["authEnabled", "publicNetworkAccess"]
@@ -66,14 +66,14 @@
       "query": {
         "method": "resource-graph",
         "ref": "tools/az-cli/compute.md#CHK-COMP-VM-NO-DISK-ENCRYPTION",
-        "kql": "Resources | where type == 'microsoft.compute/virtualmachines' | project id, name, type, resourceGroup, subscriptionId, location, encryptionAtHost = tobool(properties.securityProfile.encryptionAtHost), adeEnabled = tobool(properties.storageProfile.osDisk.encryptionSettings.enabled), hasUnmanagedDisk = isnull(properties.storageProfile.osDisk.managedDisk)"
+        "kql": "Resources | where type == 'microsoft.compute/virtualmachines' | project id, name, type, resourceGroup, subscriptionId, location, encryptionAtHost = tobool(properties.securityProfile.encryptionAtHost), adeEnabled = tobool(properties.storageProfile.osDisk.encryptionSettings.enabled), hasUnmanagedDisk = isnotempty(properties.storageProfile.osDisk.vhd.uri)"
       },
       "evaluate": {
         "any": [
           {
             "all": [
-              { "field": "encryptionAtHost", "op": "ne", "value": true },
-              { "field": "adeEnabled", "op": "ne", "value": true }
+              { "field": "encryptionAtHost", "op": "eq", "value": false },
+              { "field": "adeEnabled", "op": "eq", "value": false }
             ]
           },
           { "field": "hasUnmanagedDisk", "op": "eq", "value": true }

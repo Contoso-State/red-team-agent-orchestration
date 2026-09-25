@@ -50,6 +50,19 @@ test('entry point is validate_scope (subscription + read-only gate first)', () =
   assert.equal(start.to, 'validate_scope');
 });
 
+test('security context is built after inventory and before specialist fan-out', () => {
+  const contextIndex = base.nodes.findIndex((n) => n.id === 'build_security_context');
+  assert.equal(base.nodes[contextIndex].kind, 'context');
+  assert.deepEqual(
+    base.edges.filter((e) => e.from === 'preflight_inventory'),
+    [{ from: 'preflight_inventory', to: 'build_security_context' }],
+  );
+  assert.deepEqual(
+    base.edges.filter((e) => e.from === 'build_security_context'),
+    [{ from: 'build_security_context', to: 'plan_specialists' }],
+  );
+});
+
 test('reflection loop exists: evaluate can route back to plan_specialists', () => {
   const cond = base.conditional_edges.find((c) => c.from === 'evaluate');
   assert.ok(cond, 'evaluate must have a conditional router');

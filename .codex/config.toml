@@ -1,14 +1,14 @@
 # .codex/config.toml — OpenAI Codex CLI posture for the Azure red team engagement.
 #
-# This file pins a defense-in-depth, READ-ONLY posture for running the red team agents
-# under Codex. It layers THREE independent controls so a single misconfiguration cannot
-# turn a read-only assessment into a mutating one:
+# This file combines the Azure command guard, approval routing, and a local filesystem
+# sandbox. These controls have different roles; approval routing and the filesystem
+# sandbox do not themselves enforce Azure read-only permissions:
 #
 #   1. The lifecycle hook (.codex/hooks.json -> .codex/hooks/redteam-guard.mjs) blocks any
 #      command that is not provably read-only (the same engine the Copilot/Claude/Cursor
 #      adapters use). This is the primary, platform-neutral control.
-#   2. approval_policy = "untrusted" makes Codex auto-run only known-safe read operations
-#      and route anything mutating to an explicit human approval — a native second layer.
+#   2. approval_policy = "on-request" lets the model decide when to request approval.
+#      It does not require approval before every generated command.
 #   3. The sandbox keeps writes inside the workspace and protects .git/.codex/.agents.
 #
 # FIRST-RUN TRUST: Codex requires you to trust a newly discovered project hook before it
@@ -16,21 +16,19 @@
 # prompt) once to trust .codex/hooks/redteam-guard.mjs. Until trusted, the guard does not
 # execute — so verify it is trusted before beginning an assessment.
 
-# Read-only by default: Codex auto-approves only known read-only commands and asks for
-# explicit human approval on anything that could mutate state. Pair this with the hook,
-# which hard-blocks non-read-only Azure/cluster commands regardless of approval.
-approval_policy = "untrusted"
+# Allow model-requested approval. The trusted hook separately blocks non-read-only
+# Azure/cluster commands. This setting does not promise a per-command approval prompt.
+approval_policy = "on-request"
 
-# workspace-write (NOT read-only): a fully read-only sandbox blocks ALL network, which
-# would stop `az`/`Get-Az*` from reaching Azure to READ resources. workspace-write allows
-# those reads while confining filesystem writes to this workspace so evidence/reports can
-# be saved. The hook + approval_policy above are what keep Azure itself read-only.
+# Keep evidence/report writes inside the permitted local workspace. Outbound network
+# is enabled below for Azure reads; the trusted guard and Azure account permissions,
+# not this filesystem sandbox or approval policy, enforce the Azure boundary.
 sandbox_mode = "workspace-write"
 
 [sandbox_workspace_write]
 # Allow outbound network so the read-only Azure data-plane/control-plane queries (az, az
-# rest --method GET, Get-Az*, Microsoft Graph GET) work. Mutating calls are still blocked
-# by the guard hook and gated by approval_policy.
+# rest --method GET, Get-Az*, Microsoft Graph GET) work. The trusted guard separately
+# refuses mutating assessment commands.
 network_access = true
 
 [features]

@@ -3,6 +3,7 @@
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { normalizeModelUsage } from '../graph/model-usage.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const ENGAGEMENTS = join(ROOT, 'engagements');
@@ -11,7 +12,7 @@ const TYPES = new Set([
   'agent.started', 'agent.completed', 'agent.failed', 'tool.allowed', 'tool.cached',
   'tool.completed', 'tool.failed', 'message.sent', 'task.dispatched', 'memory.retrieved',
   'memory.verified', 'memory.candidate', 'memory.promoted', 'memory.measured',
-  'evaluation.completed', 'evolution.proposed', 'evolution.evaluated',
+  'evaluation.completed', 'model.usage', 'evolution.proposed', 'evolution.evaluated',
   'evolution.accepted', 'evolution.rejected',
 ]);
 const METADATA_FIELDS = new Set([
@@ -21,6 +22,23 @@ const METADATA_FIELDS = new Set([
   // the graph view uses to draw an edge, so real data movement is invisible.
   'from_agent', 'to_agent', 'exchange_id', 'transfer',
 ]);
+
+// Match the dashboard's memory projection before writing the local log too:
+// source attribution is metadata; retrieved contents and freeform text are not.
+function memoryMetadata(type, raw) {
+  const memory = { stage: type.split('.')[1] };
+  if (Array.isArray(raw?.source_ids)) {
+    memory.source_ids = [...new Set(raw.source_ids.slice(0, 50).map(value => {
+      if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return String(value);
+      if (typeof value !== 'string' || value.length > 100 || !/^[a-zA-Z0-9][a-zA-Z0-9 _.:&()/-]*$/.test(value)) return undefined;
+      if (/bearer|secret|password|token|credential|connectionstring/i.test(value)) return undefined;
+      return value;
+    }).filter(Boolean))];
+  }
+  if (typeof raw?.environment_key === 'string' && /^[a-f0-9]{64}$/.test(raw.environment_key)) memory.environment_key = raw.environment_key;
+  if (['inert', 'evidence-integrity-verified'].includes(raw?.outcome)) memory.outcome = raw.outcome;
+  return memory;
+}
 
 function contained(root, target) {
   const rel = relative(root, target);
@@ -52,6 +70,8 @@ export function createEventWriter(session, {
     const safeMetadata = Object.fromEntries(
       Object.entries(metadata).filter(([key]) => METADATA_FIELDS.has(key)),
     );
+    if (type.startsWith('memory.')) safeMetadata.memory = memoryMetadata(type, metadata.memory);
+    if (type === 'model.usage') safeMetadata.usage = normalizeModelUsage(metadata.usage);
     const event = {
       schema_version: 1,
       id: `${runId}-${++sequence}`,

@@ -66,12 +66,15 @@
       "query": {
         "method": "resource-graph",
         "ref": "tools/az-cli/easm.md#CHK-EASM-PUBLIC-IP-UNUSED",
-        "kql": "Resources | where type =~ 'microsoft.network/publicipaddresses' | project id, name, type, resourceGroup, subscriptionId, location, ipConfigurationId=tostring(properties.ipConfiguration.id)"
+        "kql": "Resources | where type =~ 'microsoft.network/publicipaddresses' | project id, name, type, resourceGroup, subscriptionId, location, ipConfigurationId=tostring(properties.ipConfiguration.id), natGatewayId=tostring(properties.natGateway.id)"
       },
       "evaluate": {
-        "field": "ipConfigurationId", "op": "missing"
+        "all": [
+          { "any": [{ "field": "ipConfigurationId", "op": "missing" }, { "field": "ipConfigurationId", "op": "eq", "value": "" }] },
+          { "any": [{ "field": "natGatewayId", "op": "missing" }, { "field": "natGatewayId", "op": "eq", "value": "" }] }
+        ]
       },
-      "evidence_fields": ["ipConfigurationId"]
+      "evidence_fields": ["ipConfigurationId", "natGatewayId"]
     }
   ]
 }

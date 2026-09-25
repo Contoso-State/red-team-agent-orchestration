@@ -68,6 +68,17 @@
           "agent": { "type": "string", "description": "Agent card name; must match a `name:` in a .github/agents/*.agent.md frontmatter (enforced by the validator)." },
           "lane": { "type": "string", "enum": ["default", "external-active", "cluster-active"], "description": "Execution lane. Roster specialists are always `default` (read-only)." },
           "when": { "type": "string", "description": "Optional inclusion predicate the runner evaluates against scope, e.g. m365_in_scope." }
+          ,
+          "scope_domains": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional engagement domain keys that activate this specialist when scope.domains is set."
+          },
+          "resource_types": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional case-insensitive ARM type patterns. A trailing /* matches a provider; the specialist is included when scope.resource_types intersects these patterns."
+          }
         }
       }
     },
@@ -130,8 +141,8 @@
         "id": { "type": "string", "description": "Unique node id." },
         "kind": {
           "type": "string",
-          "enum": ["validate", "memory_read", "dispatch", "fanout", "reduce", "evaluator", "judge", "interrupt", "memory_write"],
-          "description": "Node type. validate=scope/permission gate; memory_read=load methodology memory; dispatch=run one agent card; fanout=Send map over roster; reduce=deterministic fan-in; evaluator=evaluator-optimizer loop head; judge=Agent-as-a-Judge FP gate; interrupt=HITL authorization; memory_write=autonomous self-improvement persist."
+          "enum": ["validate", "memory_read", "context", "dispatch", "fanout", "reduce", "evaluator", "judge", "interrupt", "memory_write"],
+          "description": "Node type. validate=scope/permission gate; memory_read=load methodology memory; context=normalize shared security signals; dispatch=run one agent card; fanout=Send map over roster; reduce=deterministic fan-in; evaluator=evaluator-optimizer loop head; judge=Agent-as-a-Judge FP gate; interrupt=HITL authorization; memory_write=autonomous self-improvement persist."
         },
         "description": { "type": "string" },
         "writes": { "type": "string", "description": "State channel this node writes." },

@@ -1,0 +1,12 @@
+# Providerless AEF memory graph, wired by aef_adapter.py.
+# Target code evolution is separately enabled in tools/evolution/config.json.
+model_provider: null
+memory: {impl: in_memory}
+objectives: 'Retrieve verified same-environment evidence within each agent context budget'
+tools: {allow: []}
+policies: {require_hitl_above_risk: 0.0, forbid: []}
+reflection: {impl: rule_based}
+evaluator: {suites: []}
+gates: {live_model_calls: false}
+# Upstream EvolutionEngine is not implemented at the pinned revision.
+evolution: {enabled: false}

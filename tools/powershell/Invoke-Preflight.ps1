@@ -27,101 +27,49 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'Common.ps1')
-$SessionPath = Resolve-SessionPath $SessionPath
+# Validate scope before any account or resource read.
+$target = Read-EngagementTarget $EngagementFile
+$account = Get-ScopedAccount $target
 
-function Write-Section($text) { Write-Host "`n=== $text ===" -ForegroundColor Cyan }
-
-# --- Verify Azure CLI is present and authenticated ---
-Write-Section "Identity"
+# Resolve caller in the target tenant, not the CLI's unrelated default tenant.
+# Token stays in process memory; only identity claims are used or persisted.
+$token = Invoke-AzJson -Arguments @('account', 'get-access-token', '--subscription', $target.subscriptionId)
 try {
-    $account = az account show --only-show-errors | ConvertFrom-Json
-} catch {
-    throw "Not authenticated. Run 'az login' first."
+    $payload = $token.accessToken.Split('.')[1].Replace('-', '+').Replace('_', '/')
+    $payload = $payload.PadRight($payload.Length + ((4 - $payload.Length % 4) % 4), '=')
+    $claims = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)) | ConvertFrom-Json
+} catch { throw 'Could not decode scoped caller identity; token withheld.' }
+finally { $token = $null; $payload = $null }
+if ($claims.tid -ne $target.tenantId -or $claims.oid -notmatch '^[0-9a-fA-F-]{36}$') { throw 'Could not verify target-tenant caller identity.' }
+if ($account.user.type -eq 'user') {
+    $principalName = @($claims.upn, $claims.preferred_username, $claims.unique_name) | Where-Object { $_ } | Select-Object -First 1
+    if ($principalName -and $principalName -ne $account.user.name) { throw 'Token caller does not match scoped account identity.' }
 }
-$principalIdRaw = if ($account.user.type -eq "user") {
-    az ad signed-in-user show --query id -o tsv --only-show-errors 2>$null
-} else {
-    az ad sp show --id $account.user.name --query id -o tsv --only-show-errors 2>$null
+$assignments = @(Invoke-AzJson -Arguments @('role', 'assignment', 'list', '--assignee', $claims.oid, '--fill-principal-name', 'false', '--include-inherited', '--all', '--subscription', $target.subscriptionId))
+# This preflight verifies ARM read capability only, not data-plane or Graph access.
+# Match immutable built-in IDs, never names (custom roles can reuse display names).
+$direct = @($assignments | Where-Object { $_.principalId -eq $claims.oid -and ($_.scope -eq "/subscriptions/$($target.subscriptionId)" -or $_.scope -like '/providers/Microsoft.Management/managementGroups/*' -or $_.scope -eq '/') })
+$roleIds = @($direct | ForEach-Object { ($_.roleDefinitionId -split '/')[-1] })
+$builtIns = @{
+    'Reader' = 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+    'Security Reader' = '39bc4728-0917-49c7-9d2c-d95423bc2eb4'
+    'Log Analytics Reader' = '73c42c96-874c-492b-b04d-ab87d138a893'
+    'Key Vault Reader' = '21090545-7ca7-4776-b22c-e363652d74d2'
 }
-$principalId = ("" + $principalIdRaw).Trim()
-Write-Host "Signed in as : $($account.user.name)"
-Write-Host "Identity type: $($account.user.type)"
-Write-Host "Object ID    : $(if ($principalId) { $principalId } else { '(directory lookup unavailable)' })"
-Write-Host "Tenant       : $($account.tenantId)"
-Write-Host "Subscription : $($account.name) ($($account.id))"
-
-# --- Load engagement scope ---
-Write-Section "Engagement Scope"
-if (-not (Test-Path $EngagementFile)) {
-    throw "Engagement file '$EngagementFile' not found. Copy engagement.example.yaml to engagement.yaml."
-}
-Write-Host "Loaded scope file: $EngagementFile"
-# Note: full YAML parsing left to the agent; this script validates identity + RBAC.
-
-# --- Validate effective RBAC for required capabilities ---
-Write-Section "RBAC Preflight"
-
-$requiredRoles = @{
-    "Reader"               = "Resource enumeration (all agents)"
-    "Security Reader"      = "Defender recommendations (Data, Logging)"
-    "Log Analytics Reader" = "Log queries (Logging Coverage)"
-    "Key Vault Reader"     = "Key Vault metadata (Data Protection)"
-}
-
-$subscriptionScope = "/subscriptions/$($account.id)"
-$assignee = if ($principalId) { $principalId } else { $account.user.name }
-$assignments = az role assignment list `
-        --assignee $assignee `
-        --scope $subscriptionScope `
-        --include-groups `
-        --include-inherited `
-        --only-show-errors |
-        ConvertFrom-Json
-$heldRoles = $assignments | Select-Object -ExpandProperty roleDefinitionName -Unique
-
-$readerEquivalentRoles = @("Reader", "Contributor", "Owner")
-$hasReaderEquivalent = @($heldRoles | Where-Object { $readerEquivalentRoles -contains $_ }).Count -gt 0
-if (-not $hasReaderEquivalent) {
-    az group list --subscription $account.id --query "length(@)" -o tsv --only-show-errors | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Assessment cannot continue: '$assignee' has no proven read access at '$subscriptionScope'."
-    }
-    Write-Host "[ OK ] Effective subscription read access confirmed by functional probe (custom/group role)." -ForegroundColor Green
-}
-
+$privilegedReader = ($roleIds -contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635') -or ($roleIds -contains 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+if ($privilegedReader) { Write-Warning 'Caller has privileged ARM access. Assessment commands must remain read-only; no data-plane capabilities inferred.' }
 $limitations = @()
-foreach ($role in $requiredRoles.Keys) {
-    if ($heldRoles -contains $role) {
-        Write-Host ("[ OK ] {0,-22} - {1}" -f $role, $requiredRoles[$role]) -ForegroundColor Green
-    } else {
-        Write-Host ("[GAP ] {0,-22} - {1}" -f $role, $requiredRoles[$role]) -ForegroundColor Yellow
-        $limitations += [pscustomobject]@{
-            scope  = "rbac"
-            reason = "Missing role '$role' - $($requiredRoles[$role])"
-        }
+foreach ($role in @($target.requiredRoles) + @($target.optionalRoles)) {
+    $verified = ($builtIns.ContainsKey($role) -and $roleIds -contains $builtIns[$role]) -or ($privilegedReader -and $role -in @('Reader', 'Security Reader'))
+    if (-not $verified) {
+        $limitations += [pscustomobject]@{ scope = 'rbac'; reason = "ARM read capability for '$role' not verified from direct subscription-wide built-in assignments; group, custom-role, Graph and data-plane capabilities require separate validation."; required = ($target.requiredRoles -contains $role) }
     }
 }
-
-# --- Emit coverage limitations ---
-Write-Section "Coverage Limitations"
-# Scaffold the full session tree so every downstream tool (inventory, agents, and the
-# report generator) has its output dir ready — historically only inventory/ existed,
-# which made report generation fail on a fresh session.
-foreach ($sub in @("inventory", "findings/raw", "evidence/raw", "reports")) {
-    $d = Join-Path $SessionPath $sub
-    if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+$SessionPath = Resolve-SessionPath $SessionPath
+foreach ($sub in @('inventory', 'findings/raw', 'evidence/raw', 'reports')) {
+    New-Item -ItemType Directory -Path (Join-Path $SessionPath $sub) -Force | Out-Null
 }
-$invDir = Join-Path $SessionPath "inventory"
+ConvertTo-JsonArrayFile -Items $limitations -Path (Join-Path $SessionPath 'inventory/coverage-limitations.json')
+if (@($limitations | Where-Object required).Count) { throw 'Required RBAC coverage unverified. See inventory/coverage-limitations.json; preflight is not complete.' }
 Set-CurrentSession $SessionPath
-Write-Host "Session folder: $SessionPath" -ForegroundColor Cyan
-
-if ($limitations.Count -gt 0) {
-    $limitations | ConvertTo-Json -Depth 4 | Set-Content "$invDir/coverage-limitations.json"
-    Write-Host "$($limitations.Count) limitation(s) written to engagements/<session>/inventory/coverage-limitations.json" -ForegroundColor Yellow
-} else {
-    "[]" | Set-Content "$invDir/coverage-limitations.json"
-    Write-Host "No permission gaps detected." -ForegroundColor Green
-}
-
-Write-Section "Preflight Complete"
-Write-Host "Identity validated. Proceed with reconnaissance (/recon)." -ForegroundColor Cyan
+Write-Host "Preflight complete for $($account.id) in tenant $($account.tenantId). Optional gaps: $($limitations.Count)."

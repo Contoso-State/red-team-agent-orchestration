@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/sunblaze-ucb/cybergym.git",
+  "commit": "c6fe2027d39471375920b92cf1025e23a99ffda5",
+  "verified_on": "2026-09-25",
+  "license": "Apache-2.0",
+  "local_checkout": "engagements/cybergym-benchmark/upstream",
+  "dataset_revision": null,
+  "container_digests": {},
+  "status": "source-only; no benchmark agent execution",
+  "note": "Pin dataset, task selection, agent configuration and evaluator images separately before any measured run. This source lock does not establish benchmark compatibility or a score."
+}

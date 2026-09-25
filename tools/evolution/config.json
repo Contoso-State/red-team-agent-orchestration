@@ -1,0 +1,1 @@
+{"enabled":true,"maxRounds":2,"mutationTarget":"tools/dashboard/public/node-resolver.mjs","objective":"UI agent attribution coverage","azureMutation":false,"upstreamWrites":false}

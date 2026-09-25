@@ -7,21 +7,30 @@ import { startObservatory } from './run-graph.mjs';
 
 /** A session directory the dashboard will accept: it must live under engagements/. */
 function makeSession(t) {
+  // Node 20 can misread raw console output interleaved with its binary test
+  // frames. Capture startup logs per test and assert them without writing to
+  // that transport; the test context restores console.log automatically.
+  const logs = [];
+  t.mock.method(console, 'log', (...args) => logs.push(args.join(' ')));
   const root = mkdtempSync(join(tmpdir(), 'redteam-observatory-'));
   const engagementRoot = join(root, 'engagements');
   const session = join(engagementRoot, 'live-session');
   mkdirSync(join(session, 'runs'), { recursive: true });
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  return { session, engagementRoot };
+  return { session, engagementRoot, logs };
 }
 
 test('an assessment run brings the Observatory up on its own', async t => {
-  const { session, engagementRoot } = makeSession(t);
+  const { session, engagementRoot, logs } = makeSession(t);
   const started = await startObservatory(session, { 'dashboard-port': 0 }, { engagementRoot });
   assert.ok(started, 'the dashboard should start alongside the run');
   t.after(() => started.dashboard.close());
 
   assert.match(started.url, /^http:\/\/127\.0\.0\.1:\d+$/, 'it must bind loopback only');
+  assert.deepEqual(logs, [
+    `▶ Agent Observatory: ${started.url}`,
+    '  session: live-session · metadata only · no Azure calls',
+  ]);
   const snapshot = await (await fetch(`${started.url}/api/snapshot`)).json();
   assert.equal(snapshot.session_id, 'live-session');
   assert.deepEqual(snapshot.events, [], 'a new run starts with an honest empty log');

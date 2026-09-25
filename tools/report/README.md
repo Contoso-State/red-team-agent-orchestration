@@ -43,7 +43,7 @@ node tools/report/generate-report.mjs \
 | `--engagement` | no | `engagement.yaml`/`.json` for report metadata (name, id, mode, subscriptions). Falls back to values derived from the findings. |
 | `--out` | no | Output path. Defaults to `report.html` next to the findings file. |
 | `--title` | no | Override the report title. |
-| `--inventory-summary` | no | `summary.json` type rollup from `Export-Inventory.ps1` (array of `{type,count}`, or an object with `byType[]`/`total`). Surfaces a **"Resources assessed: N"** line on the cover so a large estate is quantified without listing every resource. |
+| `--inventory-summary` | no | `summary.json` type rollup from `Export-Inventory.ps1` (array of `{type,count}`, or an object with `byType[]`/`total`). Surfaces a **"Resources inventoried: N"** line on the cover so a large estate is quantified without listing every resource. |
 
 If `--attack-paths` is omitted, the generator **derives** a linear node chain
 from any finding whose `id` starts with `AZ-PATH-` or whose `attack_path[]` is
@@ -130,3 +130,17 @@ node tools/report/generate-report.mjs \
 > Real engagement reports are written under `engagements/<session>/reports/`,
 > which is **gitignored** — they contain sensitive target data and must never be
 > committed. Only this fictional sample lives in the tracked tree.
+
+Optional `--coverage-summary path.json` displays check coverage and limitations in the executive summary and coverage appendix. Supply `{ "counts": { "assessed": 0, "partial": 0, "unavailable": 0, "not_applicable": 0 }, "notes": [] }`; counts must be nonnegative integers. Assessed means completed checks (passed or failed), not resources discovered. Partial and unavailable are explicit gaps. Notes are escaped as text. Existing report calls remain supported.
+
+### Offline 3D attack graph
+
+Section 6 progressively enhances explicit modeled paths into a perspective 3D
+canvas. Drag or use arrow keys to orbit; scroll or use zoom buttons; select a node
+or its keyboard-accessible list button to inspect complete labels and finding
+links. Spatial depth is a layout aid, never a risk or confidence score. Edges
+whose supplied labels contain conditional/assumption language are dashed amber;
+other relationships are solid blue, without claiming demonstrated exploitation.
+No edges are inferred by the visualization. The static SVG and relationship table
+remain available with JavaScript disabled, through the fallback disclosure, and
+for printing. Rendering uses no external libraries, CDN, or network requests.

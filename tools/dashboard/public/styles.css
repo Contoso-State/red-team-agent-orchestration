@@ -47,3 +47,12 @@
 .download-html{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:550;text-decoration:none;padding:11px 16px;border-radius:8px;border:1px solid var(--border);background:#172230;color:#c3d2e2}
 .download-html svg{width:17px;height:17px;flex:none}
 .download-html:hover{border-color:#708294;background:#1c2938}
+
+/* Per-field coverage keeps incomplete provider metadata visible. */
+.usage-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:16px 22px}
+.usage-cards article{min-width:0;padding:16px;border:1px solid var(--border);border-radius:10px;background:#101b27}
+.usage-cards h3{font-size:12px;color:var(--muted);margin:0 0 12px;font-weight:550}
+.usage-cards strong{display:block;font-size:21px;font-weight:600;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.usage-cards p{font-size:12px;color:var(--muted);margin:10px 0 0}
+@media(max-width:1100px){.usage-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.usage-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-cards article{padding:12px}.usage-cards strong{font-size:19px}}

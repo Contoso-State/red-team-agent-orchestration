@@ -227,16 +227,16 @@ function graphReferenceMarkdown(meta) {
     '',
     '## Two engines, one graph',
     '',
-    '- Dependency-free Node runner — `tools/graph/run-graph.mjs` — executes the graph inside ' +
-      'every CLI runtime (GitHub Copilot, Claude Code, OpenAI Codex, Cursor) with zero runtime ' +
-      'dependencies.',
+    '- Dependency-free Node runner — `tools/graph/run-graph.mjs` — executes simulated dispatch. ' +
+      'The separate `tools/graph/run-live.mjs` uses a scoped Claude live adapter and fresh preflight; ' +
+      'other runtimes use native agent orchestration.',
     '- First-class LangGraph target — `integrations/langgraph/` — compiles the same JSON into a ' +
       'Python `StateGraph` for deployment.',
     '',
     '## Control flow',
     '',
     '`validate_scope` (one subscription + read-only attestation) -> `memory_load` -> ' +
-      '`preflight_inventory` -> Send fan-out across the roster (`plan_specialists` -> ' +
+      '`preflight_inventory` -> `build_security_context` -> scoped Send fan-out (`plan_specialists` -> ' +
       '`run_specialist`) -> deterministic fan-in merge (`collect_raw`) -> bounded ' +
       'evaluator-optimizer reflection loop (`evaluate`, max_revisions=' +
       meta.maxRevisions +
@@ -248,7 +248,7 @@ function graphReferenceMarkdown(meta) {
     '## Self-improving loops (primary standard)',
     '',
     'The evaluator-optimizer cycle, the Agent-as-a-Judge gate, and the reflexion debrief are ' +
-      'auto-applied at runtime with NO pull request and NO human gate — ' +
+      'enabled by default with evidence-gated methodology promotion and an explicit off override — ' +
       '`tools/graph/self-improve.mjs`. Cross-run learning is written ONLY to the ' +
       '`memory/methodology/` namespace.',
     '',

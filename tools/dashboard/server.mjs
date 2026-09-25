@@ -4,15 +4,16 @@ import { createServer } from 'node:http';
 import { openSync, closeSync, readSync, fstatSync, lstatSync, readFileSync, existsSync, constants } from 'node:fs';
 import { resolve, relative, sep, dirname, basename, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { normalizeModelUsage } from '../graph/model-usage.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../..');
 const MAX_LINE = 64 * 1024;
 const MAX_EVENTS = 2000;
-const TYPES = new Set(['run.started', 'run.completed', 'run.failed', 'node.started', 'node.completed', 'node.failed', 'agent.started', 'agent.completed', 'agent.failed', 'tool.allowed', 'tool.cached', 'tool.completed', 'tool.failed', 'message.sent', 'task.dispatched', 'memory.retrieved', 'memory.verified', 'memory.candidate', 'memory.promoted', 'memory.measured', 'evaluation.completed', 'evolution.proposed', 'evolution.evaluated', 'evolution.accepted', 'evolution.rejected']);
+const TYPES = new Set(['run.started', 'run.completed', 'run.failed', 'node.started', 'node.completed', 'node.failed', 'agent.started', 'agent.completed', 'agent.failed', 'tool.allowed', 'tool.cached', 'tool.completed', 'tool.failed', 'message.sent', 'task.dispatched', 'memory.retrieved', 'memory.verified', 'memory.candidate', 'memory.promoted', 'memory.measured', 'evaluation.completed', 'model.usage', 'evolution.proposed', 'evolution.evaluated', 'evolution.accepted', 'evolution.rejected']);
 const STATUSES = new Set(['running', 'started', 'completed', 'failed', 'blocked', 'pending', 'allowed', 'skipped', 'idle', 'candidate', 'promoted', 'retrieved', 'measured']);
 const METRICS = new Set(['duration_ms', 'count', 'findings', 'confirmed_findings', 'candidates', 'promoted', 'retrieved', 'measured', 'quality', 'revision', 'tools', 'resources', 'checks', 'passed', 'failed', 'baseline', 'observed', 'delta', 'latency_ms', 'experience_count', 'knowledge_count', 'suppression_count', 'records', 'evidenceFiles', 'cache_hits', 'azure_reads', 'context_tokens', 'context_budget', 'challenge_total', 'holdout_total']);
-const ASSETS = new Map([['/node-resolver.mjs', ['node-resolver.mjs', 'text/javascript; charset=utf-8']],['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/styles.css', ['styles.css', 'text/css; charset=utf-8']]]);
+const ASSETS = new Map([['/model-usage-summary.mjs', ['model-usage-summary.mjs', 'text/javascript; charset=utf-8']],['/node-resolver.mjs', ['node-resolver.mjs', 'text/javascript; charset=utf-8']],['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/styles.css', ['styles.css', 'text/css; charset=utf-8']]]);
 
 function identifier(value, max = 100) {
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return String(value);
@@ -54,6 +55,7 @@ export function projectEvent(raw) {
     event.evaluation = { kind: 'model-judgment', comparison: 'not-controlled' };
     if (['refine', 'proceed'].includes(raw.evaluation.route)) event.evaluation.route = raw.evaluation.route;
   }
+  if (raw.type === 'model.usage') event.usage = normalizeModelUsage(raw.usage);
   if (raw.type.startsWith('memory.')) {
     event.memory = { stage: raw.type.split('.')[1] };
     if (Array.isArray(raw.memory?.source_ids)) event.memory.source_ids = [...new Set(raw.memory.source_ids.slice(0, 50).map(x => identifier(x)).filter(Boolean))];

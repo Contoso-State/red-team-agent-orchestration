@@ -145,3 +145,93 @@ test('codex adapter: unknown lifecycle event passes through (exit 0, silent)', (
   assert.equal(stdout.trim(), '');
   assert.equal(stderr.trim(), '');
 });
+
+// The Claude hook script is also discovered by other runtimes that read
+// .claude/settings.json. It previously understood only Claude's payload shape and,
+// on anything else, handed a non-string to the guard — which cannot classify one and
+// answered "allow". A mutating Azure command in an unrecognized shape was silently
+// permitted, while the file's own header promised it never silently allows.
+const HOOK = '.claude/hooks/redteam-guard.mjs';
+const decisionOf = (out) => {
+  if (!out.trim()) return 'allow';
+  return JSON.parse(out).hookSpecificOutput.permissionDecision;
+};
+
+test('hook denies a mutating command sent in a non-Claude payload shape', () => {
+  const { stdout } = run(HOOK, {
+    toolName: 'shell',
+    toolArgs: 'az group delete --name prod-rg --yes',
+    workingDirectory: '.',
+  });
+  assert.equal(decisionOf(stdout), 'deny', 'unrecognized shape must not fail open');
+});
+
+test('hook still evaluates a read-only command in a non-Claude payload shape', () => {
+  const { stdout } = run(HOOK, { toolName: 'shell', toolArgs: 'az group list', workingDirectory: '.' });
+  assert.equal(decisionOf(stdout), 'allow');
+});
+
+test('hook denies a shell tool call whose command cannot be read', () => {
+  assert.equal(decisionOf(run(HOOK, { toolName: 'bash' }).stdout), 'deny');
+  assert.equal(decisionOf(run(HOOK, { tool_name: 'Bash', tool_input: {} }).stdout), 'deny');
+});
+
+test('hook keeps no opinion on tool calls that carry no command by design', () => {
+  const { stdout } = run(HOOK, { tool_name: 'Read', tool_input: { file_path: 'x' } });
+  assert.equal(decisionOf(stdout), 'allow', 'non-shell tools must not be blocked');
+});
+
+test('hook preserves Claude-shape behaviour', () => {
+  const mutating = run(HOOK, {
+    hook_event_name: 'PreToolUse', tool_name: 'Bash',
+    tool_input: { command: 'az group delete -n x' }, cwd: '.',
+  });
+  assert.equal(decisionOf(mutating.stdout), 'deny');
+  const readOnly = run(HOOK, {
+    hook_event_name: 'PreToolUse', tool_name: 'Bash',
+    tool_input: { command: 'git status' }, cwd: '.',
+  });
+  assert.equal(decisionOf(readOnly.stdout), 'allow');
+});
+
+function checkedHookDecision(payload) {
+  const { code, stdout, stderr } = run(HOOK, payload);
+  assert.equal(code, 0, 'Claude hook must return a verdict or exit successfully');
+  assert.equal(stderr.trim(), '', 'Claude hook must not crash');
+  return decisionOf(stdout);
+}
+
+for (const wrapper of ['tool_input', 'toolArgs']) {
+  for (const field of ['command', 'script', 'cmd', 'input']) {
+    test(`hook preserves ${wrapper}.${field} command classification`, () => {
+      const payload = { toolName: 'Bash', cwd: '.' };
+      assert.equal(checkedHookDecision({
+        ...payload, [wrapper]: { [field]: 'az group list' },
+      }), 'allow');
+      assert.equal(checkedHookDecision({
+        ...payload, [wrapper]: { [field]: 'az group delete -n x' },
+      }), 'deny');
+    });
+  }
+}
+
+for (const toolName of ['run', 'command', 'process', 'spawn', 'mcp.run', 'mcp.sh']) {
+  test(`hook fails closed for unreadable ${toolName} commands`, () => {
+    assert.equal(checkedHookDecision({ toolName, toolArgs: {} }), 'deny');
+    assert.equal(checkedHookDecision({ toolName, toolArgs: { cmd: 17 } }), 'deny');
+    assert.equal(checkedHookDecision({ toolName, toolArgs: { input: 'az group list' } }), 'allow');
+    assert.equal(checkedHookDecision({ toolName, toolArgs: { input: 'az group delete -n x' } }), 'deny');
+  });
+}
+
+test('hook never treats generic non-shell input as a command', () => {
+  for (const toolName of ['Read', 'Write', 'Edit', 'search_commands']) {
+    assert.equal(checkedHookDecision({
+      toolName, toolArgs: { input: 'az group delete -n x' },
+    }), 'allow');
+  }
+});
+
+test('hook preserves an explicitly empty command', () => {
+  assert.equal(checkedHookDecision({ toolName: 'Bash', tool_input: { command: '' } }), 'allow');
+});

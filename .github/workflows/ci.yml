@@ -1,8 +1,7 @@
 name: ci
 
-# Run the dependency-free test suite and verify the per-runtime agent/skill/command
-# definitions are in sync with their canonical .github/ sources. This is what keeps the
-# Copilot / Claude / Codex / Cursor runtimes from silently drifting apart.
+# Verify the Node and LangGraph runtimes plus generated agent/skill/command
+# definitions. AEF integration tests use the revision pinned in source-lock.json.
 
 on:
   push:
@@ -18,7 +17,7 @@ jobs:
   test:
     name: Tests + guardrail parity + drift check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +27,27 @@ jobs:
         with:
           node-version: "24"
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the pinned AEF integration runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          aef_repository="$(python -c 'import json; print(json.load(open("tools/aef/source-lock.json"))["repository"])')"
+          aef_revision="$(python -c 'import json; print(json.load(open("tools/aef/source-lock.json"))["commit"])')"
+          [[ "$aef_repository" == "https://github.com/AndrewGoodson/aef-core.git" ]]
+          [[ "$aef_revision" =~ ^[0-9a-f]{40}$ ]]
+          # Keep the source disjoint from this checkout. Bootstrap reads its Git
+          # objects and builds/installs only inside this repository's ignored area.
+          aef_source="$(mktemp -d "$RUNNER_TEMP/aef-core.XXXXXX")"
+          git init --quiet "$aef_source"
+          git -C "$aef_source" fetch --depth=1 "$aef_repository" "$aef_revision"
+          git -C "$aef_source" checkout --detach "$aef_revision"
+          python tools/aef/bootstrap.py --source "$aef_source"
+          engagements/aef-integration-verification/.venv/bin/python -m pip check
+
       - name: Run guardrail, guard, datastore, and adapter-parity tests
         run: node --test
 
@@ -35,3 +55,29 @@ jobs:
         # Fails if any .claude / .cursor / .agents (Codex) file is stale vs its .github/
         # source. Fix locally with: node tools/agents/build-agent-defs.mjs
         run: node tools/agents/build-agent-defs.mjs --check
+
+  langgraph:
+    name: LangGraph execution + Node parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install LangGraph and test dependencies
+        # The requirements include the editable integration and pinned pytest;
+        # install from the repository root so its relative path resolves.
+        run: |
+          python -m pip install -r integrations/langgraph/requirements.txt
+          python -m pip check
+
+      - name: Run LangGraph execution and cross-runtime parity tests
+        working-directory: integrations/langgraph
+        run: python -m pytest -q

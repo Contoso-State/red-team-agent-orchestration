@@ -61,13 +61,91 @@ def _scope_mode(state: dict[str, Any]) -> str:
 
 def _roster_in_scope(roster: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[str, Any]]:
     scope = state.get("scope") or {}
+    selected_domains = scope.get("domains") if isinstance(scope.get("domains"), list) else []
+    selected_types = scope.get("resource_types") if isinstance(scope.get("resource_types"), list) else []
+    flags = scope.get("flags") if isinstance(scope.get("flags"), list) else []
+
+    def type_matches(selected: Any, supported: Any) -> bool:
+        if not isinstance(selected, str) or not isinstance(supported, str):
+            return False
+        candidate, pattern = selected.lower(), supported.lower()
+        if candidate.endswith("/*") and pattern.startswith(candidate[:-1]):
+            return True
+        if pattern.endswith("/*") and candidate.startswith(pattern[:-1]):
+            return True
+        return candidate == pattern
+
     filtered: list[dict[str, Any]] = []
     for item in roster:
         predicate = item.get("when")
-        if predicate == "m365_in_scope" and not scope.get("m365_in_scope"):
+        if predicate and scope.get(predicate) is not True and predicate not in flags:
+            continue
+        domains, types = item.get("scope_domains"), item.get("resource_types")
+        if selected_domains and isinstance(domains, list) and not any(domain in selected_domains for domain in domains):
+            continue
+        if selected_types and (not isinstance(types, list) or not types):
+            continue
+        if selected_types and not any(type_matches(selected, supported) for selected in selected_types for supported in types):
             continue
         filtered.append(dict(item))
     return filtered
+
+
+def build_security_context(state: dict[str, Any]) -> dict[str, Any]:
+    """Summarize references without claiming that an inventory path is verified evidence."""
+    scope = state.get("scope") or {}
+    reference = state.get("inventory_ref")
+    inventory_ref = reference if isinstance(reference, str) and reference.strip() else None
+    signals = {
+        name: {"status": "unavailable", "evidence_refs": []}
+        for name in (
+            "defender_endpoint", "entra_identity", "sentinel", "defender_cloud", "arm",
+            "behavior_analytics", "exposure_management", "threat_intelligence",
+        )
+    }
+    if inventory_ref:
+        signals["arm"] = {"status": "unverified", "evidence_refs": [inventory_ref]}
+    return {
+        "version": "security-context/v1",
+        "status": "summary-only",
+        "scope": {
+            "mode": scope.get("mode") or "read-only-assessment",
+            "domains": scope.get("domains") or [],
+            "resource_types": scope.get("resource_types") or [],
+        },
+        "inventory": {"ref": inventory_ref, "status": "referenced" if inventory_ref else "missing"},
+        "signals": signals,
+        "handoff": {
+            "instructions": [
+                "Treat unavailable and unverified signals as coverage gaps, not clean results.",
+                "Use evidence_refs to retrieve source summaries.",
+                "Verify source provenance and collection success before treating a reference as evidence.",
+                "Never infer a signal that is not present.",
+            ],
+        },
+    }
+
+
+def _assert_active_requirements(spec: GraphSpec, scope: dict[str, Any], mode: str) -> None:
+    prefix = "external_testing" if mode == "external-active-testing" else "cluster_testing"
+    enabled_path = f"{prefix}.enabled"
+    attestation_path = f"{prefix}.authorization.attestation_id"
+    node = next((node for node in spec.nodes if node.get("gated", {}).get("mode") == mode), {})
+    requirements = node.get("gated", {}).get("requires")
+    if not isinstance(requirements, list) or enabled_path not in requirements or attestation_path not in requirements:
+        raise ValueError(f"{mode} requires an explicit enabled and attestation gate")
+    missing = []
+    for path in requirements:
+        value: Any = scope
+        for key in str(path).split("."):
+            value = value.get(key) if isinstance(value, dict) else None
+        if path == enabled_path and value is True:
+            continue
+        if path == attestation_path and isinstance(value, str) and value.strip():
+            continue
+        missing.append(str(path))
+    if missing:
+        raise ValueError(f"{mode} requires {', '.join(missing)}")
 
 
 def _dispatch_stub(node: dict[str, Any]) -> Callable[[dict[str, Any]], dict[str, Any]]:
@@ -134,6 +212,9 @@ def _node_callable(node: dict[str, Any], spec: GraphSpec, memory: MethodologyMem
     if kind == "memory_read":
         return lambda state: {"memory": memory.read(str(node.get("namespace") or "methodology"))}
 
+    if kind == "context":
+        return lambda state: {str(node.get("writes")): build_security_context(state)}
+
     if kind == "dispatch":
         return _dispatch_stub(node)
 
@@ -168,10 +249,11 @@ def _node_callable(node: dict[str, Any], spec: GraphSpec, memory: MethodologyMem
             mode = _scope_mode(state)
             if mode not in {"external-active-testing", "cluster-active-testing"}:
                 return {"approved": False}
+            _assert_active_requirements(spec, state.get("scope") or {}, mode)
             if state.get("approved") is not None:
-                return {"approved": state.get("approved")}
+                return {"approved": state.get("approved") is True}
             answer = interrupt({"prompt": node.get("prompt"), "mode": mode})
-            approved = bool(answer.get("approved") if isinstance(answer, dict) else answer)
+            approved = (answer.get("approved") if isinstance(answer, dict) else answer) is True
             return {"approved": approved}
         return authorize
 
@@ -209,10 +291,12 @@ def build_graph(graph_path: str | Path | None = None) -> Any:
         target = END if edge["to"] == "END" else str(edge["to"])
         workflow.add_edge(source, target)
 
-    def fanout_roster(state: dict[str, Any]) -> list[Any]:
+    def fanout_roster(state: dict[str, Any]) -> list[Any] | str:
         roster = _roster_in_scope([dict(item) for item in spec.roster], state)
         source = node_by_id["plan_specialists"]
         target = str(source.get("into", "run_specialist"))
+        if not roster:
+            return next(str(edge["to"]) for edge in spec.edges if edge["from"] == target)
         sends = []
         for item in roster:
             sends.append(
@@ -222,6 +306,7 @@ def build_graph(graph_path: str | Path | None = None) -> Any:
                         "scope": state.get("scope"),
                         "memory": state.get("memory"),
                         "inventory_ref": state.get("inventory_ref"),
+                        "security_context": state.get("security_context"),
                         "revision": state.get("revision"),
                         "_roster_item": item,
                     },
@@ -238,7 +323,7 @@ def build_graph(graph_path: str | Path | None = None) -> Any:
         return "proceed"
 
     def route_active(state: dict[str, Any]) -> str:
-        if not state.get("approved"):
+        if state.get("approved") is not True:
             return "none"
         mode = _scope_mode(state)
         if mode == "external-active-testing":
@@ -251,7 +336,9 @@ def build_graph(graph_path: str | Path | None = None) -> Any:
 
     for node in spec.nodes:
         if node.get("kind") == "fanout":
-            workflow.add_conditional_edges(str(node["id"]), fanout_roster, [str(node.get("into", "run_specialist"))])
+            target = str(node.get("into", "run_specialist"))
+            after_fanout = next(str(edge["to"]) for edge in spec.edges if edge["from"] == target)
+            workflow.add_conditional_edges(str(node["id"]), fanout_roster, [target, after_fanout])
 
     for conditional in spec.conditional_edges:
         workflow.add_conditional_edges(

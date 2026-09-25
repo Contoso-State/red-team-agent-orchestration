@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   ROOT,
   loadGraph,
@@ -12,10 +13,22 @@ import {
   defaultRouters,
   makeMemoryStore,
   inScopeRoster,
+  buildSecurityContext,
 } from './run-graph.mjs';
 import { makeAuditLog, makeProceduralStore, makeSelfImprovementHandlers } from './self-improve.mjs';
 
 const graph = loadGraph(join(ROOT, 'graph', 'redteam.graph.json')).graph;
+
+test('CLI identifies simulated completion and fails on an unreadable requested scope', () => {
+  const runner = join(ROOT, 'tools/graph/run-graph.mjs');
+  const simulation = spawnSync(process.execPath, [runner], { encoding: 'utf8' });
+  assert.equal(simulation.status, 0, simulation.stderr);
+  assert.match(simulation.stdout, /DRY RUN.*no Azure assessment/);
+  const missing = spawnSync(process.execPath, [runner, '--engagement', join(ROOT, 'does-not-exist', 'engagement.yaml')], { encoding: 'utf8' });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /Cannot read requested engagement file/);
+  assert.doesNotMatch(missing.stdout, /completed/);
+});
 
 // A dispatch handler for the fan-out specialists: each emits one finding keyed by domain.
 const specialistDispatch = () => ({
@@ -40,6 +53,7 @@ test('initialState seeds channels by shape', () => {
   const s = initialState(graph);
   assert.deepEqual(s.raw_findings, []); // append
   assert.deepEqual(s.candidate_findings, []); // merge_findings
+  assert.equal(s.security_context, null); // object/last
   assert.equal(s.revision, 0); // number
   assert.equal(s.scope, null); // object/last
 });
@@ -75,6 +89,102 @@ test('read-only engagement runs the full path without pausing', () => {
   assert.ok(!res.path.includes('eva_active'));
   assert.ok(!res.path.includes('cluster_active'));
   assert.ok(res.path.includes('correlate') && res.path.includes('report'));
+  assert.ok(res.path.includes('build_security_context'));
+});
+
+test('security context is available to every specialist without fabricating signals', () => {
+  const seen = [];
+  const res = runGraph(graph, {
+    scope: { mode: 'read-only-assessment', m365_in_scope: false },
+    handlers: {
+      preflight_inventory: () => ({ writes: { inventory_ref: 'engagements/test/inventory/resources.jsonl' } }),
+      build_security_context: (_node, ctx) => ({
+        writes: {
+          security_context: {
+            version: 'security-context/v1',
+            signals: { arm: { status: 'available', evidence_refs: [ctx.state.inventory_ref] } },
+          },
+        },
+      }),
+      run_specialist: (_node, ctx) => {
+        seen.push(ctx.state.security_context);
+        return {};
+      },
+    },
+  });
+  assert.equal(res.status, 'completed');
+  assert.equal(seen.length, 11);
+  assert.ok(seen.every((context) => context?.version === 'security-context/v1'));
+  assert.equal(seen[0].signals.arm.status, 'available');
+});
+
+test('default security context distinguishes an inventory reference from verified evidence', () => {
+  const inventoryRef = '/nonexistent/inventory/resources.jsonl';
+  const context = buildSecurityContext({
+    scope: { mode: 'read-only-assessment', domains: ['data-protection'] },
+    inventory_ref: inventoryRef,
+  });
+  assert.equal(context.version, 'security-context/v1');
+  assert.equal(context.status, 'summary-only');
+  assert.equal(context.inventory.ref, inventoryRef);
+  assert.equal(context.inventory.status, 'referenced');
+  assert.deepEqual(Object.keys(context.signals).sort(), [
+    'arm', 'behavior_analytics', 'defender_cloud', 'defender_endpoint',
+    'entra_identity', 'exposure_management', 'sentinel', 'threat_intelligence',
+  ]);
+  assert.deepEqual(context.signals.arm, { status: 'unverified', evidence_refs: [inventoryRef] });
+  for (const [family, signal] of Object.entries(context.signals)) {
+    if (family === 'arm') continue;
+    assert.deepEqual(signal, { status: 'unavailable', evidence_refs: [] }, family);
+  }
+});
+
+test('missing and malformed inventory references never imply available ARM evidence', () => {
+  for (const inventory_ref of [undefined, null, '', '   ', {}, [], 42]) {
+    const context = buildSecurityContext({ inventory_ref });
+    assert.equal(context.inventory.ref, null);
+    assert.equal(context.inventory.status, 'missing');
+    assert.deepEqual(context.signals.arm, { status: 'unavailable', evidence_refs: [] });
+  }
+});
+
+test('async security context resolves before specialist dispatch and checkpoint persistence', async () => {
+  const context = { version: 'custom-context/v1', signals: { arm: { status: 'unverified', evidence_refs: ['inventory.jsonl'] } } };
+  const seen = [];
+  const checkpoints = [];
+  let resolved = false;
+  const result = await runGraphAsync(graph, {
+    scope: { mode: 'read-only-assessment', domains: ['data-protection'] },
+    securityContextFn: async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+      resolved = true;
+      return context;
+    },
+    onCheckpoint: (checkpoint) => checkpoints.push(checkpoint),
+    handlers: {
+      run_specialist: (_node, ctx) => {
+        assert.equal(resolved, true, 'context must resolve before specialists begin');
+        seen.push(ctx.state.security_context);
+        return {};
+      },
+    },
+  });
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(seen, [context]);
+  assert.deepEqual(result.state.security_context, context);
+  const persisted = checkpoints.find((checkpoint) => checkpoint.node === 'build_security_context');
+  assert.ok(persisted, 'the security context node must produce a checkpoint');
+  assert.deepEqual(persisted.state.security_context, context);
+});
+
+test('synchronous graph rejects async security context callbacks with an actionable error', () => {
+  assert.throws(
+    () => runGraph(graph, {
+      scope: { mode: 'read-only-assessment' },
+      securityContextFn: async () => ({ version: 'custom-context/v1' }),
+    }),
+    /runGraphAsync/,
+  );
 });
 
 test('fan-out Send runs every in-scope specialist and the reduce dedupes into candidates', () => {
@@ -248,21 +358,6 @@ test('async fan-out records a failed specialist and preserves other results', as
     },
   });
 
-  test('async runner bounds sequential dispatch nodes', async () => {
-    await assert.rejects(
-      runGraphAsync(graph, {
-        scope: { mode: 'read-only-assessment', m365_in_scope: false },
-        params: { dispatch_timeout_seconds: 0.01 },
-        handlers: {
-          preflight_inventory: async () => {
-            await new Promise((resolve) => setTimeout(resolve, 50));
-            return {};
-          },
-        },
-      }),
-      /preflight_inventory.*deadline exceeded/,
-    );
-  });
   assert.equal(res.state.raw_findings.length, 10);
   assert.deepEqual(res.state.coverage_gaps, [{
     domain: 'network',
@@ -274,6 +369,23 @@ test('async fan-out records a failed specialist and preserves other results', as
     reason: 'specialist failed: query failed',
   }]);
 });
+
+test('async runner bounds sequential dispatch nodes', async () => {
+  await assert.rejects(
+    runGraphAsync(graph, {
+      scope: { mode: 'read-only-assessment', m365_in_scope: false },
+      params: { dispatch_timeout_seconds: 0.01 },
+      handlers: {
+        preflight_inventory: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return {};
+        },
+      },
+    }),
+    /preflight_inventory.*deadline exceeded/,
+  );
+});
+
 test('the `when` predicate includes the email specialist only when M365 is in scope', () => {
   assert.equal(inScopeRoster(graph, { scope: { m365_in_scope: false } }).length, 11);
   assert.equal(inScopeRoster(graph, { scope: { m365_in_scope: true } }).length, 12);
@@ -282,6 +394,43 @@ test('the `when` predicate includes the email specialist only when M365 is in sc
     ...specialistDispatch(),
   });
   assert.equal(res.state.raw_findings.length, 12);
+});
+
+test('specialist fan-out honors selected assessment domains', () => {
+  const scoped = inScopeRoster(graph, {
+    scope: { domains: ['identity-posture', 'data-protection'], m365_in_scope: false },
+  });
+  assert.deepEqual(scoped.map((item) => item.domain), ['identity', 'data']);
+});
+
+test('specialist fan-out honors selected ARM resource types', () => {
+  const scoped = inScopeRoster(graph, {
+    scope: { resource_types: ['Microsoft.Compute/virtualMachines'], m365_in_scope: true },
+  });
+  assert.deepEqual(scoped.map((item) => item.domain), ['compute']);
+});
+
+test('ARM scope matching intersects exact types and provider wildcards in either direction', () => {
+  for (const resourceType of [
+    'Microsoft.Network/applicationGateways',
+    'Microsoft.Network/*',
+    'MICROSOFT.NETWORK/*',
+  ]) {
+    const scoped = inScopeRoster(graph, { scope: { resource_types: [resourceType] } });
+    assert.deepEqual(scoped.map((item) => item.domain), ['network', 'web', 'easm'], resourceType);
+  }
+  const dataOnly = inScopeRoster(graph, {
+    scope: { domains: ['data-protection'], resource_types: ['Microsoft.Storage/*'] },
+  });
+  assert.deepEqual(dataOnly.map((item) => item.domain), ['data']);
+  const disjoint = inScopeRoster(graph, {
+    scope: { domains: ['data-protection'], resource_types: ['Microsoft.Network/*'] },
+  });
+  assert.deepEqual(disjoint, []);
+  const adjacentProvider = inScopeRoster(graph, {
+    scope: { resource_types: ['Microsoft.Networking/*'] },
+  });
+  assert.deepEqual(adjacentProvider, [], 'provider names must not match on a partial prefix');
 });
 
 test('duplicate findings from different specialists merge in candidate_findings', () => {
@@ -327,7 +476,12 @@ test('route_after_evaluate proceeds once quality clears the threshold', () => {
 // --- human-in-the-loop authorization interrupt ---
 
 test('external-active engagement pauses at the authorization interrupt', () => {
-  const res = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const res = runGraph(graph, {
+    scope: {
+      mode: 'external-active-testing',
+      external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+    },
+  });
   assert.equal(res.status, 'interrupted');
   assert.equal(res.node, 'authorize_active');
   assert.match(res.prompt, /authoriz/i);
@@ -335,7 +489,11 @@ test('external-active engagement pauses at the authorization interrupt', () => {
 });
 
 test('resuming the interrupt with approval runs the external active lane', () => {
-  const paused = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const scope = {
+    mode: 'external-active-testing',
+    external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+  };
+  const paused = runGraph(graph, { scope });
   const resumed = runGraph(graph, {
     initialState: paused.state,
     startAt: 'authorize_active',
@@ -348,7 +506,12 @@ test('resuming the interrupt with approval runs the external active lane', () =>
 });
 
 test('resuming the interrupt with rejection skips the active lane', () => {
-  const paused = runGraph(graph, { scope: { mode: 'external-active-testing' } });
+  const paused = runGraph(graph, {
+    scope: {
+      mode: 'external-active-testing',
+      external_testing: { enabled: true, authorization: { attestation_id: 'ROE-1' } },
+    },
+  });
   const resumed = runGraph(graph, {
     initialState: paused.state,
     startAt: 'authorize_active',
@@ -361,12 +524,91 @@ test('resuming the interrupt with rejection skips the active lane', () => {
 });
 
 test('cluster-active engagement pauses then runs the cluster lane on approval', () => {
-  const paused = runGraph(graph, { scope: { mode: 'cluster-active-testing' } });
+  const scope = {
+    mode: 'cluster-active-testing',
+    cluster_testing: { enabled: true, authorization: { attestation_id: 'ROE-2' } },
+  };
+  const paused = runGraph(graph, { scope });
   assert.equal(paused.status, 'interrupted');
   const resumed = runGraph(graph, { initialState: paused.state, startAt: 'authorize_active', decision: true });
   assert.ok(resumed.path.includes('cluster_active'));
   assert.ok(!resumed.path.includes('eva_active'));
 });
+
+test('active mode fails closed when its enabled attestation block is missing', () => {
+  assert.throws(
+    () => runGraph(graph, { scope: { mode: 'external-active-testing' } }),
+    /external-active-testing requires external_testing.enabled, external_testing.authorization.attestation_id/,
+  );
+});
+
+for (const [mode, scopeKey, activeNode] of [
+  ['external-active-testing', 'external_testing', 'eva_active'],
+  ['cluster-active-testing', 'cluster_testing', 'cluster_active'],
+]) {
+  for (const [runnerName, runner] of [['sync', runGraph], ['async', runGraphAsync]]) {
+    test(`${runnerName} ${mode} requires a boolean enabled flag and nonempty attestation`, async () => {
+      const invalidBlocks = [
+        undefined,
+        { enabled: 'false', authorization: { attestation_id: 'ROE-1' } },
+        { enabled: 'true', authorization: { attestation_id: 'ROE-1' } },
+        { enabled: 1, authorization: { attestation_id: 'ROE-1' } },
+        { enabled: true, authorization: { attestation_id: {} } },
+        { enabled: true, authorization: { attestation_id: [] } },
+        { enabled: true, authorization: { attestation_id: '' } },
+        { enabled: true, authorization: { attestation_id: '   ' } },
+      ];
+      for (const block of invalidBlocks) {
+        const dispatched = [];
+        await assert.rejects(
+          async () => runner(graph, {
+            scope: { mode, [scopeKey]: block },
+            decision: true,
+            handlers: { [activeNode]: () => { dispatched.push(activeNode); return {}; } },
+          }),
+          /requires/,
+          JSON.stringify(block),
+        );
+        assert.deepEqual(dispatched, [], 'invalid authorization must never dispatch an active node');
+      }
+    });
+
+    test(`${runnerName} ${mode} accepts only an actual boolean approval`, async () => {
+      const scope = { mode, [scopeKey]: { enabled: true, authorization: { attestation_id: 'ROE-1' } } };
+      const approved = await runner(graph, { scope, decision: true });
+      assert.equal(approved.state.approved, true);
+      assert.ok(approved.path.includes(activeNode));
+      for (const decision of ['false', 'true', 1, {}]) {
+        const rejected = await runner(graph, { scope, decision });
+        assert.equal(rejected.state.approved, false);
+        assert.equal(rejected.path.includes(activeNode), false);
+        const restored = await runner(graph, {
+          initialState: { ...initialState(graph), scope, approved: decision },
+          startAt: 'authorize_active',
+        });
+        assert.equal(restored.state.approved, false);
+        assert.equal(restored.path.includes(activeNode), false);
+      }
+    });
+
+    test(`${runnerName} ${mode} fails closed when its gate contract is incomplete or unknown`, async () => {
+      const scope = { mode, [scopeKey]: { enabled: true, authorization: { attestation_id: 'ROE-1' } } };
+      for (const requirements of [
+        undefined,
+        [],
+        [`${scopeKey}.enabled`],
+        [`${scopeKey}.enabled`, `${scopeKey}.authorization.attestation_id`, 'unsupported.requirement'],
+      ]) {
+        const alteredGraph = structuredClone(graph);
+        alteredGraph.nodes.find((node) => node.id === activeNode).gated.requires = requirements;
+        await assert.rejects(
+          async () => runner(alteredGraph, { scope, decision: true }),
+          /requires/,
+        );
+      }
+    });
+  }
+}
 
 // --- checkpointing ---
 

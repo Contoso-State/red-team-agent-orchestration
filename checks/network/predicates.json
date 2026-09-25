@@ -110,11 +110,11 @@
       "query": {
         "method": "resource-graph",
         "ref": "tools/az-cli/network.md#CHK-NET-SUBNET-NO-NSG",
-        "kql": "Resources | where type == 'microsoft.network/virtualnetworks' | mv-expand subnet = properties.subnets | extend sp = subnet.properties | where isnull(sp.networkSecurityGroup) | project id = subnet.id, name = subnet.name, vnetName = name, resourceGroup, subscriptionId, location, nsgId = tostring(sp.networkSecurityGroup.id)"
+        "kql": "Resources | where type == 'microsoft.network/virtualnetworks' | mv-expand subnet = properties.subnets | extend sp = subnet.properties | where isnull(sp.networkSecurityGroup) | project id = tostring(subnet.id), name = tostring(subnet.name), vnetName = name, resourceGroup, subscriptionId, location, nsgId = tostring(sp.networkSecurityGroup.id)"
       },
       "evaluate": {
         "all": [
-          { "field": "nsgId", "op": "missing" },
+          { "any": [{ "field": "nsgId", "op": "missing" }, { "field": "nsgId", "op": "eq", "value": "" }] },
           { "field": "name", "op": "nin", "value": ["GatewaySubnet", "AzureBastionSubnet", "AzureFirewallSubnet", "AzureFirewallManagementSubnet", "RouteServerSubnet"] }
         ]
       },

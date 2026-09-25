@@ -35,7 +35,22 @@ Direct methodology-memory library calls must wire Observatory emission explicitl
 
 JSONL rows use `schema_version: 1`, `id` (nonnegative integer or safe identifier), ISO `ts`, and a supported `type`. Optional metadata fields are `session_id`, `run_id`, `agent_id`, `node_id`, `status`, `mode` (`live`, `dry-run`, `replay`), `from_agent`, `to_agent`, `task_id`, `metrics`, and session-relative `evidence_refs`.
 
-Supported event families: `run.started/completed/failed`, `node.started/completed/failed`, `agent.started/completed/failed`, `tool.allowed/cached/completed/failed`, `message.sent`, `task.dispatched`, `memory.retrieved/verified/candidate/promoted/measured`, `evaluation.completed`, and `evolution.proposed/evaluated/accepted/rejected`. Handoffs require explicit sender and recipient metadata. Unknown event types are omitted and counted, not inferred from raw logs.
+Supported event families: `run.started/completed/failed`, `node.started/completed/failed`, `agent.started/completed/failed`, `tool.allowed/cached/completed/failed`, `message.sent`, `model.usage`, `task.dispatched`, `memory.retrieved/verified/candidate/promoted/measured`, `evaluation.completed`, and `evolution.proposed/evaluated/accepted/rejected`. Handoffs require explicit sender and recipient metadata. Unknown event types are omitted and counted, not inferred from raw logs.
+
+Native model exchanges emit terminal `model.usage` metadata using the same run,
+exchange, agent, and task identities as their request/response records. The fixed
+contract retains reported input/output/cache token counts, estimated USD cost,
+and bounded model identifiers; missing fields are `null`, never invented zeroes.
+Failed calls retain usage when the runtime supplied it. Raw provider envelopes,
+prompts, responses, and credentials are excluded.
+
+The Usage panel follows the selected run and agent. Each field shows its own
+coverage denominator. Identical duplicate records count once; conflicting
+exchange records and unattributed events are excluded with a visible warning.
+An emitted all-null record remains visible but does not count as usable coverage.
+These totals describe retained events, including failed calls, not a complete
+session ledger or authoritative bill. The timeline exposes each record's
+provenance. The viewer does not backfill metadata absent from older runs.
 
 The evaluation panel shows each recorded model judgment and the canonical graph's
 `refine` or `proceed` decision. Each round retains its rubric, exact supplied
